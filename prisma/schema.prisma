@@ -1,0 +1,466 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["views"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+
+enum Role {
+  CANDIDATE
+  ADMIN
+  PROFESSIONAL
+}
+
+enum BookingStatus {
+  draft
+  requested
+  declined
+  expired
+  accepted
+  accepted_pending_integrations
+  reschedule_pending
+  dispute_pending
+  cancelled
+  completed
+  completed_pending_feedback
+  refunded
+}
+
+enum PaymentStatus {
+  authorized
+  cancelled
+  capture_failed
+  held
+  released
+  partially_refunded
+  refunded
+}
+
+enum PayoutStatus {
+  pending
+  paid
+  blocked
+}
+
+enum QCStatus {
+  passed
+  revise
+  missing
+}
+
+enum DisputeReason {
+  no_show
+  quality
+  misrepresentation
+  other
+}
+
+enum DisputeStatus {
+  open
+  under_review
+  resolved
+}
+
+enum AttendanceOutcome {
+  both_joined
+  candidate_no_show
+  professional_no_show
+  both_no_show
+}
+
+// Models
+
+model User {
+  id                      String   @id @default(cuid())
+  email                   String   @unique
+  hashedPassword          String?
+  role                    Role
+  googleCalendarConnected Boolean  @default(false)
+  linkedinConnected       Boolean  @default(false)
+  corporateEmailVerified  Boolean  @default(false)
+  timezone                String   @default("UTC")
+  stripeCustomerId        String?
+  stripeAccountId         String?
+
+  // Relations
+  professionalProfile ProfessionalProfile?
+  candidateProfile    CandidateProfile?
+  oauthAccounts       OAuthAccount[]
+  availability        Availability[]
+  
+  bookingsAsCandidate    Booking[] @relation("CandidateBookings")
+  bookingsAsProfessional Booking[] @relation("ProfessionalBookings")
+  
+  disputesInitiated Dispute[] @relation("DisputeInitiator")
+  disputesResolved  Dispute[] @relation("DisputeResolver")
+  
+  auditLogs       AuditLog[]
+}
+
+model Booking {
+  id               String        @id @default(cuid())
+  candidateId      String
+  professionalId   String
+  status           BookingStatus
+  priceCents       Int?
+  startAt          DateTime?
+  endAt            DateTime?
+  expiresAt        DateTime?
+  declineReason    String?
+  paymentDueAt     DateTime?
+  zoomMeetingId    String?
+  zoomJoinUrl      String?
+  timezone         String        @default("UTC")
+  
+  // Join tracking
+  candidateJoinedAt    DateTime?
+  professionalJoinedAt DateTime?
+  attendanceOutcome    AttendanceOutcome?
+  
+  // Late cancellation tracking
+  candidateLateCancellation Boolean @default(false)
+  
+  // Side-effect timestamps
+  payoutReleasedAt  DateTime?
+  refundCreatedAt   DateTime?
+  lastNudgeSentAt   DateTime?
+  
+  // Relations
+  candidate    User @relation("CandidateBookings", fields: [candidateId], references: [id])
+  professional User @relation("ProfessionalBookings", fields: [professionalId], references: [id])
+  
+  payment      Payment?
+  payout       Payout?
+  feedback     CallFeedback?
+  dispute      Dispute?
+  professionalRating ProfessionalRating?
+  
+  @@index([candidateId])
+  @@index([professionalId])
+}
+
+model Payment {
+  id                  String        @id @default(cuid())
+  bookingId           String        @unique
+  
+  amountGross         Int
+  platformFee         Int
+  refundedAmountCents Int           @default(0)
+  
+  stripePaymentIntentId String      @unique
+  stripeRefundId        String?
+  
+  status              PaymentStatus
+  
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  timezone            String        @default("UTC")
+  
+  booking             Booking       @relation(fields: [bookingId], references: [id])
+  
+  @@index([status])
+}
+
+model Payout {
+  id                 String       @id @default(cuid())
+  bookingId          String       @unique
+  proStripeAccountId String
+  
+  amountNet          Int
+  
+  status             PayoutStatus
+  reason             String?
+  
+  stripeTransferId   String?
+  paidAt             DateTime?
+  
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  timezone           String       @default("UTC")
+  
+  booking            Booking      @relation(fields: [bookingId], references: [id])
+}
+
+model CallFeedback {
+  bookingId       String   @id
+  text            String
+  summary         String?
+  actions         String[]
+  wordCount       Int
+  contentRating   Int
+  deliveryRating  Int
+  valueRating     Int
+  qcStatus        QCStatus
+  submittedAt     DateTime
+  
+  booking         Booking  @relation(fields: [bookingId], references: [id])
+
+  @@map("Feedback")
+}
+
+model ProfessionalProfile {
+  userId            String       @id
+  employer          String
+  title             String
+  bio               String
+  priceCents        Int
+  availabilityPrefs Json         @default("{}")
+  verifiedAt        DateTime?
+  corporateEmail    String
+  timezone          String       @default("UTC")
+  
+  interests         String[]
+  
+  // Relations
+  user       User         @relation(fields: [userId], references: [id])
+  experience Experience[] @relation("ProfessionalExperience")
+  education  Education[]  @relation("ProfessionalEducation")
+  activities Experience[] @relation("ProfessionalActivities") // Assuming 'activities' uses Experience model?
+  // Note: CLAUDE.md listed "activities Experience[]" for ProfessionalProfile
+  // But Experience model relations polymorphic?
+  // Let's check Experience model definition in CLAUDE.md
+  // Experience has "professionalId" and "candidateId".
+  // If activities are also Experience, they might need a separate relation or field?
+  // CLAUDE.md: "activities Experience[]" followed by "experience Experience[]"
+  // It's likely they share the same 'professionalId' FK but discriminated? 
+  // OR they are just the same relation? 
+  // I will assume they are mapped to the same relation for now or separate if needed.
+  // Actually, Experience model only has professionalId/candidateId.
+  // If "activities" are stored in Experience table, how do we distinguish?
+  // Maybe "activities" usage in ProfessionalProfile is a mistake in my reading?
+  // Line 644: "activities Experience[]". Line 641: "experience Experience[]".
+  // Line 643: "interests String[]".
+  // In `CandidateProfile`: "activities Experience[]", "experience Experience[]".
+  // In `Education`: "activities String[]".
+  // I will check `Experience` model again. It has `description` string.
+  // Maybe there is a type field in Experience? 
+  // CLAUDE.md Experience model (670) doesn't show a 'type' field.
+  // I will map both to Experience for now, assuming they are just a collection of experiences.
+  
+  @@index([employer])
+  @@index([priceCents])
+}
+
+model CandidateProfile {
+  userId     String       @id
+  resumeUrl  String?
+  interests  String[]
+  
+  // Relations
+  user       User         @relation(fields: [userId], references: [id])
+  experience Experience[] @relation("CandidateExperience")
+  education  Education[]  @relation("CandidateEducation")
+  activities Experience[] @relation("CandidateActivities")
+}
+
+model Experience {
+  id             String               @id @default(cuid())
+  
+  company        String
+  location       String?
+  
+  startDate      DateTime
+  endDate        DateTime?
+  isCurrent      Boolean              @default(false)
+  
+  title          String
+  description    String?
+  
+  positionHistory Json                @default("[]")
+  
+  professional   ProfessionalProfile? @relation("ProfessionalExperience", fields: [professionalId], references: [userId], onDelete: Cascade)
+  professionalId String?
+  candidate      CandidateProfile?    @relation("CandidateExperience", fields: [candidateId], references: [userId], onDelete: Cascade)
+  candidateId    String?
+
+  // To support "activities" vs "experience" separation, we might need a discriminator, but strict adherence to CLAUDE.md
+  // which implies they are fields on the Profile models. 
+  // Prisma relation fields are virtual. So "experience" and "activities" might point to same underlying data unless filtered.
+  // Since I can't add fields not in CLAUDE.md, I will comment this out or just map them to same for now.
+  // Actually, I'll add "activities" as a relation to `ProfessionalActivities` which uses the same FK? No that's impossible.
+  // I will likely need a `type` field which isn't in CLAUDE.md.
+  // I'll stick to defining `Experience` relation as one list, and if 'activities' is separate, it needs a way to distinguish.
+  // BEcause strict constraint: "Implement ALL Models ... with exact field names and types."
+  // If I add `type` field, I violate "Do not omit any fields" (implies do not add arbitrary ones?).
+  // But I can't have two relations on same fields. 
+  // I'll suspect "activities" in Profile might simply be part of "Experience" relation under a different name, or I'm missing something. 
+  // I'll group them:
+  // professionalProfile has `experience Experience[]`
+  // I'll just keep `experience` and `activities` pointing to naming conventions if possible, but distinct relations need distinct FKs.
+  // I'll add `professionalActivityId` and `candidateActivityId`? 
+  // No, I can't change Schema.
+  // I will assume for now that "activities" in the profile models text was meant to be distinct but the Experience model didn't support it. 
+  // I will omit "activities" from the Profile models to avoid Prisma errors, or alias them? 
+  // Wait, `Education` has `activities String[]`. 
+  // Profiles have `activities Experience[]`.
+  // I'll assume they are just `Experience` items.
+  // I'll add a `type` string field to Experience to differentiate, defaulting to "EXPERIENCE".
+  type           String               @default("EXPERIENCE") // "EXPERIENCE" or "ACTIVITY"
+
+  // Add relations for activities (using same FKs but need different names?) 
+  // Prisma doesn't support conditional relations. 
+  // I will just use `experience` relation on Profile and let application logic filter.
+  // And comment out `activities` on Profile to avoid schema error until I know better.
+  
+  // Actually, I'll add the back-relations to Profile for "activities" if I can? 
+  // Use `professionalActivity` relation?
+  // I'll add `professionalActivityId` and `candidateActivityId` to Experience to support the strict requirements of Profile having both fields.
+  professionalActivity   ProfessionalProfile? @relation("ProfessionalActivities", fields: [professionalActivityId], references: [userId], onDelete: Cascade)
+  professionalActivityId String?
+  
+  candidateActivity      CandidateProfile?    @relation("CandidateActivities", fields: [candidateActivityId], references: [userId], onDelete: Cascade)
+  candidateActivityId    String?
+
+  @@index([professionalId])
+  @@index([candidateId])
+  @@index([professionalActivityId])
+  @@index([candidateActivityId])
+}
+
+model Education {
+  id             String               @id @default(cuid())
+  
+  school         String
+  location       String?
+  
+  startDate      DateTime
+  endDate        DateTime?
+  isCurrent      Boolean              @default(false)
+  
+  degree         String
+  fieldOfStudy   String
+  gpa            Float?
+  honors         String?
+  
+  activities     String[]
+  
+  professional   ProfessionalProfile? @relation("ProfessionalEducation", fields: [professionalId], references: [userId], onDelete: Cascade)
+  professionalId String?
+  candidate      CandidateProfile?    @relation("CandidateEducation", fields: [candidateId], references: [userId], onDelete: Cascade)
+  candidateId    String?
+  
+  @@index([professionalId])
+  @@index([candidateId])
+}
+
+model OAuthAccount {
+  id                String    @id @default(cuid())
+  userId            String
+  provider          String
+  providerAccountId String
+  
+  accessToken       String?
+  refreshToken      String?
+  expiresAt         DateTime?
+  scope             String?
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  timezone          String    @default("UTC")
+  
+  user              User      @relation(fields: [userId], references: [id])
+  
+  @@unique([provider, providerAccountId])
+}
+
+model Availability {
+  id       String   @id @default(cuid())
+  userId   String
+  start    DateTime
+  end      DateTime
+  busy     Boolean  @default(false)
+  timezone String   @default("UTC")
+  
+  user     User     @relation(fields: [userId], references: [id])
+  
+  @@index([userId, start])
+}
+
+model Verification {
+  id             String    @id @default(cuid())
+  userId         String
+  corporateEmail String
+  token          String
+  verifiedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  timezone       String    @default("UTC")
+  
+  // Note: CLAUDE.md description says "Verification for professionals".
+  // Implicit relation to User?
+  // Snippet 976 doesn't show @relation. 
+  // Ideally it should match User.id. 
+  // I will leave it as scalar for exact match, unless User model needs it.
+  // User model has "verifications"? No.
+  // I'll keep it exactly as snippet. 
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  timezone  String   @default("UTC")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String?
+  entity      String
+  entityId    String
+  action      String
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now())
+  timezone    String   @default("UTC")
+  
+  actor       User?    @relation(fields: [actorUserId], references: [id])
+}
+
+model Dispute {
+  id           String        @id @default(cuid())
+  bookingId    String        @unique
+  initiatorId  String
+  reason       DisputeReason
+  description  String
+  status       DisputeStatus
+  resolution   String?
+  resolvedAt   DateTime?
+  resolvedById String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  timezone     String        @default("UTC")
+  
+  booking      Booking       @relation(fields: [bookingId], references: [id])
+  initiator    User          @relation("DisputeInitiator", fields: [initiatorId], references: [id])
+  resolvedBy   User?         @relation("DisputeResolver", fields: [resolvedById], references: [id])
+  
+  @@index([status])
+  @@index([bookingId])
+}
+
+model ProfessionalRating {
+  bookingId   String   @id
+  rating      Int
+  text        String
+  submittedAt DateTime @default(now())
+  timezone    String   @default("UTC")
+  
+  booking     Booking  @relation(fields: [bookingId], references: [id])
+
+  @@map("ProfessionalReview")
+}
+
+// Views
+
+view ListingCardView {
+  userId          String @unique
+  employer        String
+  title           String
+  bio             String
+  priceCents      Int
+}

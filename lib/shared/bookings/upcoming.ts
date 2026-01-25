@@ -1,0 +1,91 @@
+import { prisma } from '@/lib/core/db';
+import { BookingStatus } from '@prisma/client';
+
+/**
+ * Upcoming Booking Queries
+ * 
+ * Shared utility for fetching upcoming bookings for dashboards.
+ */
+
+type UpcomingBookingsOptions = {
+    limit?: number;
+};
+
+const DEFAULT_LIMIT = 10;
+
+/**
+ * Get upcoming bookings for a user (accepted, pending states)
+ */
+export async function getUpcomingBookings(
+    userId: string,
+    role: 'CANDIDATE' | 'PROFESSIONAL',
+    options: UpcomingBookingsOptions = {}
+) {
+    const { limit = DEFAULT_LIMIT } = options;
+
+    const whereClause = role === 'CANDIDATE'
+        ? { candidateId: userId }
+        : { professionalId: userId };
+
+    const bookings = await prisma.booking.findMany({
+        where: {
+            ...whereClause,
+            status: {
+                in: [
+                    BookingStatus.accepted,
+                    BookingStatus.accepted_pending_integrations,
+                    BookingStatus.reschedule_pending,
+                    BookingStatus.completed_pending_feedback,
+                ],
+            },
+        },
+        include: {
+            candidate: {
+                include: { candidateProfile: true },
+            },
+            professional: {
+                include: { professionalProfile: true },
+            },
+            payment: true,
+        },
+        orderBy: { startAt: 'asc' },
+        take: limit,
+    });
+
+    return bookings;
+}
+
+/**
+ * Get pending requests for a user (awaiting action)
+ */
+export async function getPendingRequests(
+    userId: string,
+    role: 'CANDIDATE' | 'PROFESSIONAL',
+    options: UpcomingBookingsOptions = {}
+) {
+    const { limit = DEFAULT_LIMIT } = options;
+
+    const whereClause = role === 'CANDIDATE'
+        ? { candidateId: userId }
+        : { professionalId: userId };
+
+    const bookings = await prisma.booking.findMany({
+        where: {
+            ...whereClause,
+            status: BookingStatus.requested,
+        },
+        include: {
+            candidate: {
+                include: { candidateProfile: true },
+            },
+            professional: {
+                include: { professionalProfile: true },
+            },
+            payment: true,
+        },
+        orderBy: { expiresAt: 'asc' }, // Expires soonest first
+        take: limit,
+    });
+
+    return bookings;
+}

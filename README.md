@@ -1,36 +1,263 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Monet 3.0
 
-## Getting Started
+A full-stack marketplace platform connecting **Candidates** (job seekers) with **Professionals** (industry experts) for paid consultation calls. Built with Next.js, TypeScript, Prisma, and Stripe.
 
-First, run the development server:
+## Table of Contents
+
+- [Local Development Setup](#local-development-setup)
+- [Production Deployment](#production-deployment)
+- [NPM Scripts Reference](#npm-scripts-reference)
+- [Learn More](#learn-more)
+
+---
+
+## Local Development Setup
+
+### Prerequisites
+
+Ensure you have the following installed:
+
+- **Node.js** 20+ ([download](https://nodejs.org/))
+- **npm** (comes with Node.js)
+- **Docker** and **Docker Compose** (for local Postgres + Redis)
+- Alternatively, you can use standalone Postgres 14+ and Redis 6+ installations
+
+### Step 1: Install Dependencies
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Step 2: Configure Environment Variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cp .env.example .env
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Edit `.env` with your configuration values. At minimum, you need:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:password@localhost:5432/monet` |
+| `REDIS_URL` | Redis connection string (for BullMQ) | `redis://localhost:6379` |
+| `AUTH_SECRET` | NextAuth secret key | Generate with `openssl rand -base64 32` |
+| `STRIPE_SECRET_KEY` | Stripe secret key | `sk_test_...` |
+| `STRIPE_PUBLISHABLE_KEY` | Stripe publishable key | `pk_test_...` |
+
+See `.env.example` for the full list of available environment variables including Google OAuth, Zoom integration, AWS SES/S3, and feature flags.
+
+### Step 3: Start Docker Services (Postgres + Redis)
+
+```bash
+docker compose up -d
+```
+
+This starts:
+- **PostgreSQL 15** on port `5432` (user: `user`, password: `password`, database: `monet`)
+- **Redis 7** on port `6379`
+
+> **Note**: Skip this step if you're using external Postgres/Redis instances. Just update the connection strings in `.env`.
+
+### Step 4: Run Database Migrations
+
+```bash
+npx prisma migrate dev
+```
+
+This applies all migrations and generates the Prisma client.
+
+### Step 5: Seed the Database (Optional but Recommended)
+
+```bash
+npm run seed
+```
+
+This populates the database with test users and sample data.
+
+**Seeded Test Users:**
+
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | admin@monet.local | admin123! |
+| Candidate | cand1@monet.local | cand123! |
+| Professional | pro1@monet.local | pro123! |
+
+### Step 6: Start the Development Server
+
+⚠️ **IMPORTANT**: You must run **two processes** simultaneously for full functionality.
+
+**Terminal 1 — Next.js Dev Server:**
+```bash
+npm run dev
+```
+
+**Terminal 2 — BullMQ Queue Worker:**
+```bash
+npm run dev:queue
+```
+
+The queue worker handles background jobs including:
+- QC validation jobs
+- Email notifications
+- Nudge reminders
+- Payout processing
+- Booking expiry
+
+### Step 7: Access the Application
+
+| URL | Description |
+|-----|-------------|
+| http://localhost:3000 | Landing page |
+| http://localhost:3000/candidate/dashboard | Candidate Dashboard |
+| http://localhost:3000/professional/dashboard | Professional Dashboard |
+| http://localhost:3000/admin | Admin Portal |
+
+---
+
+## Production Deployment
+
+### Recommended Architecture
+
+| Component | Service | Notes |
+|-----------|---------|-------|
+| **Application** | Vercel | Next.js optimized hosting |
+| **Database** | Supabase | Managed PostgreSQL |
+| **Redis** | Upstash or Railway | For BullMQ job queue |
+| **File Storage** | AWS S3 | Resume uploads |
+| **Email** | AWS SES | Transactional emails |
+| **Payments** | Stripe Connect | Separate charges and transfers |
+
+### Step 1: Set Up External Services
+
+1. **Supabase Database**
+   - Create a new project at [supabase.com](https://supabase.com)
+   - Copy the connection string from Settings → Database → Connection String
+   - Use the "URI" format for `DATABASE_URL`
+
+2. **Upstash Redis**
+   - Create a Redis database at [upstash.com](https://upstash.com)
+   - Copy the Redis URL for `REDIS_URL`
+
+3. **Stripe**
+   - Set up a Stripe account with Connect enabled
+   - Use live keys (`sk_live_...`, `pk_live_...`) for production
+
+4. **AWS Services** (Optional but recommended)
+   - Create an S3 bucket for file uploads
+   - Configure SES for email sending
+   - Create IAM credentials with appropriate permissions
+
+### Step 2: Deploy to Vercel
+
+1. **Connect Repository**
+   ```bash
+   # Push to GitHub/GitLab/Bitbucket
+   git push origin main
+   ```
+
+2. **Import to Vercel**
+   - Go to [vercel.com](https://vercel.com) → New Project
+   - Import your repository
+   - Framework will be auto-detected as Next.js
+
+3. **Configure Environment Variables**
+
+   Add all required environment variables in Vercel's project settings:
+
+   ```plaintext
+   # Required
+   DATABASE_URL=postgresql://...@supabase.co:5432/postgres
+   REDIS_URL=rediss://...@upstash.io:6379
+   AUTH_SECRET=<generate-secure-secret>
+   NEXTAUTH_SECRET=<same-as-AUTH_SECRET>
+   STRIPE_SECRET_KEY=sk_live_...
+   STRIPE_PUBLISHABLE_KEY=pk_live_...
+   
+   # Integrations
+   GOOGLE_CLIENT_ID=...
+   GOOGLE_CLIENT_SECRET=...
+   ZOOM_ACCOUNT_ID=...
+   ZOOM_CLIENT_ID=...
+   ZOOM_CLIENT_SECRET=...
+   
+   # AWS
+   AWS_REGION=us-east-1
+   AWS_ACCESS_KEY_ID=...
+   AWS_SECRET_ACCESS_KEY=...
+   AWS_S3_BUCKET=your-bucket-name
+   
+   # Optional Configuration
+   PLATFORM_FEE=0.20
+   CALL_DURATION_MINUTES=30
+   DEFAULT_TIMEZONE=America/New_York
+   FEATURE_QC_LLM=true
+   ANTHROPIC_API_KEY=...
+   ```
+
+4. **Deploy**
+   - Vercel will automatically build and deploy
+   - Subsequent pushes to `main` trigger auto-deployments
+
+### Step 3: Run Production Migrations
+
+After first deployment, run migrations against your production database:
+
+```bash
+# Set production DATABASE_URL locally, then:
+npx prisma migrate deploy
+```
+
+Or use Vercel's build command to run migrations automatically by updating `package.json`:
+
+```json
+{
+  "scripts": {
+    "build": "prisma migrate deploy && next build"
+  }
+}
+```
+
+### Step 4: Set Up Background Queue Worker
+
+**Option A: Vercel Cron Jobs (Simple)**
+- Use Vercel Cron to trigger queue processing endpoints
+- Limited to scheduled intervals
+
+**Option B: Separate Worker Process (Recommended)**
+- Deploy `npm run dev:queue` as a separate service
+- Use Railway, Render, or a dedicated VPS
+- Ensure the worker has access to the same `REDIS_URL` and `DATABASE_URL`
+
+### Production Build Commands
+
+```bash
+# Build for production
+npm run build
+
+# Start production server
+npm run start
+```
+
+---
+
+## NPM Scripts Reference
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start Next.js development server (port 3000) |
+| `npm run dev:queue` | Start BullMQ background worker |
+| `npm run build` | Create production build |
+| `npm run start` | Start production server |
+| `npm run seed` | Seed database with test data |
+| `npm run test` | Run unit tests (Vitest) |
+| `npm run lint` | Run ESLint |
+
+---
 
 ## Learn More
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [CLAUDE.md](./CLAUDE.md) - Comprehensive project documentation and conventions
+- [Next.js Documentation](https://nextjs.org/docs) - Next.js features and API
+- [Prisma Documentation](https://www.prisma.io/docs) - Database ORM
+- [Stripe Connect](https://stripe.com/docs/connect) - Payment processing
+- [BullMQ](https://docs.bullmq.io/) - Background job queue
