@@ -72,15 +72,20 @@ This applies all migrations and generates the Prisma client.
 npm run seed
 ```
 
-This populates the database with test users and sample data.
+This populates the database with comprehensive test data for local development.
 
-**Seeded Test Users:**
+**Seeded Users:**
 
-| Role | Email | Password |
-|------|-------|----------|
+| Role | Emails | Password |
+|------|--------|----------|
 | Admin | admin@monet.local | admin123! |
-| Candidate | cand1@monet.local | cand123! |
-| Professional | pro1@monet.local | pro123! |
+| Candidates | cand1@monet.local through cand10@monet.local | cand123! |
+| Professionals | pro1@monet.local through pro10@monet.local | pro123! |
+
+**Additional Test Data:**
+- **Availability**: 14 days of availability slots for all professionals
+- **Bookings**: 6 bookings per professional in various states (requested, accepted, pending feedback)
+- **Edge Cases**: 10 additional bookings covering declined, expired, cancelled, disputed, refunded, and reschedule scenarios
 
 ### Step 6: Start the Development Server
 
