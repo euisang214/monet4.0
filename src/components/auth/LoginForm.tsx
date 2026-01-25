@@ -1,13 +1,31 @@
 "use client";
 
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+
+/**
+ * Returns the appropriate dashboard URL based on user role.
+ */
+function getDashboardUrl(role: string): string {
+    switch (role) {
+        case "CANDIDATE":
+            return "/candidate";
+        case "PROFESSIONAL":
+            return "/professional";
+        case "ADMIN":
+            return "/admin";
+        default:
+            return "/";
+    }
+}
 
 export function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const callbackUrl = searchParams.get("callbackUrl") || "/";
+    // If there's an explicit callbackUrl that's not the root, honor it; otherwise we'll redirect by role
+    const explicitCallbackUrl = searchParams.get("callbackUrl");
+    const hasExplicitCallback = explicitCallbackUrl && explicitCallbackUrl !== "/";
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
@@ -28,7 +46,17 @@ export function LoginForm() {
             if (result?.error) {
                 setError("Invalid email or password");
             } else {
-                router.push(callbackUrl);
+                // Fetch the session to get the user's role for redirect
+                const session = await getSession();
+                const role = session?.user?.role;
+
+                // If there's an explicit callback URL (e.g., from protected route redirect), honor it
+                // Otherwise, redirect to the role-specific dashboard
+                const redirectUrl = hasExplicitCallback
+                    ? explicitCallbackUrl
+                    : getDashboardUrl(role || "");
+
+                router.push(redirectUrl);
                 router.refresh();
             }
         } catch (err) {
@@ -38,8 +66,13 @@ export function LoginForm() {
         }
     };
 
-    const handleOAuthSignIn = (provider: "google" | "linkedin") => {
+    const handleOAuthSignIn = async (provider: "google" | "linkedin") => {
         setIsLoading(true);
+        // For OAuth, we use /api/auth/callback-redirect which will handle role-based redirect
+        // If there's an explicit callback, honor it; otherwise use the auth callback redirect
+        const callbackUrl = hasExplicitCallback
+            ? explicitCallbackUrl
+            : "/api/auth/callback-redirect";
         signIn(provider, { callbackUrl });
     };
 
