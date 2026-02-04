@@ -55,7 +55,7 @@
 - **Cancellation Policy**: 6-hour window before scheduled call
 - **QC Requirements**:
   - Minimum 200 words
-  - Exactly 3 action items
+  - 3 or more action items
   - 3 star ratings (content, delivery, value)
 - **Payout Gating**: Payments released only after QC passes
 
@@ -605,7 +605,7 @@ model CallFeedback {
   bookingId       String   @id
   text            String   // Detailed feedback (min 200 words)
   summary         String?  // Brief summary for QC LLM reference
-  actions         String[] // Exactly 3 action items
+  actions         String[] // 3 or more action items
   wordCount       Int      // Calculated word count
   contentRating   Int      // 1-5 stars (content quality)
   deliveryRating  Int      // 1-5 stars (delivery quality)
