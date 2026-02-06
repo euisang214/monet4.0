@@ -2,9 +2,22 @@ import { createBookingRequest, requestReschedule as transitionReschedule, initia
 import { CreateBookingRequestInput } from '@/lib/types/booking-schemas';
 import { Role } from '@prisma/client';
 import { ReviewsService } from '@/lib/domain/reviews/service';
+import { AvailabilityService } from '@/lib/shared/availability';
 
 export const CandidateBookings = {
     requestBooking: async (candidateId: string, data: CreateBookingRequestInput) => {
+        if (data.availabilitySlots.length > 0) {
+            await AvailabilityService.replaceUserAvailability(
+                candidateId,
+                data.availabilitySlots.map((slot) => ({
+                    start: slot.start,
+                    end: slot.end,
+                    busy: false,
+                })),
+                data.timezone || 'UTC'
+            );
+        }
+
         return createBookingRequest(candidateId, data.professionalId, data.weeks);
     },
 
@@ -20,7 +33,7 @@ export const CandidateBookings = {
         return transitionCancel(bookingId, { userId: candidateId, role: Role.CANDIDATE }, reason);
     },
 
-    submitReview: async (candidateId: string, data: any) => {
+    submitReview: async (candidateId: string, data: { bookingId: string; rating: number; text: string; timezone: string }) => {
         return ReviewsService.createReview(candidateId, data);
     }
 };

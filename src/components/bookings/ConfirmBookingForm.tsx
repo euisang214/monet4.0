@@ -3,24 +3,17 @@
 import React, { useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
 import { confirmBookingAction } from "@/app/professional/bookings/actions"; // Adjust import if needed
+import { ProfessionalWeeklySlotPicker } from "@/components/bookings/WeeklySlotCalendar";
 
 interface Slot {
-    start: Date;
-    end: Date;
+    start: string | Date;
+    end: string | Date;
 }
 
 interface ConfirmBookingFormProps {
     bookingId: string;
     slots: Slot[];
 }
-
-const slotLabelFormatter = new Intl.DateTimeFormat("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-});
 
 export function ConfirmBookingForm({ bookingId, slots }: ConfirmBookingFormProps) {
     const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
@@ -53,35 +46,14 @@ export function ConfirmBookingForm({ bookingId, slots }: ConfirmBookingFormProps
             <div>
                 <h3 className="text-lg font-medium text-gray-900">Select a Time</h3>
                 <p className="text-sm text-gray-500 mb-4">
-                    Based on the candidate&apos;s availability and your calendar.
+                    Choose one of the candidate&apos;s submitted 30-minute slots (already filtered against Google busy blocks).
                 </p>
 
-                {slots.length === 0 ? (
-                    <div className="p-4 bg-yellow-50 text-yellow-700 rounded-md">
-                        No overlapping slots found. Please request more availability from the candidate or manage your calendar.
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-2 gap-4 max-h-60 overflow-y-auto">
-                        {slots.map((slot) => {
-                            const value = slot.start.toISOString();
-                            const isSelected = selectedSlot === value;
-                            const label = slotLabelFormatter.format(slot.start);
-
-                            return (
-                                <div
-                                    key={value}
-                                    className={`
-                                        cursor-pointer p-3 border rounded-md text-sm text-center
-                                        ${isSelected ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 hover:border-blue-300'}
-                                    `}
-                                    onClick={() => setSelectedSlot(value)}
-                                >
-                                    {label}
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
+                <ProfessionalWeeklySlotPicker
+                    slots={slots}
+                    selectedSlot={selectedSlot}
+                    onSelect={(slot) => setSelectedSlot(slot)}
+                />
             </div>
 
             {error && (

@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { useRouter } from 'next/navigation';
+import { CandidateWeeklySlotPicker, SlotInterval } from '@/components/bookings/WeeklySlotCalendar';
 
 // Initialize Stripe outside component
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
@@ -11,25 +11,88 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 interface BookingRequestFormProps {
     professionalId: string;
     priceCents: number;
-    candidateId: string;
 }
 
-export function BookingRequestForm({ professionalId, priceCents, candidateId }: BookingRequestFormProps) {
-    const [weeks, setWeeks] = useState(1);
+interface BusySlotResponse {
+    start?: string;
+    end?: string;
+}
+
+export function BookingRequestForm({ professionalId, priceCents }: BookingRequestFormProps) {
     const [clientSecret, setClientSecret] = useState<string | null>(null);
     const [bookingId, setBookingId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [googleBusyIntervals, setGoogleBusyIntervals] = useState<SlotInterval[]>([]);
+    const [availabilitySlots, setAvailabilitySlots] = useState<SlotInterval[]>([]);
+    const [selectedSlotCount, setSelectedSlotCount] = useState(0);
+    const [isLoadingBusy, setIsLoadingBusy] = useState(true);
+    const [busyLoadError, setBusyLoadError] = useState<string | null>(null);
+    const [lastBusyRefreshAt, setLastBusyRefreshAt] = useState<Date | null>(null);
+
+    const handleSlotSelectionChange = useCallback(
+        ({ availabilitySlots: slots, selectedCount }: { availabilitySlots: SlotInterval[]; selectedCount: number }) => {
+            setAvailabilitySlots(slots);
+            setSelectedSlotCount(selectedCount);
+        },
+        []
+    );
+
+    const loadGoogleBusy = useCallback(async () => {
+        setIsLoadingBusy(true);
+        setBusyLoadError(null);
+        try {
+            const response = await fetch('/api/candidate/busy');
+            if (!response.ok) {
+                throw new Error('Unable to load Google Calendar busy times.');
+            }
+
+            const data = await response.json();
+            const intervals = Array.isArray(data?.data)
+                ? (data.data as BusySlotResponse[])
+                    .filter((slot) => slot?.start && slot?.end)
+                    .map((slot) => ({
+                        start: new Date(slot.start as string).toISOString(),
+                        end: new Date(slot.end as string).toISOString(),
+                    }))
+                : [];
+
+            setGoogleBusyIntervals(intervals);
+            setLastBusyRefreshAt(new Date());
+        } catch (loadError: unknown) {
+            if (loadError instanceof Error) {
+                setBusyLoadError(loadError.message);
+            } else {
+                setBusyLoadError('Google Calendar data could not be loaded. You can still set availability.');
+            }
+        } finally {
+            setIsLoadingBusy(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        void loadGoogleBusy();
+    }, [loadGoogleBusy]);
 
     const handleCreateRequest = async () => {
         setIsLoading(true);
         setError(null);
 
         try {
+            if (availabilitySlots.length === 0) {
+                throw new Error('Select at least one available 30-minute slot before continuing.');
+            }
+
+            const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+
             const res = await fetch('/api/candidate/bookings/request', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ professionalId, weeks }),
+                body: JSON.stringify({
+                    professionalId,
+                    availabilitySlots,
+                    timezone,
+                }),
             });
 
             const data = await res.json();
@@ -40,8 +103,12 @@ export function BookingRequestForm({ professionalId, priceCents, candidateId }: 
 
             setClientSecret(data.data.clientSecret);
             setBookingId(data.data.bookingId);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err: unknown) {
+            if (err instanceof Error) {
+                setError(err.message);
+            } else {
+                setError('Failed to create booking request.');
+            }
         } finally {
             setIsLoading(false);
         }
@@ -66,31 +133,41 @@ export function BookingRequestForm({ professionalId, priceCents, candidateId }: 
 
     return (
         <div className="bg-gray-50 p-6 rounded-lg border">
-            <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Number of Sessions (Weeks)
-                </label>
-                <select
-                    value={weeks}
-                    onChange={(e) => setWeeks(Number(e.target.value))}
-                    className="w-full border-gray-300 rounded-md shadow-sm p-2"
-                    disabled={isLoading}
-                >
-                    {[1, 2, 3, 4, 8, 12].map((w) => (
-                        <option key={w} value={w}>
-                            {w} {w === 1 ? 'Week' : 'Weeks'}
-                        </option>
-                    ))}
-                </select>
-                <p className="text-sm text-gray-500 mt-1">
-                    One 30-min session per week.
-                </p>
+            <div className="mb-6">
+                <div className="mb-3 flex flex-wrap items-center gap-3">
+                    <button
+                        type="button"
+                        onClick={() => void loadGoogleBusy()}
+                        disabled={isLoadingBusy}
+                        className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
+                    >
+                        {isLoadingBusy ? 'Refreshing calendar...' : 'Refresh Google Calendar'}
+                    </button>
+                    {lastBusyRefreshAt && (
+                        <span className="text-xs text-gray-500">
+                            Last synced {lastBusyRefreshAt.toLocaleTimeString()}
+                        </span>
+                    )}
+                </div>
+                {busyLoadError && (
+                    <div className="mb-3 p-3 bg-yellow-50 text-yellow-700 rounded text-sm">
+                        {busyLoadError}
+                    </div>
+                )}
+                <CandidateWeeklySlotPicker
+                    googleBusyIntervals={googleBusyIntervals}
+                    onChange={handleSlotSelectionChange}
+                />
             </div>
 
+            <p className="text-sm text-gray-500 mb-4">
+                Selected candidate slots: <span className="font-medium">{selectedSlotCount}</span>
+            </p>
+
             <div className="flex justify-between items-center mb-6 pt-4 border-t">
-                <span className="font-semibold">Total:</span>
+                <span className="font-semibold">Session price:</span>
                 <span className="text-xl font-bold">
-                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((priceCents * weeks) / 100)}
+                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(priceCents / 100)}
                 </span>
             </div>
 
@@ -116,7 +193,6 @@ function CheckoutForm({ bookingId }: { bookingId: string }) {
     const elements = useElements();
     const [message, setMessage] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

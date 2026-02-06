@@ -106,9 +106,16 @@ describe('Golden Path E2E: Book -> Pay -> Accept', () => {
     it('should successfully request and accept a booking', async () => {
         // --- Step 1: Candidate Requests Booking ---
         const weeks = 2; // Arbitrary input for booking request
+        const proposedStart = addDays(new Date(), 1);
+        proposedStart.setMinutes(0, 0, 0);
+        const proposedEnd = new Date(proposedStart);
+        proposedEnd.setMinutes(proposedEnd.getMinutes() + 30);
+
         const requestResult = await CandidateBookings.requestBooking(candidateId, {
             professionalId,
-            weeks
+            weeks,
+            availabilitySlots: [{ start: proposedStart.toISOString(), end: proposedEnd.toISOString() }],
+            timezone: 'UTC',
         });
 
         const bookingId = requestResult.booking.id;

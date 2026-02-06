@@ -39,7 +39,6 @@ export default async function BookingRequestPage(props: {
             <BookingRequestForm
                 professionalId={params.id}
                 priceCents={professional.priceCents}
-                candidateId={session.user.id}
             />
         </div>
     );
