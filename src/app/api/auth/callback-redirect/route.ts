@@ -19,13 +19,13 @@ export async function GET() {
     let dashboardUrl: string
     switch (role) {
         case "CANDIDATE":
-            dashboardUrl = "/candidate"
+            dashboardUrl = "/candidate/dashboard"
             break
         case "PROFESSIONAL":
-            dashboardUrl = "/professional"
+            dashboardUrl = "/professional/dashboard"
             break
         case "ADMIN":
-            dashboardUrl = "/admin"
+            dashboardUrl = "/admin/bookings"
             break
         default:
             dashboardUrl = "/"

@@ -4,6 +4,8 @@ import { prisma } from '@/lib/core/db';
 import { redirect, notFound } from 'next/navigation';
 import { FeedbackForm } from '@/components/feedback/FeedbackForm';
 import { Role } from '@prisma/client';
+import Link from 'next/link';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 export default async function FeedbackPage({
     params
@@ -14,7 +16,7 @@ export default async function FeedbackPage({
     const session = await auth();
 
     if (!session || session.user.role !== Role.PROFESSIONAL) {
-        redirect('/auth/signin');
+        redirect(`/login?callbackUrl=/professional/feedback/${bookingId}`);
     }
 
     const booking = await prisma.booking.findUnique({
@@ -33,54 +35,59 @@ export default async function FeedbackPage({
 
     if (booking.professionalId !== session.user.id) {
         return (
-            <div className="p-8 text-center text-red-600">
-                Unauthorized access to this booking.
-            </div>
+            <main className="container py-12">
+                <EmptyState
+                    badge="Unauthorized"
+                    title="You do not have access to this booking"
+                    description="This feedback item belongs to another professional account."
+                    actionLabel="Back to dashboard"
+                    actionHref="/professional/dashboard"
+                />
+            </main>
         );
     }
-
-    // Status check?
-    // If completed or completed_pending_feedback, we allow viewing/editing?
-    // If "completed" (QC passed), maybe show read-only or redirect?
-    // For now, if "completed", the form might be weird if it resubmits.
-    // But let's assume this page is for ACTION.
-    // If QC passed, maybe show "Feedback Submitted" message.
 
     if (booking.feedback?.qcStatus === 'passed') {
         return (
-            <div className="max-w-3xl mx-auto px-4 py-8">
-                <h1 className="text-2xl font-bold mb-4">Feedback Submitted</h1>
-                <p className="text-gray-600">
+            <main className="max-w-3xl mx-auto px-4 py-8">
+                <Link href="/professional/dashboard" className="text-sm text-gray-500 hover:text-gray-900 mb-4 inline-block">
+                    &larr; Back to dashboard
+                </Link>
+                <h1 className="text-3xl font-bold text-gray-900 mb-3">Feedback submitted</h1>
+                <p className="text-gray-600 mb-6">
                     You have successfully provided feedback for this session. The booking is complete.
                 </p>
-                <div className="mt-6 p-4 bg-gray-50 rounded-md">
+                <div className="p-5 bg-white rounded-lg border border-gray-200 shadow-sm">
                     <h3 className="font-semibold mb-2">Your Feedback:</h3>
                     <p className="whitespace-pre-wrap">{booking.feedback.text}</p>
                 </div>
-            </div>
+            </main>
         );
     }
 
-    // Initial data for revision
     const initialData = booking.feedback ? {
         text: booking.feedback.text,
         actions: booking.feedback.actions,
     } : undefined;
 
     return (
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="mb-8">
-                <h1 className="text-2xl font-bold text-gray-900">Submit Consultation Feedback</h1>
-                <p className="mt-1 text-sm text-gray-500">
+        <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <Link href="/professional/dashboard" className="text-sm text-gray-500 hover:text-gray-900 mb-4 inline-block">
+                &larr; Back to dashboard
+            </Link>
+            <header className="mb-8">
+                <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Professional Feedback</p>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Submit consultation feedback</h1>
+                <p className="text-sm text-gray-500">
                     For your session with {booking.candidate.email}.
                 </p>
                 <div className="mt-2 text-sm text-amber-800 bg-amber-50 p-3 rounded-md border border-amber-200">
                     <strong>Important:</strong> Your payment will be released only after your feedback passes our Quality Control check.
                     Please provide at least 200 words and 3 concrete action items.
                 </div>
-            </div>
+            </header>
 
             <FeedbackForm bookingId={bookingId} initialData={initialData} />
-        </div>
+        </main>
     );
 }

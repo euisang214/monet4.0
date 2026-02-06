@@ -2,12 +2,13 @@ import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import { Role } from '@prisma/client';
 import { ProfessionalEarningsService } from '@/lib/role/professional/earnings';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 export default async function ProfessionalEarningsPage() {
     const session = await auth();
 
     if (!session?.user) {
-        redirect('/login');
+        redirect('/login?callbackUrl=/professional/earnings');
     }
 
     if (session.user.role !== Role.PROFESSIONAL) {
@@ -19,38 +20,47 @@ export default async function ProfessionalEarningsPage() {
         ProfessionalEarningsService.getPayoutHistory(session.user.id, 20),
     ]);
 
-    return (
-        <main className="container mx-auto p-6">
-            <h1 className="text-2xl font-bold mb-6">Earnings</h1>
+    const formatCurrency = (amountCents: number) =>
+        new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amountCents / 100);
 
-            {/* Summary Cards */}
+    return (
+        <main className="container py-8">
+            <header className="mb-8">
+                <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Professional Earnings</p>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Revenue and payout history</h1>
+                <p className="text-gray-600">Monitor paid totals, pending amounts, and each payout event.</p>
+            </header>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                <div className="p-4 border rounded">
+                <div className="p-5 bg-white border border-gray-200 rounded-xl shadow-sm">
                     <p className="text-sm text-gray-500">Total Earnings</p>
-                    <p className="text-2xl font-bold">
-                        ${(earnings.totalEarningsCents / 100).toFixed(2)}
-                    </p>
+                    <p className="text-2xl font-bold text-gray-900 mt-2">{formatCurrency(earnings.totalEarningsCents)}</p>
                 </div>
-                <div className="p-4 border rounded">
+                <div className="p-5 bg-white border border-gray-200 rounded-xl shadow-sm">
                     <p className="text-sm text-gray-500">Pending Payouts</p>
-                    <p className="text-2xl font-bold">
-                        ${(earnings.pendingPayoutsCents / 100).toFixed(2)}
-                    </p>
+                    <p className="text-2xl font-bold text-gray-900 mt-2">{formatCurrency(earnings.pendingPayoutsCents)}</p>
+                </div>
+                <div className="p-5 bg-white border border-gray-200 rounded-xl shadow-sm">
+                    <p className="text-sm text-gray-500">Recent Payouts</p>
+                    <p className="text-2xl font-bold text-gray-900 mt-2">{payouts.length}</p>
                 </div>
             </div>
 
-            {/* Payout History */}
-            <section>
-                <h2 className="text-lg font-semibold mb-4">Payout History</h2>
+            <section className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Payout History</h2>
 
                 {payouts.length === 0 ? (
-                    <p className="text-gray-500">No payouts yet.</p>
+                    <EmptyState
+                        badge="No payouts yet"
+                        title="No payout records found"
+                        description="Once feedback passes QC and payments are released, payout entries will appear here."
+                    />
                 ) : (
-                    <ul className="space-y-2">
+                    <ul className="space-y-3">
                         {payouts.map((payout) => (
-                            <li key={payout.id} className="p-3 border rounded flex justify-between items-center">
+                            <li key={payout.id} className="p-4 border border-gray-200 rounded-lg bg-gray-50 flex justify-between items-center gap-3">
                                 <div>
-                                    <p className="font-medium">${(payout.amountNet / 100).toFixed(2)}</p>
+                                    <p className="font-medium text-gray-900">{formatCurrency(payout.amountNet)}</p>
                                     <p className="text-xs text-gray-500">
                                         Booking: {payout.booking.startAt?.toLocaleDateString() || 'N/A'}
                                     </p>
@@ -65,12 +75,6 @@ export default async function ProfessionalEarningsPage() {
                         ))}
                     </ul>
                 )}
-            </section>
-
-            <section className="mt-8 p-4 bg-gray-100 rounded">
-                <p className="text-sm text-gray-600">
-                    DevLink components will replace this interface.
-                </p>
             </section>
         </main>
     );

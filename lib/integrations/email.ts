@@ -1,23 +1,31 @@
 
 import nodemailer from 'nodemailer';
-import * as aws from '@aws-sdk/client-ses';
+import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
 import { createEvent, DateArray } from 'ics';
 import { Booking, User, ProfessionalProfile, Payout } from '@prisma/client';
 
-// Configure SES
-const ses = new aws.SES({
-    apiVersion: '2010-12-01',
+const hasAwsCredentials = Boolean(
+    process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
+);
+
+// Configure SESv2 client for Nodemailer 7 transport
+const sesClient = new SESv2Client({
     region: process.env.AWS_REGION || 'us-east-1',
-    credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-    },
+    ...(hasAwsCredentials ? {
+        credentials: {
+            accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+        },
+    } : {}),
 });
 
 // Create Nodemailer transport
 const transporter = nodemailer.createTransport({
-    SES: ses,
-} as any);
+    SES: {
+        sesClient,
+        SendEmailCommand,
+    },
+});
 
 interface SendEmailParams {
     to: string;
@@ -32,7 +40,7 @@ interface SendEmailParams {
 
 export async function sendEmail({ to, subject, html, attachments }: SendEmailParams) {
     try {
-        if (!process.env.AWS_ACCESS_KEY_ID) {
+        if (!hasAwsCredentials) {
             console.log(`[DEV MODE] Email would be sent to ${to}: ${subject}`);
             return;
         }

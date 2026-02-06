@@ -1,109 +1,163 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/Button"
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/Button";
+
+interface CandidateProfileData {
+    resumeUrl?: string | null;
+    interests?: string[] | null;
+}
+
+type Notification = {
+    type: "success" | "error";
+    message: string;
+} | null;
 
 export default function CandidateSettingsPage() {
-    const [profile, setProfile] = useState<any>(null)
-    const [loading, setLoading] = useState(true)
-    const [uploading, setUploading] = useState(false)
-    const [interests, setInterests] = useState("")
+    const [profile, setProfile] = useState<CandidateProfileData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [uploading, setUploading] = useState(false);
+    const [interests, setInterests] = useState("");
+    const [notification, setNotification] = useState<Notification>(null);
 
     useEffect(() => {
         fetch("/api/shared/settings")
-            .then(res => res.json())
-            .then(data => {
+            .then((res) => res.json())
+            .then((data: { data?: CandidateProfileData | null }) => {
                 if (data.data) {
-                    setProfile(data.data)
-                    setInterests(data.data.interests?.join(", ") || "")
+                    setProfile(data.data);
+                    setInterests(data.data.interests?.join(", ") || "");
                 }
             })
-            .finally(() => setLoading(false))
-    }, [])
+            .catch(() => {
+                setNotification({ type: "error", message: "Could not load profile settings." });
+            })
+            .finally(() => setLoading(false));
+    }, []);
 
     const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!e.target.files?.[0]) return
-        const file = e.target.files[0]
+        const file = e.target.files?.[0];
+        if (!file) return;
 
         if (file.size > 5 * 1024 * 1024) {
-            alert("File too large. Max 5MB.")
-            return
+            setNotification({ type: "error", message: "File too large. Max size is 5MB." });
+            return;
         }
 
-        setUploading(true)
+        setUploading(true);
+        setNotification(null);
+
         try {
-            // 1. Get presigned URL
             const res = await fetch("/api/candidate/upload/resume", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ contentType: file.type }),
-            })
-            const { data } = await res.json()
+            });
 
-            if (!data?.uploadUrl) throw new Error("Failed to get upload URL")
+            const payload = await res.json();
+            const uploadUrl = payload?.data?.uploadUrl as string | undefined;
+            const publicUrl = payload?.data?.publicUrl as string | undefined;
 
-            // 2. Upload to S3
-            await fetch(data.uploadUrl, {
+            if (!uploadUrl || !publicUrl) {
+                throw new Error("Failed to prepare upload");
+            }
+
+            await fetch(uploadUrl, {
                 method: "PUT",
                 body: file,
                 headers: { "Content-Type": file.type },
-            })
+            });
 
-            // 3. Update profile with public URL
             await fetch("/api/shared/settings", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ resumeUrl: data.publicUrl }),
-            })
+                body: JSON.stringify({ resumeUrl: publicUrl }),
+            });
 
-            // Refresh profile
-            setProfile((prev: any) => ({ ...prev, resumeUrl: data.publicUrl }))
-            alert("Resume uploaded successfully!")
+            setProfile((prev) => ({ ...(prev || {}), resumeUrl: publicUrl }));
+            setNotification({ type: "success", message: "Resume uploaded successfully." });
         } catch (error) {
-            console.error(error)
-            alert("Upload failed")
+            console.error(error);
+            setNotification({ type: "error", message: "Resume upload failed." });
         } finally {
-            setUploading(false)
+            setUploading(false);
         }
-    }
+    };
 
     const handleSave = async (e: React.FormEvent) => {
-        e.preventDefault()
+        e.preventDefault();
+        setNotification(null);
+
         try {
             await fetch("/api/shared/settings", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    interests: interests.split(",").map(s => s.trim()).filter(Boolean),
+                    interests: interests
+                        .split(",")
+                        .map((value) => value.trim())
+                        .filter(Boolean),
                 }),
-            })
-            alert("Settings saved!")
+            });
+            setNotification({ type: "success", message: "Settings saved." });
         } catch (error) {
-            console.error(error)
-            alert("Failed to save settings")
+            console.error(error);
+            setNotification({ type: "error", message: "Failed to save settings." });
         }
+    };
+
+    if (loading) {
+        return (
+            <main className="container py-8">
+                <div className="max-w-3xl mx-auto bg-white p-8 rounded-xl border border-gray-200 shadow-sm">
+                    <p className="text-sm text-gray-600">Loading candidate settings...</p>
+                </div>
+            </main>
+        );
     }
 
-    if (loading) return <div className="p-8">Loading...</div>
-
     return (
-        <div className="max-w-2xl mx-auto p-8">
-            <h1 className="text-3xl font-bold mb-8">Candidate Settings</h1>
+        <main className="container py-8">
+            <div className="max-w-3xl mx-auto">
+                <header className="mb-8">
+                    <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Candidate Settings</p>
+                    <h1 className="text-3xl font-bold text-gray-900 mb-2">Profile and preferences</h1>
+                    <p className="text-gray-600">
+                        Keep your resume and interests up to date so professionals can better tailor sessions.
+                    </p>
+                </header>
 
-            <section className="mb-12">
-                <h2 className="text-xl font-semibold mb-4">Resume</h2>
-                <div className="bg-gray-50 p-6 rounded-lg border">
-                    {profile?.resumeUrl && (
-                        <div className="mb-4">
-                            <p className="text-sm text-gray-600 mb-2">Current Resume:</p>
+                {notification && (
+                    <div className={`mb-6 rounded-md p-4 text-sm ${notification.type === "success"
+                        ? "bg-green-50 text-green-700"
+                        : "bg-red-50 text-red-700"
+                        }`}>
+                        {notification.message}
+                    </div>
+                )}
+
+                <section className="mb-8 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-2">Resume</h2>
+                    <p className="text-sm text-gray-600 mb-5">
+                        Upload your latest resume to make your background easy to review before consultations.
+                    </p>
+
+                    {profile?.resumeUrl ? (
+                        <div className="mb-5 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                            <p className="text-xs uppercase tracking-wide text-gray-500 mb-2">Current resume</p>
                             <a
                                 href={profile.resumeUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="text-blue-600 hover:underline"
+                                className="text-sm font-medium text-blue-600 hover:underline"
                             >
-                                View Resume
+                                Open uploaded resume
                             </a>
+                        </div>
+                    ) : (
+                        <div className="mb-5 p-4 bg-gray-50 border border-dashed border-gray-300 rounded-lg">
+                            <p className="text-sm text-gray-600">No resume uploaded yet.</p>
                         </div>
                     )}
 
@@ -111,7 +165,7 @@ export default function CandidateSettingsPage() {
                         <span className="sr-only">Upload resume</span>
                         <input
                             type="file"
-                            accept=".pdf,.docx"
+                            accept=".pdf,.doc,.docx"
                             onChange={handleResumeUpload}
                             disabled={uploading}
                             className="block w-full text-sm text-gray-500
@@ -122,38 +176,36 @@ export default function CandidateSettingsPage() {
                                 hover:file:bg-blue-100"
                         />
                     </label>
-                    {uploading && <p className="text-sm text-gray-500 mt-2">Uploading...</p>}
-                </div>
-            </section>
-
-            <form onSubmit={handleSave} className="space-y-6">
-                <section>
-                    <h2 className="text-xl font-semibold mb-4">Profile Details</h2>
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Interests (comma separated)</label>
-                            <input
-                                type="text"
-                                value={interests}
-                                onChange={(e) => setInterests(e.target.value)}
-                                className="w-full p-2 border rounded-md"
-                                placeholder="Technology, Design, Finance..."
-                            />
-                        </div>
-                    </div>
+                    {uploading && <p className="text-sm text-gray-500 mt-2">Uploading resume...</p>}
                 </section>
 
-                <Button type="submit">Save Changes</Button>
-            </form>
+                <form onSubmit={handleSave} className="space-y-6 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <section>
+                        <h2 className="text-xl font-semibold text-gray-900 mb-2">Interests</h2>
+                        <p className="text-sm text-gray-600 mb-4">
+                            Separate topics with commas so we can improve matching and recommendations.
+                        </p>
+                        <label htmlFor="interests" className="block text-sm font-medium mb-1">
+                            Interests
+                        </label>
+                        <input
+                            id="interests"
+                            type="text"
+                            value={interests}
+                            onChange={(e) => setInterests(e.target.value)}
+                            className="w-full p-2 border rounded-md"
+                            placeholder="Technology, Product, Career transitions"
+                        />
+                    </section>
 
-            <section className="mt-12 pt-8 border-t">
-                <h2 className="text-xl font-semibold mb-4">Availability</h2>
-                <p className="text-gray-600 mb-4">Manage your availability for bookings.</p>
-                {/* Placeholder for availability management - likely a separate page or modal */}
-                <Button onClick={() => alert("Availability management coming soon")}>
-                    Manage Availability
-                </Button>
-            </section>
-        </div>
-    )
+                    <div className="pt-4 border-t flex justify-between items-center">
+                        <Link href="/candidate/availability" className="text-sm font-medium text-gray-600 hover:text-black">
+                            Manage availability
+                        </Link>
+                        <Button type="submit">Save changes</Button>
+                    </div>
+                </form>
+            </div>
+        </main>
+    );
 }

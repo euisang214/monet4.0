@@ -14,6 +14,14 @@ interface ConfirmBookingFormProps {
     slots: Slot[];
 }
 
+const slotLabelFormatter = new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+});
+
 export function ConfirmBookingForm({ bookingId, slots }: ConfirmBookingFormProps) {
     const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
     const [isPending, startTransition] = useTransition();
@@ -45,7 +53,7 @@ export function ConfirmBookingForm({ bookingId, slots }: ConfirmBookingFormProps
             <div>
                 <h3 className="text-lg font-medium text-gray-900">Select a Time</h3>
                 <p className="text-sm text-gray-500 mb-4">
-                    Based on the candidate's availability and your calendar.
+                    Based on the candidate&apos;s availability and your calendar.
                 </p>
 
                 {slots.length === 0 ? (
@@ -57,13 +65,7 @@ export function ConfirmBookingForm({ bookingId, slots }: ConfirmBookingFormProps
                         {slots.map((slot) => {
                             const value = slot.start.toISOString();
                             const isSelected = selectedSlot === value;
-                            const label = slot.start.toLocaleString(undefined, {
-                                weekday: 'short',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: 'numeric',
-                                minute: '2-digit'
-                            });
+                            const label = slotLabelFormatter.format(slot.start);
 
                             return (
                                 <div

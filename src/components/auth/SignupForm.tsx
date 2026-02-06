@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Role } from "@prisma/client";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useMemo, useState } from "react";
 
 export function SignupForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    // Role selector state, default to query param or CANDIDATE
-    const initialRole = searchParams.get("role") === "professional" ? Role.PROFESSIONAL : Role.CANDIDATE;
+    const initialRole = useMemo(
+        () => (searchParams.get("role") === "professional" ? Role.PROFESSIONAL : Role.CANDIDATE),
+        [searchParams]
+    );
 
     const [role, setRole] = useState<Role>(initialRole);
     const [name, setName] = useState("");
@@ -35,52 +38,52 @@ export function SignupForm() {
                 throw new Error(data.error || "Signup failed");
             }
 
-            // Automatically sign in or redirect to login
-            // For simplicity, redirecting to login with a success message could be better, 
-            // but auto-login is smoother. NextAuth doesn't support auto-login server-side easily without credentials.
-            // We'll redirect to login for now to be safe and verify credentials.
             router.push("/login?signup=success");
-        } catch (err: any) {
-            setError(err.message);
+        } catch (error: unknown) {
+            if (error instanceof Error) {
+                setError(error.message);
+            } else {
+                setError("Could not create account");
+            }
         } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <div className="w-full max-w-md space-y-8 rounded-xl bg-white p-10 shadow-lg">
-            <div className="text-center">
-                <h2 className="mt-6 text-3xl font-extrabold text-gray-900">Create your account</h2>
-            </div>
+        <section className="w-full max-w-md bg-white p-8 rounded-xl border border-gray-200 shadow-lg space-y-6">
+            <header className="text-center">
+                <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Get Started</p>
+                <h2 className="text-3xl font-extrabold text-gray-900 mb-2">Create your Monet account</h2>
+                <p className="text-sm text-gray-600">Choose your role and we will set up the right workflow.</p>
+            </header>
 
-            {/* Role Toggle */}
-            <div className="flex justify-center space-x-4 mb-6">
+            <div className="bg-gray-100 rounded-full p-1 grid grid-cols-2 gap-1">
                 <button
+                    type="button"
                     onClick={() => setRole(Role.CANDIDATE)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${role === Role.CANDIDATE
-                            ? "bg-black text-white"
-                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    className={`rounded-full text-sm font-medium py-2 transition-colors ${role === Role.CANDIDATE
+                        ? "bg-black text-white"
+                        : "bg-transparent text-gray-600 hover:bg-gray-200"
                         }`}
                 >
-                    Join as Candidate
+                    Candidate
                 </button>
                 <button
+                    type="button"
                     onClick={() => setRole(Role.PROFESSIONAL)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${role === Role.PROFESSIONAL
-                            ? "bg-black text-white"
-                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    className={`rounded-full text-sm font-medium py-2 transition-colors ${role === Role.PROFESSIONAL
+                        ? "bg-black text-white"
+                        : "bg-transparent text-gray-600 hover:bg-gray-200"
                         }`}
                 >
-                    Join as Professional
+                    Professional
                 </button>
             </div>
 
-            <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-                {error && (
-                    <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">
-                        {error}
-                    </div>
-                )}
+            <form className="space-y-5" onSubmit={handleSubmit}>
+                {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+
                 <div className="-space-y-px rounded-md shadow-sm">
                     <div>
                         <label htmlFor="name" className="sr-only">Full Name</label>
@@ -90,7 +93,7 @@ export function SignupForm() {
                             type="text"
                             required
                             className="relative block w-full appearance-none rounded-none rounded-t-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-black focus:outline-none focus:ring-black sm:text-sm"
-                            placeholder="Full Name"
+                            placeholder="Full name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                         />
@@ -125,22 +128,21 @@ export function SignupForm() {
                     </div>
                 </div>
 
-                <div>
-                    <button
-                        type="submit"
-                        disabled={isLoading}
-                        className="group relative flex w-full justify-center rounded-md border border-transparent bg-black py-2 px-4 text-sm font-medium text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50"
-                    >
-                        {isLoading ? "Creating account..." : "Sign up"}
-                    </button>
-                </div>
+                <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="group relative flex w-full justify-center rounded-md border border-transparent bg-black py-2 px-4 text-sm font-medium text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50"
+                >
+                    {isLoading ? "Creating account..." : "Create account"}
+                </button>
             </form>
+
             <div className="text-center text-sm">
                 <span className="text-gray-500">Already have an account? </span>
-                <a href="/login" className="font-medium text-black hover:underline">
+                <Link href="/login" className="font-medium text-black hover:underline">
                     Sign in
-                </a>
+                </Link>
             </div>
-        </div>
+        </section>
     );
 }

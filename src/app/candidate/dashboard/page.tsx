@@ -4,28 +4,36 @@ import { getCandidateBookings } from '@/lib/role/candidate/dashboard';
 import { BookingCard } from '@/components/bookings/BookingCard';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 export const dynamic = 'force-dynamic';
 
 export default async function CandidateDashboardPage() {
     const session = await auth();
     if (!session?.user) {
-        redirect('/auth/signin?callbackUrl=/candidate/dashboard');
+        redirect('/login?callbackUrl=/candidate/dashboard');
     }
 
     const bookings = await getCandidateBookings(session.user.id);
 
     return (
-        <div className="container mx-auto py-8">
-            <h1 className="text-2xl font-bold mb-6">My Bookings</h1>
+        <main className="container py-8">
+            <header className="mb-8">
+                <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Candidate Dashboard</p>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Your active and recent bookings</h1>
+                <p className="text-gray-600">
+                    Track session status, view scheduling progress, and jump directly into booking details.
+                </p>
+            </header>
 
             {bookings.length === 0 ? (
-                <div className="text-center py-12 bg-gray-50 rounded-lg">
-                    <p className="text-gray-500 mb-4">You haven't requested any bookings yet.</p>
-                    <a href="/candidate/browse" className="text-blue-600 hover:underline">
-                        Browse Professionals
-                    </a>
-                </div>
+                <EmptyState
+                    badge="No bookings yet"
+                    title="You have not requested a consultation yet"
+                    description="Browse professionals to find someone aligned with your goals, then request your first booking."
+                    actionLabel="Browse professionals"
+                    actionHref="/candidate/browse"
+                />
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {bookings.map((booking) => (
@@ -35,6 +43,6 @@ export default async function CandidateDashboardPage() {
                     ))}
                 </div>
             )}
-        </div>
+        </main>
     );
 }

@@ -7,7 +7,14 @@ import { prisma } from "@/lib/core/db"
 import bcrypt from "bcryptjs"
 import { Role } from "@prisma/client"
 
+const authSecret = process.env.AUTH_SECRET?.trim() || process.env.NEXTAUTH_SECRET?.trim()
+
+if (!authSecret) {
+    throw new Error("Missing AUTH_SECRET or NEXTAUTH_SECRET in environment.")
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
+    secret: authSecret,
     providers: [
         Google({
             authorization: {
