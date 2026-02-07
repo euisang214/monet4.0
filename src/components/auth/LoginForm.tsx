@@ -5,13 +5,37 @@ import { signIn } from "next-auth/react";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+const ROLE_REDIRECT_PATH = "/api/auth/callback-redirect";
+
+function normalizeCallbackUrl(callbackUrl: string | null): string {
+    if (!callbackUrl) return ROLE_REDIRECT_PATH;
+
+    try {
+        const parsed = new URL(callbackUrl, "http://localhost");
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+            return ROLE_REDIRECT_PATH;
+        }
+
+        const normalizedPath = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+        if (
+            normalizedPath === "/" ||
+            normalizedPath.startsWith("/login") ||
+            normalizedPath.startsWith("/api/auth/signin")
+        ) {
+            return ROLE_REDIRECT_PATH;
+        }
+
+        return normalizedPath;
+    } catch {
+        return ROLE_REDIRECT_PATH;
+    }
+}
+
 export function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const explicitCallbackUrl = searchParams.get("callbackUrl");
-    const callbackUrl = explicitCallbackUrl && explicitCallbackUrl !== "/"
-        ? explicitCallbackUrl
-        : "/api/auth/callback-redirect";
+    const callbackUrl = normalizeCallbackUrl(explicitCallbackUrl);
     const signupSuccess = searchParams.get("signup") === "success";
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -36,7 +60,7 @@ export function LoginForm() {
                 return;
             }
 
-            const redirectUrl = result?.url ?? callbackUrl;
+            const redirectUrl = normalizeCallbackUrl(result?.url ?? callbackUrl);
             router.push(redirectUrl);
             router.refresh();
         } catch {

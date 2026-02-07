@@ -1,6 +1,6 @@
 # CLAUDE.md - Monet 3.0 Codebase Guide for AI Assistants
 
-> **Version**: 0.1.0
+> **Version**: 0.2.0
 
 > **Purpose**: Comprehensive guide for AI assistants working on the Monet marketplace platform
 
@@ -44,6 +44,7 @@
   - Funds held on platform until QC validation completes
 - **Quality Control**: Automated feedback validation with payout gating
 - **Calendar Integration**: Google Calendar sync for availability
+- **Calendar Slot Picker**: Weekly 30-minute grid for candidate availability (click/drag), with professional single-slot selection
 - **Video Meetings**: Zoom meetings created server-side
 - **Background Jobs**: BullMQ for nudges, QC checks, and notifications
 - **Multi-role Access**: Separate dashboards for each user role
@@ -136,6 +137,7 @@ Background Jobs → BullMQ → Redis → Service Layer → Prisma
 - **DevLink CLI** syncs components into `src/devlink/` (committed, not built at deploy)
 - **Next.js** owns routing, auth gating, data fetching, and API routes
 - **Pattern**: Server Component fetches data → Client wrapper renders DevLink component + binds runtime props
+- **Booking Calendar Pattern**: presentation (`WeeklySlotCalendar`) stays thin while interaction/data logic lives in `components/bookings/hooks/*` and `components/bookings/services/*`
 
 > [!NOTE]
 > DevLink components are client-only. Any file importing from `@/devlink/*` must use `'use client'`.
@@ -175,10 +177,13 @@ monet3.0/
 │   │   ├── candidate/               # Candidate portal
 │   │   │   ├── dashboard/
 │   │   │   ├── browse/
+│   │   │   ├── book/                # Booking request flow (calendar + payment authorization)
+│   │   │   ├── bookings/            # Candidate booking details + reschedule pages
 │   │   │   ├── availability/
 │   │   │   ├── history/
 │   │   │   └── settings/
 │   │   ├── professional/            # Professional portal
+│   │   │   ├── bookings/            # Confirm-and-schedule + reschedule review pages
 │   │   │   ├── dashboard/
 │   │   │   ├── requests/
 │   │   │   ├── feedback/
@@ -196,7 +201,23 @@ monet3.0/
 │   │       ├── shared/              # Shared/common endpoints
 │   │       └── admin/               # Admin-only endpoints
 │   ├── components/                  # Shared React components (organized by domain)
-│   │   ├── bookings/               # Booking-related components
+│   │   ├── bookings/               # Booking-related UI wrappers + calendar rendering
+│   │   │   ├── WeeklySlotCalendar.tsx
+│   │   │   ├── ConfirmBookingForm.tsx
+│   │   │   ├── ConfirmRescheduleForm.tsx
+│   │   │   ├── calendar/           # Slot-grid primitives (types + utilities)
+│   │   │   │   ├── types.ts
+│   │   │   │   └── slot-utils.ts
+│   │   │   ├── hooks/              # Calendar state machines and orchestration hooks
+│   │   │   │   ├── useCandidateWeeklySlotSelection.ts
+│   │   │   │   ├── useProfessionalWeeklySlotSelection.ts
+│   │   │   │   ├── useCandidateGoogleBusy.ts
+│   │   │   │   ├── useCandidateBookingRequest.ts
+│   │   │   │   ├── useCandidateRescheduleRequest.ts
+│   │   │   │   └── useProfessionalRescheduleActions.ts
+│   │   │   └── services/           # Client-side API access used by booking hooks
+│   │   │       ├── candidateBookingApi.ts
+│   │   │       └── professionalRescheduleApi.ts
 │   │   ├── feedback/               # Feedback components
 │   │   ├── profile/                # Profile components
 │   │   ├── dashboard/              # Dashboard components
@@ -1076,8 +1097,9 @@ Candidate-specific endpoints:
 
 **Bookings**:
 - `POST /api/candidate/bookings/request` - Request a booking with payment authorization
-  - Body: `{ professionalId, weeks }`
-  - Note: Available time slots are derived from the candidate's Availability table (synced from Google Calendar)
+  - Body: `{ professionalId, availabilitySlots: [{start,end}], timezone? }`
+  - Candidate submits explicit 30-minute availability slots from weekly picker UI
+  - Submitted slots are synced into candidate `Availability` before booking request transition
   - Creates booking with status 'requested'
   - Creates Stripe PaymentIntent with `capture_method: 'manual'`
   - Returns `{ bookingId, clientSecret, stripePaymentIntentId }`
@@ -1102,8 +1124,9 @@ Candidate-specific endpoints:
 
 **Rescheduling**:
 - `POST /api/candidate/bookings/[id]/reschedule/request` - Request reschedule
-  - Body: `{ slots: TimeSlot[], reason?: string }`
+  - Body: `{ slots: TimeSlot[], reason?: string, timezone?: string }`
   - Only when status = `accepted`
+  - Replaces candidate Availability with submitted slots for professional review
   - Booking status → `reschedule_pending`
 
 **Disputes**:
@@ -1301,8 +1324,9 @@ export const GET = withRole(['ADMIN', 'PROFESSIONAL'], async (session, req) => {
 
 2. REQUEST WITH AUTHORIZATION
    Candidate requests booking and authorizes payment
-   → POST /api/candidate/bookings/request { professionalId, weeks }
-   → Candidate's availability is pulled from Availability table (Google Calendar synced)
+   → Candidate uses weekly 30-minute calendar (click/drag) and can override Google busy blocks
+   → POST /api/candidate/bookings/request { professionalId, availabilitySlots, timezone }
+   → Submitted slots are written to Availability table
    → Creates booking with status: "requested"
    → Creates Stripe PaymentIntent with capture_method: 'manual'
    → Payment record created with status: "authorized"
@@ -1580,14 +1604,16 @@ CANDIDATE LATE CANCELLATION (< 6 hours before call)
    → Calls Google Calendar API freebusy
    → Returns next 30 days of busy times
 
-3. Merge Availability
-   → Combines Google Calendar busy times
-   → With manual Availability preferences
-   → Applies timezone conversions
+3. Candidate Slot Selection
+   → Busy blocks are shown in candidate weekly slot picker
+   → Candidate can manually refresh busy data via "Refresh Google Calendar"
+   → Busy blocks are advisory and can be explicitly overridden per slot
+   → Candidate submits selected slots as availability payload
 
 4. Display to Professional
    → GET /api/professional/bookings/[id]/confirm-and-schedule
-   → Shows merged free slots in 30-min blocks
+   → Shows candidate-submitted slots in 30-min blocks
+   → Professional selects exactly one slot
 ```
 
 ### Timezone Handling
@@ -1619,18 +1645,21 @@ CANDIDATE LATE CANCELLATION (< 6 hours before call)
 ### Rescheduling Flow
 
 > **Pattern**: Mirror the existing booking flow — proposer offers time slots, responder picks one  
-> **Database**: Add `reschedule_pending` status to `BookingStatus` enum
+> **Status**: Uses existing `reschedule_pending` booking state
 
 ```
 CANDIDATE INITIATES RESCHEDULE
 1. Candidate requests reschedule
    → POST /api/candidate/bookings/[id]/reschedule/request
-   → Body: { slots: TimeSlot[], reason?: string }
+   → Body: { slots: TimeSlot[], reason?: string, timezone?: string }
+   → Candidate can use same weekly 30-minute picker + Google refresh flow as initial request
+   → Submitted slots replace candidate Availability records
    → Only available when status = 'accepted'
    → Booking.status transitions to 'reschedule_pending'
    → Notification sent to professional
 
 2. Professional reviews and selects new time
+   → Professional sees action item in `/professional/requests` (requested + reschedule_pending)
    → GET /api/professional/bookings/[id]/reschedule (view proposed slots)
    → POST /api/professional/bookings/[id]/reschedule/confirm { startAt }
    → Updates booking startAt/endAt
@@ -1640,11 +1669,9 @@ CANDIDATE INITIATES RESCHEDULE
 
 3. If REJECTED
    → POST /api/professional/bookings/[id]/reschedule/reject
-   → Booking.status transitions to 'cancelled'
-   → Refund follows standard cancellation policy:
-     - If >= 6 hours before original call time: Full refund
-     - If < 6 hours before original call time: No refund, professional receives payout
-   → Notify candidate of rejection and cancellation
+   → Booking.status transitions back to 'accepted'
+   → Original scheduled time is kept
+   → Notify candidate of rejection
 
 ---
 
@@ -2772,6 +2799,7 @@ git push -u origin <branch-name>
 
 | Date | Summary |
 |------|---------|
+| 2026-02-07 | Booking calendar refactor docs update: added `components/bookings/calendar|hooks|services`, slot-based candidate request payloads, manual Google refresh/override behavior, and professional reschedule review flow updates |
 | 2026-01-19 | Webflow + DevLink integration: replaced React Bootstrap with DevLink as UI layer, added DevLink conventions and patterns |
 | 2026-01-17 | Schema fixes (attendanceOutcome, candidateLateCancellation, PaymentStatus.cancelled/capture_failed), QC flow update to LLM-only (Claude API), success fee removal, async confirm-and-schedule pattern, webhook loopback fix |
 | 2026-01-16 | Documentation accuracy fixes, Dispute model, attendance tracking, comprehensive schema documentation |

@@ -3,13 +3,46 @@
 import React from 'react';
 import { addDays, format } from 'date-fns';
 import type { SlotCellState, SlotInput, SlotInterval } from '@/components/bookings/calendar/types';
-import { SLOTS_PER_DAY, getSlotLabel, slotDateForCell } from '@/components/bookings/calendar/slot-utils';
+import { SLOT_MINUTES, SLOTS_PER_DAY, getSlotLabel, slotDateForCell } from '@/components/bookings/calendar/slot-utils';
 import { useCandidateWeeklySlotSelection } from '@/components/bookings/hooks/useCandidateWeeklySlotSelection';
 import { useProfessionalWeeklySlotSelection } from '@/components/bookings/hooks/useProfessionalWeeklySlotSelection';
 
 export type { SlotInterval } from '@/components/bookings/calendar/types';
 
 const baseCellClasses = 'h-5 w-full border border-gray-100 transition-colors';
+const DEFAULT_VIEW_START_HOUR = 9;
+const DEFAULT_VIEW_END_HOUR = 18;
+const DEFAULT_VIEW_START_ROW = (DEFAULT_VIEW_START_HOUR * 60) / SLOT_MINUTES;
+const DEFAULT_VIEW_VISIBLE_ROWS = ((DEFAULT_VIEW_END_HOUR - DEFAULT_VIEW_START_HOUR) * 60) / SLOT_MINUTES;
+const MIN_CALENDAR_VIEWPORT_HEIGHT = 320;
+
+function useDefaultBusinessHoursViewport(anchor: Date | null) {
+    const scrollRef = React.useRef<HTMLDivElement>(null);
+    const [viewportHeight, setViewportHeight] = React.useState(MIN_CALENDAR_VIEWPORT_HEIGHT);
+
+    React.useLayoutEffect(() => {
+        const container = scrollRef.current;
+        if (!container) return;
+
+        const header = container.querySelector('thead');
+        const sampleRow = container.querySelector<HTMLTableRowElement>('tbody tr[data-slot-row="0"]');
+        const startRow = container.querySelector<HTMLTableRowElement>(`tbody tr[data-slot-row="${DEFAULT_VIEW_START_ROW}"]`);
+
+        if (!header || !sampleRow || !startRow) return;
+
+        const rowHeight = sampleRow.getBoundingClientRect().height;
+        const headerHeight = header.getBoundingClientRect().height;
+        const nextHeight = Math.max(Math.round((rowHeight * DEFAULT_VIEW_VISIBLE_ROWS) + headerHeight), MIN_CALENDAR_VIEWPORT_HEIGHT);
+
+        setViewportHeight((current) => (current === nextHeight ? current : nextHeight));
+        container.scrollTop = Math.max(startRow.offsetTop - headerHeight, 0);
+    }, [anchor]);
+
+    return {
+        scrollRef,
+        viewportHeight,
+    };
+}
 
 const candidateStateClasses: Record<SlotCellState, string> = {
     available: 'bg-green-300 hover:bg-green-400',
@@ -40,6 +73,7 @@ export function CandidateWeeklySlotPicker({ googleBusyIntervals, onChange }: Can
         googleBusyIntervals,
         onChange,
     });
+    const { scrollRef, viewportHeight } = useDefaultBusinessHoursViewport(weekStart);
 
     return (
         <section className="space-y-4">
@@ -85,17 +119,25 @@ export function CandidateWeeklySlotPicker({ googleBusyIntervals, onChange }: Can
                 </div>
             </div>
 
-            <div className="max-h-[620px] overflow-auto border border-gray-200 rounded-lg bg-white">
+            <div
+                ref={scrollRef}
+                className="overflow-y-auto border border-gray-200 rounded-lg bg-white"
+                style={{ height: `${viewportHeight}px` }}
+            >
                 <table className="w-full border-collapse table-fixed select-none">
-                    <thead className="sticky top-0 z-10 bg-white">
+                    <thead>
                         <tr>
-                            <th className="w-20 border-b border-gray-200 bg-white sticky left-0 z-20" />
+                            <th
+                                className="w-20 border-b border-gray-200 bg-gray-50 sticky left-0"
+                                style={{ top: 0, zIndex: 30, backgroundColor: '#f8fafc' }}
+                            />
                             {Array.from({ length: 7 }).map((_, dayOffset) => {
                                 const day = addDays(weekStart, dayOffset);
                                 return (
                                     <th
                                         key={day.toISOString()}
-                                        className="border-b border-gray-200 py-2 text-xs font-semibold text-gray-700"
+                                        className="border-b border-gray-200 py-2 text-xs font-semibold text-gray-700 sticky"
+                                        style={{ top: 0, zIndex: 20, backgroundColor: '#ffffff' }}
                                     >
                                         {format(day, 'EEE MMM d')}
                                     </th>
@@ -105,8 +147,11 @@ export function CandidateWeeklySlotPicker({ googleBusyIntervals, onChange }: Can
                     </thead>
                     <tbody>
                         {Array.from({ length: SLOTS_PER_DAY }).map((_, row) => (
-                            <tr key={row}>
-                                <td className="sticky left-0 z-10 border-r border-gray-200 bg-white pr-2 align-top text-right text-[11px] text-gray-500">
+                            <tr key={row} data-slot-row={row}>
+                                <td
+                                    className="sticky left-0 border-r border-gray-200 bg-gray-50 pr-2 align-top text-right text-[11px] text-gray-500"
+                                    style={{ zIndex: 10, backgroundColor: '#f8fafc' }}
+                                >
                                     {getSlotLabel(row)}
                                 </td>
                                 {Array.from({ length: 7 }).map((__, dayOffset) => {
@@ -180,6 +225,7 @@ export function ProfessionalWeeklySlotPicker({ slots, selectedSlot, onSelect }: 
         slots,
         selectedSlot,
     });
+    const { scrollRef, viewportHeight } = useDefaultBusinessHoursViewport(weekStart);
 
     if (!hasSlots || !weekStart) {
         return (
@@ -216,17 +262,25 @@ export function ProfessionalWeeklySlotPicker({ slots, selectedSlot, onSelect }: 
                 </div>
             </div>
 
-            <div className="max-h-[620px] overflow-auto border border-gray-200 rounded-lg bg-white">
+            <div
+                ref={scrollRef}
+                className="overflow-y-auto border border-gray-200 rounded-lg bg-white"
+                style={{ height: `${viewportHeight}px` }}
+            >
                 <table className="w-full border-collapse table-fixed">
-                    <thead className="sticky top-0 z-10 bg-white">
+                    <thead>
                         <tr>
-                            <th className="w-20 border-b border-gray-200 bg-white sticky left-0 z-20" />
+                            <th
+                                className="w-20 border-b border-gray-200 bg-gray-50 sticky left-0"
+                                style={{ top: 0, zIndex: 30, backgroundColor: '#f8fafc' }}
+                            />
                             {Array.from({ length: 7 }).map((_, dayOffset) => {
                                 const day = addDays(weekStart, dayOffset);
                                 return (
                                     <th
                                         key={day.toISOString()}
-                                        className="border-b border-gray-200 py-2 text-xs font-semibold text-gray-700"
+                                        className="border-b border-gray-200 py-2 text-xs font-semibold text-gray-700 sticky"
+                                        style={{ top: 0, zIndex: 20, backgroundColor: '#ffffff' }}
                                     >
                                         {format(day, 'EEE MMM d')}
                                     </th>
@@ -236,8 +290,11 @@ export function ProfessionalWeeklySlotPicker({ slots, selectedSlot, onSelect }: 
                     </thead>
                     <tbody>
                         {Array.from({ length: SLOTS_PER_DAY }).map((_, row) => (
-                            <tr key={row}>
-                                <td className="sticky left-0 z-10 border-r border-gray-200 bg-white pr-2 align-top text-right text-[11px] text-gray-500">
+                            <tr key={row} data-slot-row={row}>
+                                <td
+                                    className="sticky left-0 border-r border-gray-200 bg-gray-50 pr-2 align-top text-right text-[11px] text-gray-500"
+                                    style={{ zIndex: 10, backgroundColor: '#f8fafc' }}
+                                >
                                     {getSlotLabel(row)}
                                 </td>
                                 {Array.from({ length: 7 }).map((__, dayOffset) => {
