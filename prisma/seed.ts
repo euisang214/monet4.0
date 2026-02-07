@@ -70,6 +70,9 @@ const SCHOOLS = [
     { name: 'Northwestern University', degree: 'MS', field: 'Marketing' },
 ]
 
+const CANDIDATE_TIMEZONES = ['America/New_York', 'America/Los_Angeles', 'America/Chicago', 'Europe/London', 'Asia/Tokyo']
+const PROFESSIONAL_TIMEZONES = ['America/New_York', 'America/Los_Angeles', 'America/Chicago', 'Europe/London', 'Asia/Singapore']
+
 async function main() {
     console.log('Start seeding ...')
     console.log('')
@@ -93,10 +96,12 @@ async function main() {
     console.log(`✅ Created admin: ${admin.email}`)
 
     // Create 10 Candidates with varied profiles
-    const candidates: { id: string; email: string }[] = []
+    const candidates: { id: string; email: string; timezone: string }[] = []
     for (let i = 1; i <= 10; i++) {
         const email = `cand${i}@monet.local`
         const school = SCHOOLS[(i - 1) % SCHOOLS.length]
+        const schoolSecondary = SCHOOLS[(i + 2) % SCHOOLS.length]
+        const timezone = CANDIDATE_TIMEZONES[(i - 1) % CANDIDATE_TIMEZONES.length]
 
         const candidate = await prisma.user.upsert({
             where: { email },
@@ -105,51 +110,100 @@ async function main() {
                 email,
                 hashedPassword: candidatePassword,
                 role: Role.CANDIDATE,
-                timezone: ['America/New_York', 'America/Los_Angeles', 'America/Chicago', 'Europe/London', 'Asia/Tokyo'][i % 5],
+                timezone,
                 stripeCustomerId: generateStripeId('cus', i),
                 candidateProfile: {
                     create: {
-                        interests: INTERESTS[(i - 1) % INTERESTS.length],
-                        resumeUrl: i <= 5 ? `https://storage.monet.local/resumes/candidate_${i}.pdf` : null,
+                        interests: [...new Set([...INTERESTS[(i - 1) % INTERESTS.length], i % 2 === 0 ? 'Interview Prep' : 'Networking'])],
+                        resumeUrl: i <= 8 ? `https://storage.monet.local/resumes/candidate_${i}.pdf` : null,
                         education: {
-                            create: {
-                                school: school.name,
-                                degree: school.degree,
-                                fieldOfStudy: school.field,
-                                startDate: new Date(`${2018 - i}-09-01`),
-                                endDate: new Date(`${2022 - i}-05-15`),
-                                gpa: 3.5 + (i % 5) * 0.1,
-                                honors: i % 3 === 0 ? 'Summa Cum Laude' : i % 3 === 1 ? 'Magna Cum Laude' : null,
-                                activities: ['Case Competition Club', 'Investment Club'],
-                            },
+                            create: [
+                                {
+                                    school: school.name,
+                                    degree: school.degree,
+                                    fieldOfStudy: school.field,
+                                    startDate: new Date(`${2016 - i}-09-01`),
+                                    endDate: new Date(`${2020 - i}-05-15`),
+                                    gpa: 3.4 + (i % 5) * 0.1,
+                                    honors: i % 3 === 0 ? 'Summa Cum Laude' : i % 3 === 1 ? 'Magna Cum Laude' : null,
+                                    activities: ['Case Competition Club', 'Investment Club'],
+                                },
+                                {
+                                    school: schoolSecondary.name,
+                                    degree: i % 2 === 0 ? 'Certificate' : 'Exchange Program',
+                                    fieldOfStudy: i % 2 === 0 ? 'Data Analytics' : schoolSecondary.field,
+                                    startDate: new Date(`${2021 - i}-09-01`),
+                                    endDate: new Date(`${2022 - i}-05-15`),
+                                    gpa: i % 2 === 0 ? 3.8 : null,
+                                    honors: null,
+                                    activities: ['Mentorship Program', 'Professional Development Society'],
+                                },
+                            ],
                         },
                         experience: {
-                            create: {
-                                company: `Previous Company ${i}`,
-                                title: 'Analyst',
-                                startDate: new Date(`${2022 - i}-06-01`),
-                                isCurrent: i % 3 === 0,
-                                endDate: i % 3 === 0 ? null : new Date('2024-12-01'),
-                                description: 'Analyzed business data and provided strategic recommendations.',
-                                type: 'EXPERIENCE',
-                            },
+                            create: [
+                                {
+                                    company: `Previous Company ${i}`,
+                                    title: i % 2 === 0 ? 'Business Analyst' : 'Product Intern',
+                                    location: i % 2 === 0 ? 'New York, NY' : 'San Francisco, CA',
+                                    startDate: new Date(`${2021 - i}-06-01`),
+                                    endDate: new Date(`${2023 - i}-08-01`),
+                                    isCurrent: false,
+                                    description: 'Analyzed business data and provided strategic recommendations across cross-functional teams.',
+                                    type: 'EXPERIENCE',
+                                },
+                                {
+                                    company: `Current Company ${i}`,
+                                    title: i % 3 === 0 ? 'Associate' : 'Analyst',
+                                    location: i % 2 === 0 ? 'Remote' : 'Chicago, IL',
+                                    startDate: new Date(`${2023 - i}-09-01`),
+                                    isCurrent: i % 3 === 0,
+                                    endDate: i % 3 === 0 ? null : new Date('2024-12-01'),
+                                    description: 'Built reporting dashboards and partnered with senior stakeholders on project execution.',
+                                    type: 'EXPERIENCE',
+                                },
+                            ],
+                        },
+                        activities: {
+                            create: [
+                                {
+                                    company: 'Campus Organization',
+                                    title: 'Mentor',
+                                    startDate: new Date(`${2019 - i}-01-15`),
+                                    endDate: new Date(`${2021 - i}-12-15`),
+                                    isCurrent: false,
+                                    description: 'Mentored underclassmen on recruiting prep and resume development.',
+                                    type: 'ACTIVITY',
+                                },
+                                {
+                                    company: 'Volunteer Program',
+                                    title: 'Program Lead',
+                                    startDate: new Date(`${2022 - i}-02-01`),
+                                    isCurrent: i % 4 === 0,
+                                    endDate: i % 4 === 0 ? null : new Date(`${2024 - i}-06-30`),
+                                    description: 'Led volunteer onboarding and coordinated weekly professional development workshops.',
+                                    type: 'ACTIVITY',
+                                },
+                            ],
                         },
                     },
                 },
             },
         })
-        candidates.push({ id: candidate.id, email: candidate.email })
+        candidates.push({ id: candidate.id, email: candidate.email, timezone })
         console.log(`✅ Created candidate: ${candidate.email}`)
     }
 
     // Create 10 Professionals with Stripe account IDs and varied profiles
-    const professionals: { id: string; email: string; stripeAccountId: string }[] = []
+    const professionals: { id: string; email: string; stripeAccountId: string; timezone: string }[] = []
     for (let i = 1; i <= 10; i++) {
         const email = `pro${i}@monet.local`
         const stripeAccountId = generateStripeId('acct', i)
         const company = COMPANIES[(i - 1) % COMPANIES.length]
         const bio = BIOS[(i - 1) % BIOS.length]
         const school = SCHOOLS[(i + 4) % SCHOOLS.length] // Different schools than candidates
+        const schoolSecondary = SCHOOLS[(i + 6) % SCHOOLS.length]
+        const timezone = PROFESSIONAL_TIMEZONES[(i - 1) % PROFESSIONAL_TIMEZONES.length]
 
         const professional = await prisma.user.upsert({
             where: { email },
@@ -158,7 +212,7 @@ async function main() {
                 email,
                 hashedPassword: professionalPassword,
                 role: Role.PROFESSIONAL,
-                timezone: ['America/New_York', 'America/Los_Angeles', 'America/Chicago', 'Europe/London', 'Asia/Singapore'][i % 5],
+                timezone,
                 stripeAccountId,
                 googleCalendarConnected: i % 2 === 0, // Half have Google Calendar connected
                 linkedinConnected: i % 3 !== 0, // Most have LinkedIn connected
@@ -168,48 +222,95 @@ async function main() {
                         employer: company.employer,
                         title: company.title,
                         bio,
-                        priceCents: 10000 + (i * 2500), // $100 to $125 range
+                        priceCents: 10000 + (i * 2500), // $125 to $350 range
                         corporateEmail: `pro${i}@${company.employer.toLowerCase().replace(/\s+/g, '')}.local`,
                         verifiedAt: new Date(),
-                        interests: INTERESTS[(i - 1) % INTERESTS.length],
-                        availabilityPrefs: JSON.stringify({
+                        interests: [...new Set([...INTERESTS[(i - 1) % INTERESTS.length], 'Mentorship'])],
+                        availabilityPrefs: {
                             weekdays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
                             preferredTimes: ['morning', 'afternoon'],
                             maxCallsPerWeek: 5 + i,
-                        }),
+                            minLeadHours: 24,
+                            preferredSessionLengthMinutes: 30,
+                        },
                         education: {
-                            create: {
-                                school: school.name,
-                                degree: school.degree,
-                                fieldOfStudy: school.field,
-                                startDate: new Date(`${2010 - i}-09-01`),
-                                endDate: new Date(`${2014 - i}-05-15`),
-                                gpa: 3.7 + (i % 3) * 0.1,
-                                honors: i % 2 === 0 ? 'Dean\'s List' : null,
-                                activities: ['Student Government', 'Debate Team'],
-                            },
+                            create: [
+                                {
+                                    school: school.name,
+                                    degree: school.degree,
+                                    fieldOfStudy: school.field,
+                                    startDate: new Date(`${2008 - i}-09-01`),
+                                    endDate: new Date(`${2012 - i}-05-15`),
+                                    gpa: 3.7 + (i % 3) * 0.1,
+                                    honors: i % 2 === 0 ? 'Dean\'s List' : null,
+                                    activities: ['Student Government', 'Debate Team'],
+                                },
+                                {
+                                    school: schoolSecondary.name,
+                                    degree: i % 2 === 0 ? 'MBA' : 'Executive Certificate',
+                                    fieldOfStudy: i % 2 === 0 ? 'General Management' : 'Leadership',
+                                    startDate: new Date(`${2014 - i}-09-01`),
+                                    endDate: new Date(`${2016 - i}-05-15`),
+                                    gpa: i % 2 === 0 ? 3.8 : null,
+                                    honors: null,
+                                    activities: ['Alumni Mentorship Council'],
+                                },
+                            ],
                         },
                         experience: {
                             create: [
                                 {
                                     company: company.employer,
                                     title: company.title,
+                                    location: i % 2 === 0 ? 'New York, NY' : 'Remote',
                                     startDate: new Date(`${2020 - (i % 3)}-01-01`),
                                     isCurrent: true,
                                     description: `Leading strategic initiatives and mentoring junior team members at ${company.employer}.`,
                                     type: 'EXPERIENCE',
-                                    positionHistory: JSON.stringify([
+                                    positionHistory: [
                                         { title: 'Associate', startDate: '2018-01-01', endDate: '2020-01-01' },
-                                    ]),
+                                        { title: 'Manager', startDate: '2020-01-01', endDate: null },
+                                    ],
                                 },
                                 {
                                     company: COMPANIES[(i + 3) % COMPANIES.length].employer,
                                     title: 'Associate',
+                                    location: 'Boston, MA',
                                     startDate: new Date('2016-01-01'),
                                     endDate: new Date('2020-01-01'),
                                     isCurrent: false,
                                     description: 'Started career in a rotational program, building foundational skills.',
                                     type: 'EXPERIENCE',
+                                },
+                                {
+                                    company: `Startup Portfolio ${i}`,
+                                    title: 'Advisor',
+                                    location: 'Part-time / Remote',
+                                    startDate: new Date(`${2021 - (i % 2)}-03-01`),
+                                    isCurrent: true,
+                                    description: 'Advises early-stage founders on product strategy and hiring.',
+                                    type: 'EXPERIENCE',
+                                },
+                            ],
+                        },
+                        activities: {
+                            create: [
+                                {
+                                    company: 'Professional Association',
+                                    title: 'Panel Speaker',
+                                    startDate: new Date(`${2018 - i}-02-01`),
+                                    endDate: new Date(`${2024 - i}-11-15`),
+                                    isCurrent: false,
+                                    description: 'Hosts quarterly workshops for candidates on interview strategy.',
+                                    type: 'ACTIVITY',
+                                },
+                                {
+                                    company: 'Mentorship Circle',
+                                    title: 'Career Coach',
+                                    startDate: new Date(`${2020 - i}-01-01`),
+                                    isCurrent: true,
+                                    description: 'Runs monthly office hours and mock interview cohorts.',
+                                    type: 'ACTIVITY',
                                 },
                             ],
                         },
@@ -217,7 +318,7 @@ async function main() {
                 },
             },
         })
-        professionals.push({ id: professional.id, email: professional.email, stripeAccountId })
+        professionals.push({ id: professional.id, email: professional.email, stripeAccountId, timezone })
         console.log(`✅ Created professional: ${professional.email}`)
     }
 
@@ -250,7 +351,7 @@ async function main() {
                         start: startTime,
                         end: endTime,
                         busy: false,
-                        timezone: 'America/New_York',
+                        timezone: professional.timezone,
                     },
                 })
             }
@@ -264,6 +365,43 @@ async function main() {
 
     let bookingIndex = 0
     const baseDate = new Date()
+    const candidateAvailabilitySeeded = new Set<string>()
+
+    const createCandidateRequestAvailability = async (
+        candidate: { id: string; timezone: string },
+        anchorStart: Date,
+        includeBusyBlock: boolean = false
+    ) => {
+        const slotOffsetsInMinutes = [-90, 0, 90]
+
+        for (const offset of slotOffsetsInMinutes) {
+            const start = new Date(anchorStart.getTime() + offset * 60 * 1000)
+            const end = new Date(start.getTime() + 60 * 60 * 1000)
+            await prisma.availability.create({
+                data: {
+                    userId: candidate.id,
+                    start,
+                    end,
+                    busy: false,
+                    timezone: candidate.timezone,
+                },
+            })
+        }
+
+        if (includeBusyBlock) {
+            const busyStart = new Date(anchorStart.getTime() + 30 * 60 * 1000)
+            const busyEnd = new Date(busyStart.getTime() + 30 * 60 * 1000)
+            await prisma.availability.create({
+                data: {
+                    userId: candidate.id,
+                    start: busyStart,
+                    end: busyEnd,
+                    busy: true,
+                    timezone: candidate.timezone,
+                },
+            })
+        }
+    }
 
     for (let proIndex = 0; proIndex < professionals.length; proIndex++) {
         const professional = professionals[proIndex]
@@ -298,7 +436,7 @@ async function main() {
                     startAt: scheduledDate,
                     endAt: new Date(scheduledDate.getTime() + 60 * 60 * 1000),
                     expiresAt,
-                    timezone: 'America/New_York',
+                    timezone: candidate.timezone,
                     payment: {
                         create: {
                             amountGross: priceCents,
@@ -309,6 +447,8 @@ async function main() {
                     },
                 },
             })
+            await createCandidateRequestAvailability(candidate, scheduledDate, i % 2 === 0 && !candidateAvailabilitySeeded.has(candidate.id))
+            candidateAvailabilitySeeded.add(candidate.id)
             bookingIndex++
         }
 
@@ -329,7 +469,7 @@ async function main() {
                     priceCents,
                     startAt: scheduledDate,
                     endAt: new Date(scheduledDate.getTime() + 60 * 60 * 1000),
-                    timezone: 'America/New_York',
+                    timezone: professional.timezone,
                     zoomMeetingId: `zoom_${bookingIndex}`,
                     zoomJoinUrl: `https://zoom.us/j/${100000000 + bookingIndex}`,
                     payment: {
@@ -362,7 +502,7 @@ async function main() {
                     priceCents,
                     startAt: pastDate,
                     endAt: new Date(pastDate.getTime() + 60 * 60 * 1000),
-                    timezone: 'America/New_York',
+                    timezone: professional.timezone,
                     zoomMeetingId: `zoom_${bookingIndex}`,
                     zoomJoinUrl: `https://zoom.us/j/${100000000 + bookingIndex}`,
                     candidateJoinedAt: pastDate,
@@ -717,8 +857,8 @@ async function main() {
     })
     console.log(`✅ Created resolved dispute with refund`)
 
-    // 10. Reschedule pending booking
-    await prisma.booking.create({
+    // 10. Reschedule pending booking (candidate-requested)
+    const candidateRequestedRescheduleBooking = await prisma.booking.create({
         data: {
             candidateId: candidates[9].id,
             professionalId: professionals[9].id,
@@ -739,7 +879,33 @@ async function main() {
             },
         },
     })
-    console.log(`✅ Created reschedule pending booking`)
+    await createCandidateRequestAvailability(candidates[9], new Date(baseDate.getTime() + 2 * 24 * 60 * 60 * 1000), true)
+    console.log(`✅ Created candidate-requested reschedule pending booking`)
+
+    // 11. Reschedule pending booking (professional-requested)
+    const professionalRequestedRescheduleBooking = await prisma.booking.create({
+        data: {
+            candidateId: candidates[0].id,
+            professionalId: professionals[2].id,
+            status: BookingStatus.reschedule_pending,
+            priceCents: 15000,
+            startAt: new Date(baseDate.getTime() + 2 * 24 * 60 * 60 * 1000), // Original accepted time
+            endAt: new Date(baseDate.getTime() + 2 * 24 * 60 * 60 * 1000 + 60 * 60 * 1000),
+            timezone: candidates[0].timezone,
+            zoomMeetingId: `zoom_reschedule_2`,
+            zoomJoinUrl: `https://zoom.us/j/reschedule2`,
+            payment: {
+                create: {
+                    amountGross: 15000,
+                    platformFee: 2250,
+                    stripePaymentIntentId: generateStripeId('pi', 988),
+                    status: PaymentStatus.held,
+                },
+            },
+        },
+    })
+    await createCandidateRequestAvailability(candidates[0], new Date(baseDate.getTime() + 3 * 24 * 60 * 60 * 1000), false)
+    console.log(`✅ Created professional-requested reschedule pending booking`)
 
     // Create some audit log entries
     console.log('')
@@ -774,6 +940,30 @@ async function main() {
                 action: 'dispute_opened',
                 metadata: JSON.stringify({ reason: 'no_show' }),
             },
+            {
+                actorUserId: candidates[9].id,
+                entity: 'Booking',
+                entityId: candidateRequestedRescheduleBooking.id,
+                action: 'booking_reschedule_requested',
+                metadata: JSON.stringify({
+                    previousStatus: 'accepted',
+                    newStatus: 'reschedule_pending',
+                    requestedByRole: 'CANDIDATE',
+                    reason: 'Candidate requested a new slot after a final-round schedule conflict.',
+                }),
+            },
+            {
+                actorUserId: professionals[2].id,
+                entity: 'Booking',
+                entityId: professionalRequestedRescheduleBooking.id,
+                action: 'booking_reschedule_requested',
+                metadata: JSON.stringify({
+                    previousStatus: 'accepted',
+                    newStatus: 'reschedule_pending',
+                    requestedByRole: 'PROFESSIONAL',
+                    reason: 'Professional requested a new slot due to travel overlap.',
+                }),
+            },
         ],
     })
     console.log(`✅ Created audit log entries`)
@@ -794,7 +984,7 @@ async function main() {
     console.log('    - 2 accepted bookings (status: accepted)')
     console.log('    - 2 calls pending feedback (status: completed_pending_feedback)')
     console.log('')
-    console.log('  Edge Cases (10 additional bookings):')
+    console.log('  Edge Cases (11 additional bookings):')
     console.log('    - 1 completed with feedback + payout (QC passed)')
     console.log('    - 1 declined by professional')
     console.log('    - 1 expired (no response)')
@@ -804,11 +994,12 @@ async function main() {
     console.log('    - 1 QC revise (feedback too short)')
     console.log('    - 1 candidate no-show')
     console.log('    - 1 resolved dispute with refund')
-    console.log('    - 1 reschedule pending')
+    console.log('    - 1 candidate-requested reschedule pending')
+    console.log('    - 1 professional-requested reschedule pending')
     console.log('')
-    console.log(`  Total bookings created: ${bookingIndex + 10}`)
-    console.log('  Availability slots: 14 days for each professional')
-    console.log('  Audit log entries: 4')
+    console.log(`  Total bookings created: ${bookingIndex + 11}`)
+    console.log('  Availability slots: 14 days for each professional + candidate request/reschedule slots')
+    console.log('  Audit log entries: 6')
     console.log('='.repeat(70))
 }
 
