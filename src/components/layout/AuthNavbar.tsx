@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { Button } from "@/components/ui/Button";
+import { appRoutes } from "@/lib/shared/routes";
 
 type UserRole = "CANDIDATE" | "PROFESSIONAL" | "ADMIN";
 
@@ -15,24 +16,24 @@ type NavLink = {
 
 const ROLE_NAV_LINKS: Record<UserRole, NavLink[]> = {
     CANDIDATE: [
-        { label: "Dashboard", href: "/candidate/dashboard" },
-        { label: "Browse", href: "/candidate/browse" },
-        { label: "Availability", href: "/candidate/availability" },
-        { label: "History", href: "/candidate/history" },
-        { label: "Settings", href: "/candidate/settings" },
+        { label: "Dashboard", href: appRoutes.candidate.dashboard },
+        { label: "Browse", href: appRoutes.candidate.browse },
+        { label: "Availability", href: appRoutes.candidate.availability },
+        { label: "History", href: appRoutes.candidate.history },
+        { label: "Settings", href: appRoutes.candidate.settings },
     ],
     PROFESSIONAL: [
-        { label: "Dashboard", href: "/professional/dashboard" },
-        { label: "Requests", href: "/professional/requests" },
-        { label: "Earnings", href: "/professional/earnings" },
-        { label: "Settings", href: "/professional/settings" },
+        { label: "Dashboard", href: appRoutes.professional.dashboard },
+        { label: "Requests", href: appRoutes.professional.requests },
+        { label: "Earnings", href: appRoutes.professional.earnings },
+        { label: "Settings", href: appRoutes.professional.settings },
     ],
     ADMIN: [
-        { label: "Bookings", href: "/admin/bookings" },
-        { label: "Disputes", href: "/admin/disputes" },
-        { label: "Users", href: "/admin/users" },
-        { label: "Feedback", href: "/admin/feedback" },
-        { label: "Payments", href: "/admin/payments" },
+        { label: "Bookings", href: appRoutes.admin.bookings },
+        { label: "Disputes", href: appRoutes.admin.disputes },
+        { label: "Users", href: appRoutes.admin.users },
+        { label: "Feedback", href: appRoutes.admin.feedback },
+        { label: "Payments", href: appRoutes.admin.payments },
     ],
 };
 

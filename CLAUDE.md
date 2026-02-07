@@ -1,6 +1,6 @@
 # CLAUDE.md - Monet 3.0 Codebase Guide for AI Assistants
 
-> **Version**: 0.2.0
+> **Version**: 0.3.0
 
 > **Purpose**: Comprehensive guide for AI assistants working on the Monet marketplace platform
 
@@ -177,15 +177,14 @@ monet3.0/
 │   │   ├── candidate/               # Candidate portal
 │   │   │   ├── dashboard/
 │   │   │   ├── browse/
-│   │   │   ├── book/                # Booking request flow (calendar + payment authorization)
+│   │   │   ├── professionals/       # Professional details + booking entry at /candidate/professionals/[id]/book
 │   │   │   ├── bookings/            # Candidate booking details + reschedule pages
 │   │   │   ├── availability/
 │   │   │   ├── history/
 │   │   │   └── settings/
 │   │   ├── professional/            # Professional portal
-│   │   │   ├── bookings/            # Confirm-and-schedule + reschedule review pages
 │   │   │   ├── dashboard/
-│   │   │   ├── requests/
+│   │   │   ├── requests/            # Request list + [id]/confirm-and-schedule + [id]/reschedule
 │   │   │   ├── feedback/
 │   │   │   ├── earnings/
 │   │   │   └── settings/
@@ -393,7 +392,7 @@ After running `npm run seed`, these users are available:
 - App: http://localhost:3000
 - Candidate Dashboard: http://localhost:3000/candidate/dashboard
 - Professional Dashboard: http://localhost:3000/professional/dashboard
-- Admin Portal: http://localhost:3000/admin
+- Admin Portal: http://localhost:3000/admin/bookings
 
 ### NPM Scripts
 
@@ -1045,6 +1044,17 @@ Name tables to match model names. Matching names is Prisma's default behavior an
 
 All API routes are in `/src/app/api/` and follow Next.js App Router conventions. **APIs are organized by user role** for better clarity and maintainability.
 
+> [!IMPORTANT]
+> **Hard Cutover (No Legacy Paths)**
+>
+> As of version `0.3.0`, legacy paths were removed. There are no redirect/shim endpoints for:
+> - `/professional/bookings/*`
+> - `/api/professional/bookings/*`
+> - `/candidate/book/[id]`
+> - `/api/candidate/bookings/request`
+>
+> Use only canonical nested paths documented below.
+
 ### Authentication (`/api/auth/*`)
 
 Shared authentication endpoints (kept at root for NextAuth compatibility):
@@ -1058,27 +1068,27 @@ Shared authentication endpoints (kept at root for NextAuth compatibility):
 
 Professional-specific endpoints:
 
-**Bookings**:
-- `GET /api/professional/bookings/[id]/confirm-and-schedule` - View candidate's available times
-- `POST /api/professional/bookings/[id]/confirm-and-schedule` - Accept booking and schedule
+**Requests (canonical nested paths)**:
+- `GET /api/professional/requests/[id]/confirm-and-schedule` - View candidate's available times
+- `POST /api/professional/requests/[id]/confirm-and-schedule` - Accept booking and schedule
   - **Step 1**: Captures payment via Stripe, updates status to `accepted_pending_integrations`
   - **Step 2**: Returns success to professional immediately
   - **Step 3**: BullMQ job handles Zoom meeting creation + calendar invites + email
   - **Step 4**: On job success: status → `accepted`
   - **Step 5**: On job failure: try again, and upon repeated failure, admin notified, manual Zoom link entry available
   - By selecting a time, the professional confirms/accepts the booking
-- `POST /api/professional/bookings/[id]/decline` - Decline booking request
+- `POST /api/professional/requests/[id]/decline` - Decline booking request
 
 **Rescheduling**:
-- `POST /api/professional/bookings/[id]/reschedule/request` - Request reschedule (triggers candidate availability sync)
+- `POST /api/professional/requests/[id]/reschedule/request` - Request reschedule (triggers candidate availability sync)
   - Body: `{ reason?: string }`
   - Booking status → `reschedule_pending`
-- `GET /api/professional/bookings/[id]/reschedule` - View candidate's availability for reschedule
-- `POST /api/professional/bookings/[id]/reschedule/confirm` - Confirm new time (as initiator or responder)
+- `GET /api/professional/requests/[id]/reschedule` - View candidate's availability for reschedule
+- `POST /api/professional/requests/[id]/reschedule/confirm` - Confirm new time (as initiator or responder)
   - Body: `{ startAt: DateTime }`
   - Cancels old Zoom, creates new one, sends updated invites
   - Booking status → `accepted`
-- `POST /api/professional/bookings/[id]/reschedule/reject` - Reject reschedule request
+- `POST /api/professional/requests/[id]/reschedule/reject` - Reject reschedule request
   - Booking status reverts to `accepted` with original time
 
 > **Implementation Note**: Booking confirmation and rescheduling share helper functions for Zoom creation, calendar invites, and notifications. They use separate endpoints because: (1) first booking captures payment, rescheduling doesn't; (2) status transitions differ; (3) rescheduling deletes the old Zoom first.
@@ -1096,8 +1106,9 @@ Professional-specific endpoints:
 Candidate-specific endpoints:
 
 **Bookings**:
-- `POST /api/candidate/bookings/request` - Request a booking with payment authorization
-  - Body: `{ professionalId, availabilitySlots: [{start,end}], timezone? }`
+- `POST /api/candidate/professionals/[id]/bookings` - Request a booking with payment authorization
+  - Body: `{ availabilitySlots: [{start,end}], timezone? }`
+  - `professionalId` is derived from route param `[id]`
   - Candidate submits explicit 30-minute availability slots from weekly picker UI
   - Submitted slots are synced into candidate `Availability` before booking request transition
   - Creates booking with status 'requested'
@@ -1325,7 +1336,7 @@ export const GET = withRole(['ADMIN', 'PROFESSIONAL'], async (session, req) => {
 2. REQUEST WITH AUTHORIZATION
    Candidate requests booking and authorizes payment
    → Candidate uses weekly 30-minute calendar (click/drag) and can override Google busy blocks
-   → POST /api/candidate/bookings/request { professionalId, availabilitySlots, timezone }
+   → POST /api/candidate/professionals/[id]/bookings { availabilitySlots, timezone }
    → Submitted slots are written to Availability table
    → Creates booking with status: "requested"
    → Creates Stripe PaymentIntent with capture_method: 'manual'
@@ -1338,8 +1349,8 @@ export const GET = withRole(['ADMIN', 'PROFESSIONAL'], async (session, req) => {
 
 3. PROFESSIONAL ACCEPTS (Funds Captured)
    Professional views candidate's available times and selects one
-   → GET /api/professional/bookings/[id]/confirm-and-schedule (view candidate availability)
-   → POST /api/professional/bookings/[id]/confirm-and-schedule { startAt }
+   → GET /api/professional/requests/[id]/confirm-and-schedule (view candidate availability)
+   → POST /api/professional/requests/[id]/confirm-and-schedule { startAt }
    → Server calls stripe.paymentIntents.capture(paymentIntentId)
    → Payment record status changes: "authorized" → "held"
    → Funds now in platform escrow until QC passes
@@ -1475,7 +1486,7 @@ CANDIDATE LATE CANCELLATION (< 6 hours before call)
 ### Professional Decline Flow
 
 ```
-1. Professional calls POST /api/professional/bookings/[id]/decline
+1. Professional calls POST /api/professional/requests/[id]/decline
    Body: { reason?: string }  // Optional decline reason
 
 2. Validate booking is in 'requested' status
@@ -1611,7 +1622,7 @@ CANDIDATE LATE CANCELLATION (< 6 hours before call)
    → Candidate submits selected slots as availability payload
 
 4. Display to Professional
-   → GET /api/professional/bookings/[id]/confirm-and-schedule
+   → GET /api/professional/requests/[id]/confirm-and-schedule
    → Shows candidate-submitted slots in 30-min blocks
    → Professional selects exactly one slot
 ```
@@ -1660,15 +1671,15 @@ CANDIDATE INITIATES RESCHEDULE
 
 2. Professional reviews and selects new time
    → Professional sees action item in `/professional/requests` (requested + reschedule_pending)
-   → GET /api/professional/bookings/[id]/reschedule (view proposed slots)
-   → POST /api/professional/bookings/[id]/reschedule/confirm { startAt }
+   → GET /api/professional/requests/[id]/reschedule (view proposed slots)
+   → POST /api/professional/requests/[id]/reschedule/confirm { startAt }
    → Updates booking startAt/endAt
    → Cancels previous Zoom meeting, creates new one
    → Sends new calendar invites to both parties
    → Booking.status transitions back to 'accepted'
 
 3. If REJECTED
-   → POST /api/professional/bookings/[id]/reschedule/reject
+   → POST /api/professional/requests/[id]/reschedule/reject
    → Booking.status transitions back to 'accepted'
    → Original scheduled time is kept
    → Notify candidate of rejection
@@ -1677,7 +1688,7 @@ CANDIDATE INITIATES RESCHEDULE
 
 PROFESSIONAL INITIATES RESCHEDULE
 1. Professional requests reschedule
-   → POST /api/professional/bookings/[id]/reschedule/request
+   → POST /api/professional/requests/[id]/reschedule/request
    → Body: { reason?: string }
    → Triggers resync of candidate's Google Calendar availability
    → Booking.status transitions to 'reschedule_pending'
@@ -1685,8 +1696,8 @@ PROFESSIONAL INITIATES RESCHEDULE
 
 2. Professional views candidate's availability and picks new time
    → Similar to initial booking accept flow:
-   → GET /api/professional/bookings/[id]/reschedule (view candidate's Availability)
-   → POST /api/professional/bookings/[id]/reschedule/confirm { startAt }
+   → GET /api/professional/requests/[id]/reschedule (view candidate's Availability)
+   → POST /api/professional/requests/[id]/reschedule/confirm { startAt }
    → Cancels previous Zoom meeting, creates new one
    → Sends new calendar invites
    → Booking.status transitions back to 'accepted'
@@ -2580,7 +2591,7 @@ npx prisma generate
 
 **Solution**:
 1. Check Stripe dashboard for payment intent
-2. Ensure `/api/candidate/bookings/request` was called first
+2. Ensure `/api/candidate/professionals/[id]/bookings` was called first
 3. **Note on expiration**: Stripe PaymentIntent authorizations typically expire after 7 days with most card issuers. If booking is scheduled beyond this window, the system must either capture immediately and hold funds in platform balance, or save the payment method for later charging.
 4. **Important**: Stripe Checkout Sessions (not used by this system) expire after 24 hours—do not confuse with PaymentIntent authorizations.
 

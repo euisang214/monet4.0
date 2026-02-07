@@ -1,4 +1,3 @@
-import { NextRequest } from 'next/server';
 import { withRole } from '@/lib/core/api-helpers';
 import { z } from 'zod';
 import { ProfessionalRequestService } from '@/lib/role/professional/requests';
@@ -24,11 +23,12 @@ export const POST = withRole(Role.PROFESSIONAL, async (req: Request, { params }:
         );
 
         return Response.json({ data: booking });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Error declining booking:', error);
         if (error instanceof z.ZodError) {
             return Response.json({ error: 'Validation Error', details: error.issues }, { status: 400 });
         }
-        return Response.json({ error: error.message || 'Internal Error' }, { status: 400 });
+        const message = error instanceof Error ? error.message : 'Internal Error';
+        return Response.json({ error: message }, { status: 400 });
     }
 });

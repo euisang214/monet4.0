@@ -3,6 +3,7 @@ import nodemailer from 'nodemailer';
 import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
 import { createEvent, DateArray } from 'ics';
 import { Booking, User, ProfessionalProfile, Payout } from '@prisma/client';
+import { appRoutes } from '@/lib/shared/routes';
 
 const hasAwsCredentials = Boolean(
     process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
@@ -63,6 +64,8 @@ type BookingWithRelations = Booking & {
     professional: User;
     professionalProfile?: ProfessionalProfile | null;
 };
+
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 export async function sendBookingAcceptedEmail(
     booking: BookingWithRelations,
@@ -169,7 +172,7 @@ export async function sendFeedbackRevisionEmail(
             ${reasonsList}
         </ul>
         <p>Please log in to your dashboard and update the feedback to release your payout.</p>
-        <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/professional/feedback/${bookingId}">Edit Feedback</a></p>
+        <p><a href="${appUrl}${appRoutes.professional.feedback(bookingId)}">Edit Feedback</a></p>
         <p><strong>Reminders:</strong></p>
         <ul>
             <li>Minimum 200 words of detailed advice.</li>
@@ -195,7 +198,7 @@ export async function sendBookingRequestedEmail(
         <p>You have received a new consultation request from a candidate.</p>
         <p><strong>Proposed Price:</strong> $${(booking.priceCents || 0) / 100}</p>
         <p>Please log in to your dashboard to review and accept or decline this request. This request will expire in 120 hours.</p>
-        <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/professional/requests/${booking.id}">View Request</a></p>
+        <p><a href="${appUrl}${appRoutes.professional.requestDetails(booking.id)}">View Request</a></p>
     `;
 
     await sendEmail({
@@ -215,7 +218,7 @@ export async function sendBookingDeclinedEmail(
         <p>The professional has declined your consultation request.</p>
         <p><strong>Reason:</strong> ${booking.declineReason || 'No reason provided.'}</p>
         <p>Any authorized funds have been released.</p>
-        <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/candidate/browse">Browse Other Professionals</a></p>
+        <p><a href="${appUrl}${appRoutes.candidate.browse}">Browse Other Professionals</a></p>
     `;
 
     await sendEmail({
@@ -248,7 +251,7 @@ export async function sendPayoutReleasedEmail(
 
 export async function sendPasswordResetEmail(email: string, token: string) {
     const subject = 'Reset Your Password';
-    const resetLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/reset?token=${token}`;
+    const resetLink = `${appUrl}/auth/reset?token=${token}`;
 
     const html = `
         <h1>Password Reset Request</h1>

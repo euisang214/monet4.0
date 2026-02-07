@@ -6,6 +6,7 @@ import { Role } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { appRoutes } from "@/lib/shared/routes";
 
 const confirmSchema = z.object({
     bookingId: z.string(),
@@ -37,12 +38,13 @@ export async function confirmBookingAction(formData: FormData) {
             session.user.id,
             startAt
         );
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Confirmation failed", error);
-        return { error: error.message || "Failed to confirm booking" };
+        const message = error instanceof Error ? error.message : "Failed to confirm booking";
+        return { error: message };
     }
 
     // Revalidate and redirect
-    revalidatePath("/professional/dashboard");
-    redirect("/professional/dashboard");
+    revalidatePath(appRoutes.professional.dashboard);
+    redirect(appRoutes.professional.dashboard);
 }

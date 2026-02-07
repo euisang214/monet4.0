@@ -322,42 +322,42 @@ async function main() {
         console.log(`✅ Created professional: ${professional.email}`)
     }
 
-    // Create availability slots for professionals
+    // Create baseline availability slots for candidates
     console.log('')
-    console.log('Creating availability slots...')
+    console.log('Creating candidate availability slots...')
     const now = new Date()
-    for (const professional of professionals) {
+    for (const candidate of candidates) {
         // Create availability for next 14 days
         for (let day = 1; day <= 14; day++) {
             const date = new Date(now)
             date.setDate(date.getDate() + day)
-            date.setHours(9, 0, 0, 0) // 9 AM
+            date.setHours(10, 0, 0, 0) // 10 AM baseline candidate availability
 
-            // Skip weekends for some professionals
+            // Skip weekends to mimic standard weekday scheduling behavior
             const dayOfWeek = date.getDay()
             if (dayOfWeek === 0 || dayOfWeek === 6) continue
 
-            // Create 3-4 one-hour slots per day
-            for (let slot = 0; slot < (day % 2 === 0 ? 4 : 3); slot++) {
+            // Create 2-3 one-hour candidate slots per day
+            for (let slot = 0; slot < (day % 2 === 0 ? 3 : 2); slot++) {
                 const startTime = new Date(date)
-                startTime.setHours(9 + slot * 2) // 9am, 11am, 1pm, 3pm
+                startTime.setHours(10 + slot * 2) // 10am, 12pm, 2pm
 
                 const endTime = new Date(startTime)
                 endTime.setHours(endTime.getHours() + 1)
 
                 await prisma.availability.create({
                     data: {
-                        userId: professional.id,
+                        userId: candidate.id,
                         start: startTime,
                         end: endTime,
                         busy: false,
-                        timezone: professional.timezone,
+                        timezone: candidate.timezone,
                     },
                 })
             }
         }
     }
-    console.log(`✅ Created availability slots for all professionals`)
+    console.log(`✅ Created baseline availability slots for all candidates`)
 
     // Create bookings for each professional
     console.log('')
@@ -998,7 +998,7 @@ async function main() {
     console.log('    - 1 professional-requested reschedule pending')
     console.log('')
     console.log(`  Total bookings created: ${bookingIndex + 11}`)
-    console.log('  Availability slots: 14 days for each professional + candidate request/reschedule slots')
+    console.log('  Availability slots: 14 days for each candidate + request/reschedule candidate slots')
     console.log('  Audit log entries: 6')
     console.log('='.repeat(70))
 }

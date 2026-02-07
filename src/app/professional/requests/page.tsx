@@ -4,12 +4,13 @@ import { BookingStatus, Role } from '@prisma/client';
 import { getPendingRequests } from '@/lib/shared/bookings/upcoming';
 import Link from 'next/link';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { appRoutes } from '@/lib/shared/routes';
 
 export default async function ProfessionalRequestsPage() {
     const session = await auth();
 
     if (!session?.user) {
-        redirect('/login?callbackUrl=/professional/requests');
+        redirect(`/login?callbackUrl=${appRoutes.professional.requests}`);
     }
 
     if (session.user.role !== Role.PROFESSIONAL) {
@@ -32,7 +33,7 @@ export default async function ProfessionalRequestsPage() {
                     title="No pending requests"
                     description="New candidate requests will appear here as soon as they are submitted."
                     actionLabel="Open dashboard"
-                    actionHref="/professional/dashboard"
+                    actionHref={appRoutes.professional.dashboard}
                 />
             ) : (
                 <ul className="space-y-4">
@@ -41,8 +42,8 @@ export default async function ProfessionalRequestsPage() {
                         const badgeText = isReschedule ? 'Reschedule' : 'Pending';
                         const badgeClass = isReschedule ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700';
                         const href = isReschedule
-                            ? `/professional/bookings/${request.id}/reschedule`
-                            : `/professional/bookings/${request.id}/confirm-and-schedule`;
+                            ? appRoutes.professional.requestReschedule(request.id)
+                            : appRoutes.professional.requestConfirmAndSchedule(request.id);
                         const buttonText = isReschedule ? 'Review reschedule' : 'Review & schedule';
 
                         return (

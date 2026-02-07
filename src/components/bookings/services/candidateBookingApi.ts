@@ -1,4 +1,5 @@
 import type { SlotInterval } from '@/components/bookings/calendar/types';
+import { appRoutes } from '@/lib/shared/routes';
 
 interface BusySlotResponse {
     start?: string;
@@ -31,7 +32,7 @@ interface RescheduleRequestArgs {
 }
 
 export async function fetchCandidateGoogleBusyIntervals(): Promise<SlotInterval[]> {
-    const response = await fetch('/api/candidate/busy');
+    const response = await fetch(appRoutes.api.candidate.busy);
     if (!response.ok) {
         throw new Error('Unable to load Google Calendar busy times.');
     }
@@ -54,10 +55,10 @@ export async function createCandidateBookingRequest({
     availabilitySlots,
     timezone,
 }: CreateBookingRequestArgs) {
-    const response = await fetch('/api/candidate/bookings/request', {
+    const response = await fetch(appRoutes.api.candidate.professionalBookings(professionalId), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ professionalId, availabilitySlots, timezone }),
+        body: JSON.stringify({ availabilitySlots, timezone }),
     });
 
     const payload = (await response.json()) as BookingRequestResponse;
@@ -81,7 +82,7 @@ export async function submitCandidateRescheduleRequest({
     reason,
     timezone,
 }: RescheduleRequestArgs) {
-    const response = await fetch(`/api/candidate/bookings/${bookingId}/reschedule/request`, {
+    const response = await fetch(appRoutes.api.candidate.bookingRescheduleRequest(bookingId), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

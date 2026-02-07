@@ -115,7 +115,7 @@ The queue worker handles background jobs including:
 | http://localhost:3000 | Landing page |
 | http://localhost:3000/candidate/dashboard | Candidate Dashboard |
 | http://localhost:3000/professional/dashboard | Professional Dashboard |
-| http://localhost:3000/admin | Admin Portal |
+| http://localhost:3000/admin/bookings | Admin Portal |
 
 ---
 

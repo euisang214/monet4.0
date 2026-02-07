@@ -14,8 +14,9 @@ export const POST = withRole(Role.PROFESSIONAL, async (req: Request, { params }:
         );
 
         return Response.json({ data: booking });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Error rejecting reschedule:', error);
-        return Response.json({ error: error.message || 'Internal Error' }, { status: 400 });
+        const message = error instanceof Error ? error.message : 'Internal Error';
+        return Response.json({ error: message }, { status: 400 });
     }
 });

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Booking, BookingStatus, User } from "@prisma/client";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/Button";
+import { appRoutes } from "@/lib/shared/routes";
 
 interface RequestCardProps {
     booking: Booking & { candidate: User };
@@ -13,8 +14,8 @@ interface RequestCardProps {
 export function ProfessionalRequestCard({ booking }: RequestCardProps) {
     const isReschedule = booking.status === BookingStatus.reschedule_pending;
     const actionHref = isReschedule
-        ? `/professional/bookings/${booking.id}/reschedule`
-        : `/professional/bookings/${booking.id}/confirm-and-schedule`;
+        ? appRoutes.professional.requestReschedule(booking.id)
+        : appRoutes.professional.requestConfirmAndSchedule(booking.id);
     const actionLabel = isReschedule ? "Review Reschedule" : "Review Request";
     const statusLabel = isReschedule ? "Reschedule Request" : "Pending Request";
 

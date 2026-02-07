@@ -10,12 +10,12 @@ import { useCandidateGoogleBusy } from '@/components/bookings/hooks/useCandidate
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
-interface BookingRequestFormProps {
+interface CandidateBookingRequestFormProps {
     professionalId: string;
     priceCents: number;
 }
 
-export function BookingRequestForm({ professionalId, priceCents }: BookingRequestFormProps) {
+export function CandidateBookingRequestForm({ professionalId, priceCents }: CandidateBookingRequestFormProps) {
     const [availabilitySlots, setAvailabilitySlots] = useState<SlotInterval[]>([]);
     const [selectedSlotCount, setSelectedSlotCount] = useState(0);
 

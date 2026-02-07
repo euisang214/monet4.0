@@ -1,9 +1,10 @@
 import React from 'react';
 import { auth } from '@/auth';
 import { CandidateBrowse } from '@/lib/role/candidate/browse';
-import { BookingRequestForm } from './BookingRequestForm';
+import { CandidateBookingRequestForm } from '@/components/bookings/CandidateBookingRequestForm';
 import { notFound, redirect } from 'next/navigation';
 import { Role } from '@prisma/client';
+import { appRoutes } from '@/lib/shared/routes';
 
 export default async function BookingRequestPage(props: {
     params: Promise<{ id: string }>;
@@ -11,7 +12,7 @@ export default async function BookingRequestPage(props: {
     const params = await props.params;
     const session = await auth();
     if (!session?.user) {
-        redirect(`/auth/signin?callbackUrl=/candidate/book/${params.id}`);
+        redirect(`/login?callbackUrl=${appRoutes.candidate.professionalBook(params.id)}`);
     }
 
     if (session.user.role !== Role.CANDIDATE) {
@@ -36,7 +37,7 @@ export default async function BookingRequestPage(props: {
                 </p>
             </div>
 
-            <BookingRequestForm
+            <CandidateBookingRequestForm
                 professionalId={params.id}
                 priceCents={professional.priceCents}
             />

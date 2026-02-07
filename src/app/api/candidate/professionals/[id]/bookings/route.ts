@@ -4,9 +4,17 @@ import { CandidateBookings } from '@/lib/role/candidate/bookings';
 import { CreateBookingRequestSchema } from '@/lib/types/booking-schemas';
 import { Role } from '@prisma/client';
 
-export async function POST(request: Request) {
+const CreateBookingBodySchema = CreateBookingRequestSchema.omit({
+    professionalId: true,
+});
+
+export async function POST(
+    request: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    const { id: professionalId } = await params;
     const session = await auth();
-    // Rate limit check: 5 requests per minute for booking creation
+
     const isAllowed = await checkRateLimit(session?.user?.id, 5, 60000);
     if (!isAllowed) {
         return Response.json({ error: 'too_many_requests' }, { status: 429 });
@@ -22,26 +30,30 @@ export async function POST(request: Request) {
 
     try {
         const body = await request.json();
-        const parsed = CreateBookingRequestSchema.safeParse(body);
+        const parsedBody = CreateBookingBodySchema.safeParse(body);
 
-        if (!parsed.success) {
-            return Response.json({ error: 'validation_error', details: parsed.error }, { status: 400 });
+        if (!parsedBody.success) {
+            return Response.json({ error: 'validation_error', details: parsedBody.error }, { status: 400 });
         }
 
         const { booking, clientSecret, stripePaymentIntentId } = await CandidateBookings.requestBooking(
             session.user.id,
-            parsed.data
+            {
+                ...parsedBody.data,
+                professionalId,
+            }
         );
 
         return Response.json({
             data: {
                 bookingId: booking.id,
                 clientSecret,
-                stripePaymentIntentId
-            }
+                stripePaymentIntentId,
+            },
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Booking request error:', error);
-        return Response.json({ error: error.message || 'internal_error' }, { status: 500 });
+        const message = error instanceof Error ? error.message : 'internal_error';
+        return Response.json({ error: message }, { status: 500 });
     }
 }

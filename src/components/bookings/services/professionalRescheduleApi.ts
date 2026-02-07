@@ -1,9 +1,11 @@
+import { appRoutes } from '@/lib/shared/routes';
+
 interface ApiErrorResponse {
     error?: string;
 }
 
 export async function confirmProfessionalReschedule(bookingId: string, startAt: string) {
-    const response = await fetch(`/api/professional/bookings/${bookingId}/reschedule/confirm`, {
+    const response = await fetch(appRoutes.api.professional.requestRescheduleConfirm(bookingId), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ startAt }),
@@ -18,7 +20,7 @@ export async function confirmProfessionalReschedule(bookingId: string, startAt: 
 }
 
 export async function rejectProfessionalReschedule(bookingId: string) {
-    const response = await fetch(`/api/professional/bookings/${bookingId}/reschedule/reject`, {
+    const response = await fetch(appRoutes.api.professional.requestRescheduleReject(bookingId), {
         method: 'POST',
     });
 

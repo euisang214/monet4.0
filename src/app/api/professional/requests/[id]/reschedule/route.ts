@@ -14,8 +14,9 @@ export const GET = withRole(Role.PROFESSIONAL, async (req: Request, { params }: 
         );
 
         return Response.json({ data: slots });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Error fetching reschedule availability:', error);
-        return Response.json({ error: error.message || 'Internal Error' }, { status: 400 });
+        const message = error instanceof Error ? error.message : 'Internal Error';
+        return Response.json({ error: message }, { status: 400 });
     }
 });

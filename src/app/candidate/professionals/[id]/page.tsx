@@ -4,6 +4,7 @@ import { CandidateBrowse } from '@/lib/role/candidate/browse';
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { appRoutes } from '@/lib/shared/routes';
 
 export default async function ProfessionalProfilePage(props: {
     params: Promise<{ id: string }>;
@@ -11,7 +12,7 @@ export default async function ProfessionalProfilePage(props: {
     const params = await props.params;
     const session = await auth();
     if (!session?.user) {
-        redirect(`/login?callbackUrl=/candidate/professionals/${params.id}`);
+        redirect(`/login?callbackUrl=${appRoutes.candidate.professionalDetails(params.id)}`);
     }
 
     const profile = await CandidateBrowse.getProfessionalDetails(params.id, session.user.id);
@@ -24,7 +25,7 @@ export default async function ProfessionalProfilePage(props: {
 
     return (
         <main className="container py-8 max-w-4xl">
-            <Link href="/candidate/browse" className="text-sm text-gray-500 hover:text-gray-900 mb-4 inline-block">
+            <Link href={appRoutes.candidate.browse} className="text-sm text-gray-500 hover:text-gray-900 mb-4 inline-block">
                 &larr; Back to Browse
             </Link>
             <header className="mb-6">
@@ -93,7 +94,7 @@ export default async function ProfessionalProfilePage(props: {
                             </p>
 
                             <Link
-                                href={`/candidate/book/${params.id}`}
+                                href={appRoutes.candidate.professionalBook(params.id)}
                                 className="block w-full bg-blue-600 text-white text-center py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm hover:shadow-md"
                             >
                                 Book Now

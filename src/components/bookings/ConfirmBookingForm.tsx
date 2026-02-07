@@ -2,7 +2,7 @@
 
 import React, { useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
-import { confirmBookingAction } from "@/app/professional/bookings/actions"; // Adjust import if needed
+import { confirmBookingAction } from "@/app/professional/requests/actions";
 import { ProfessionalWeeklySlotPicker } from "@/components/bookings/WeeklySlotCalendar";
 
 interface Slot {

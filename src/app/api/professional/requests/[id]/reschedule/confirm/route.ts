@@ -4,8 +4,8 @@ import { z } from 'zod';
 import { ProfessionalRescheduleService } from '@/lib/role/professional/reschedule';
 import { Role } from '@prisma/client';
 
-const requestSchema = z.object({
-    reason: z.string().optional()
+const confirmSchema = z.object({
+    startAt: z.string().datetime()
 });
 
 export const POST = withRole(Role.PROFESSIONAL, async (req: Request, { params }: { params: { id: string } }) => {
@@ -14,20 +14,21 @@ export const POST = withRole(Role.PROFESSIONAL, async (req: Request, { params }:
         if (!session?.user?.id) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
         const body = await req.json();
-        const { reason } = requestSchema.parse(body);
+        const { startAt } = confirmSchema.parse(body);
 
-        const booking = await ProfessionalRescheduleService.requestReschedule(
+        const booking = await ProfessionalRescheduleService.confirmReschedule(
             params.id,
             session.user.id,
-            reason
+            new Date(startAt)
         );
 
         return Response.json({ data: booking });
-    } catch (error: any) {
-        console.error('Error requesting reschedule:', error);
+    } catch (error: unknown) {
+        console.error('Error confirming reschedule:', error);
         if (error instanceof z.ZodError) {
             return Response.json({ error: 'Validation Error', details: error.issues }, { status: 400 });
         }
-        return Response.json({ error: error.message || 'Internal Error' }, { status: 400 });
+        const message = error instanceof Error ? error.message : 'Internal Error';
+        return Response.json({ error: message }, { status: 400 });
     }
 });
