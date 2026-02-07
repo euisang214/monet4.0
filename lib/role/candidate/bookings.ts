@@ -21,7 +21,25 @@ export const CandidateBookings = {
         return createBookingRequest(candidateId, data.professionalId, data.weeks);
     },
 
-    requestReschedule: async (candidateId: string, bookingId: string, slots: { start: Date; end: Date }[], reason?: string) => {
+    requestReschedule: async (
+        candidateId: string,
+        bookingId: string,
+        slots: { start: Date; end: Date }[],
+        reason?: string,
+        timezone: string = 'UTC'
+    ) => {
+        if (slots.length > 0) {
+            await AvailabilityService.replaceUserAvailability(
+                candidateId,
+                slots.map((slot) => ({
+                    start: slot.start.toISOString(),
+                    end: slot.end.toISOString(),
+                    busy: false,
+                })),
+                timezone
+            );
+        }
+
         return transitionReschedule(bookingId, { userId: candidateId, role: Role.CANDIDATE }, slots, reason);
     },
 

@@ -72,7 +72,13 @@ export async function getPendingRequests(
     const bookings = await prisma.booking.findMany({
         where: {
             ...whereClause,
-            status: BookingStatus.requested,
+            ...(role === 'PROFESSIONAL'
+                ? {
+                    status: {
+                        in: [BookingStatus.requested, BookingStatus.reschedule_pending],
+                    },
+                }
+                : { status: BookingStatus.requested }),
         },
         include: {
             candidate: {
@@ -83,7 +89,9 @@ export async function getPendingRequests(
             },
             payment: true,
         },
-        orderBy: { expiresAt: 'asc' }, // Expires soonest first
+        orderBy: role === 'PROFESSIONAL'
+            ? [{ status: 'asc' }, { expiresAt: 'asc' }]
+            : { expiresAt: 'asc' }, // Expires soonest first
         take: limit,
     });
 

@@ -8,7 +8,8 @@ const RescheduleSchema = z.object({
         start: z.coerce.date(),
         end: z.coerce.date()
     })).min(1),
-    reason: z.string().optional()
+    reason: z.string().optional(),
+    timezone: z.string().optional(),
 });
 
 export async function POST(
@@ -33,10 +34,19 @@ export async function POST(
             return Response.json({ error: 'validation_error' }, { status: 400 });
         }
 
-        await CandidateBookings.requestReschedule(session.user.id, id, parsed.data.slots, parsed.data.reason);
+        await CandidateBookings.requestReschedule(
+            session.user.id,
+            id,
+            parsed.data.slots,
+            parsed.data.reason,
+            parsed.data.timezone || 'UTC'
+        );
         return Response.json({ success: true });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Reschedule error:', error);
-        return Response.json({ error: error.message || 'internal_error' }, { status: 500 });
+        if (error instanceof Error) {
+            return Response.json({ error: error.message || 'internal_error' }, { status: 500 });
+        }
+        return Response.json({ error: 'internal_error' }, { status: 500 });
     }
 }

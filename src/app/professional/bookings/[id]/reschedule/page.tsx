@@ -1,0 +1,54 @@
+import React from "react";
+import Link from "next/link";
+import { auth } from "@/auth";
+import { redirect, notFound } from "next/navigation";
+import { Role } from "@prisma/client";
+import { prisma } from "@/lib/core/db";
+import { ProfessionalRescheduleService } from "@/lib/role/professional/reschedule";
+import { ConfirmRescheduleForm } from "@/components/bookings/ConfirmRescheduleForm";
+
+interface PageProps {
+    params: Promise<{ id: string }>;
+}
+
+export default async function ProfessionalReschedulePage({ params }: PageProps) {
+    const session = await auth();
+    const { id } = await params;
+
+    if (!session || session.user.role !== Role.PROFESSIONAL) {
+        redirect(`/login?callbackUrl=/professional/bookings/${id}/reschedule`);
+    }
+
+    const booking = await prisma.booking.findUnique({
+        where: { id },
+        include: { candidate: true },
+    });
+
+    if (!booking) notFound();
+    if (booking.professionalId !== session.user.id) redirect("/professional/dashboard");
+    if (booking.status !== "reschedule_pending") {
+        redirect("/professional/dashboard");
+    }
+
+    const slots = await ProfessionalRescheduleService.getRescheduleAvailability(id, session.user.id);
+
+    return (
+        <main className="max-w-2xl mx-auto px-4 py-8">
+            <Link href="/professional/dashboard" className="text-sm text-gray-500 hover:text-gray-900 mb-4 inline-block">
+                &larr; Back to dashboard
+            </Link>
+
+            <header className="mb-6">
+                <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Reschedule Request</p>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Select a new call time</h1>
+                <p className="text-gray-600">
+                    Candidate {booking.candidate.email} requested a reschedule. Pick a new slot from their submitted availability.
+                </p>
+            </header>
+
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                <ConfirmRescheduleForm bookingId={id} slots={slots} />
+            </div>
+        </main>
+    );
+}

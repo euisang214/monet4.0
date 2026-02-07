@@ -1,6 +1,6 @@
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
-import { Role } from '@prisma/client';
+import { BookingStatus, Role } from '@prisma/client';
 import { getPendingRequests } from '@/lib/shared/bookings/upcoming';
 import Link from 'next/link';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -22,8 +22,8 @@ export default async function ProfessionalRequestsPage() {
         <main className="container py-8">
             <header className="mb-8">
                 <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Professional Requests</p>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Incoming booking requests</h1>
-                <p className="text-gray-600">Review open requests and schedule confirmed times before they expire.</p>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Incoming booking and reschedule requests</h1>
+                <p className="text-gray-600">Review candidate-provided times in calendar view and confirm one slot.</p>
             </header>
 
             {requests.length === 0 ? (
@@ -36,7 +36,16 @@ export default async function ProfessionalRequestsPage() {
                 />
             ) : (
                 <ul className="space-y-4">
-                    {requests.map((request) => (
+                    {requests.map((request) => {
+                        const isReschedule = request.status === BookingStatus.reschedule_pending;
+                        const badgeText = isReschedule ? 'Reschedule' : 'Pending';
+                        const badgeClass = isReschedule ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700';
+                        const href = isReschedule
+                            ? `/professional/bookings/${request.id}/reschedule`
+                            : `/professional/bookings/${request.id}/confirm-and-schedule`;
+                        const buttonText = isReschedule ? 'Review reschedule' : 'Review & schedule';
+
+                        return (
                         <li key={request.id} className="p-5 bg-white border border-gray-200 rounded-xl shadow-sm">
                             <div className="flex justify-between items-start">
                                 <div>
@@ -48,24 +57,29 @@ export default async function ProfessionalRequestsPage() {
                                     </p>
                                 </div>
                                 <div className="text-right">
-                                    <span className="px-2 py-1 text-xs rounded-full font-semibold bg-yellow-100 text-yellow-700">
-                                        Pending
+                                    <span className={`px-2 py-1 text-xs rounded-full font-semibold ${badgeClass}`}>
+                                        {badgeText}
                                     </span>
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        Expires: {request.expiresAt?.toLocaleDateString()}
-                                    </p>
+                                    {isReschedule ? (
+                                        <p className="text-xs text-gray-500 mt-1">Awaiting time selection</p>
+                                    ) : (
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            Expires: {request.expiresAt?.toLocaleDateString()}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                             <div className="mt-4 flex gap-2">
                                 <Link
-                                    href={`/professional/bookings/${request.id}/confirm-and-schedule`}
+                                    href={href}
                                     className="btn bg-blue-600 text-white hover:bg-blue-700 text-sm"
                                 >
-                                    Review & schedule
+                                    {buttonText}
                                 </Link>
                             </div>
                         </li>
-                    ))}
+                        );
+                    })}
                 </ul>
             )}
         </main>

@@ -1,95 +1,23 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { addDays, addMinutes, format, startOfWeek } from 'date-fns';
+import React from 'react';
+import { addDays, format } from 'date-fns';
+import type { SlotCellState, SlotInput, SlotInterval } from '@/components/bookings/calendar/types';
+import { SLOTS_PER_DAY, getSlotLabel, slotDateForCell } from '@/components/bookings/calendar/slot-utils';
+import { useCandidateWeeklySlotSelection } from '@/components/bookings/hooks/useCandidateWeeklySlotSelection';
+import { useProfessionalWeeklySlotSelection } from '@/components/bookings/hooks/useProfessionalWeeklySlotSelection';
 
-const SLOT_MINUTES = 30;
-const SLOTS_PER_DAY = (24 * 60) / SLOT_MINUTES;
-const AVAILABILITY_WINDOW_DAYS = 30;
-const WEEK_STARTS_ON = 0; // Sunday
+export type { SlotInterval } from '@/components/bookings/calendar/types';
 
-export type SlotInterval = {
-    start: string;
-    end: string;
+const baseCellClasses = 'h-5 w-full border border-gray-100 transition-colors';
+
+const candidateStateClasses: Record<SlotCellState, string> = {
+    available: 'bg-green-300 hover:bg-green-400',
+    blocked: 'bg-gray-50 hover:bg-gray-100',
+    'google-busy': 'bg-red-100 text-red-600 hover:bg-red-200',
+    'google-busy-overridden': 'bg-orange-300 hover:bg-orange-400',
+    disabled: 'bg-gray-100 cursor-not-allowed opacity-70',
 };
-
-type SlotCellState = 'available' | 'blocked' | 'google-busy' | 'google-busy-overridden' | 'disabled';
-
-function startOfSlot(date: Date): Date {
-    const next = new Date(date);
-    next.setSeconds(0, 0);
-    const minutes = next.getMinutes();
-    const rounded = minutes < 30 ? 0 : 30;
-    next.setMinutes(rounded);
-    return next;
-}
-
-function roundUpToNextSlot(date: Date): Date {
-    const rounded = startOfSlot(date);
-    if (rounded < date) {
-        return addMinutes(rounded, SLOT_MINUTES);
-    }
-    return rounded;
-}
-
-function slotDateForCell(weekStart: Date, dayOffset: number, row: number): Date {
-    const date = addDays(weekStart, dayOffset);
-    date.setHours(0, 0, 0, 0);
-    return addMinutes(date, row * SLOT_MINUTES);
-}
-
-function getSlotLabel(row: number): string {
-    if (row % 2 !== 0) return '';
-    const labelDate = new Date();
-    labelDate.setHours(Math.floor(row / 2), 0, 0, 0);
-    return format(labelDate, 'h a');
-}
-
-function normalizeInterval(interval: { start: string | Date; end: string | Date }) {
-    return {
-        start: interval.start instanceof Date ? interval.start : new Date(interval.start),
-        end: interval.end instanceof Date ? interval.end : new Date(interval.end),
-    };
-}
-
-function overlaps(start: Date, end: Date, interval: { start: Date; end: Date }): boolean {
-    return interval.start < end && interval.end > start;
-}
-
-function mergeConsecutiveSlots(slotKeys: string[]): SlotInterval[] {
-    if (slotKeys.length === 0) return [];
-
-    const sorted = [...slotKeys]
-        .map((key) => new Date(key))
-        .sort((a, b) => a.getTime() - b.getTime());
-
-    const merged: SlotInterval[] = [];
-    let blockStart = sorted[0];
-    let blockEnd = addMinutes(sorted[0], SLOT_MINUTES);
-
-    for (let i = 1; i < sorted.length; i++) {
-        const currentStart = sorted[i];
-        const expectedNext = addMinutes(blockEnd, 0);
-        if (currentStart.getTime() === expectedNext.getTime()) {
-            blockEnd = addMinutes(currentStart, SLOT_MINUTES);
-            continue;
-        }
-
-        merged.push({
-            start: blockStart.toISOString(),
-            end: blockEnd.toISOString(),
-        });
-        blockStart = currentStart;
-        blockEnd = addMinutes(currentStart, SLOT_MINUTES);
-    }
-
-    merged.push({
-        start: blockStart.toISOString(),
-        end: blockEnd.toISOString(),
-    });
-
-    return merged;
-}
 
 interface CandidateWeeklySlotPickerProps {
     googleBusyIntervals: SlotInterval[];
@@ -97,93 +25,28 @@ interface CandidateWeeklySlotPickerProps {
 }
 
 export function CandidateWeeklySlotPicker({ googleBusyIntervals, onChange }: CandidateWeeklySlotPickerProps) {
-    const now = useMemo(() => new Date(), []);
-    const minSelectable = useMemo(() => roundUpToNextSlot(now), [now]);
-    const maxSelectable = useMemo(() => addDays(minSelectable, AVAILABILITY_WINDOW_DAYS), [minSelectable]);
-    const minWeekStart = useMemo(() => startOfWeek(minSelectable, { weekStartsOn: WEEK_STARTS_ON }), [minSelectable]);
-    const maxWeekStart = useMemo(() => startOfWeek(maxSelectable, { weekStartsOn: WEEK_STARTS_ON }), [maxSelectable]);
-
-    const [weekStart, setWeekStart] = useState<Date>(minWeekStart);
-    const [selectedSlotKeys, setSelectedSlotKeys] = useState<string[]>([]);
-    const [isDragging, setIsDragging] = useState(false);
-    const [dragSelectMode, setDragSelectMode] = useState<boolean | null>(null);
-
-    const selectedSet = useMemo(() => new Set(selectedSlotKeys), [selectedSlotKeys]);
-    const normalizedGoogleBusy = useMemo(
-        () => googleBusyIntervals.map((interval) => normalizeInterval(interval)),
-        [googleBusyIntervals]
-    );
-
-    const availabilitySlots = useMemo(
-        () => mergeConsecutiveSlots(selectedSlotKeys),
-        [selectedSlotKeys]
-    );
-
-    useEffect(() => {
-        onChange({ availabilitySlots, selectedCount: selectedSlotKeys.length });
-    }, [availabilitySlots, onChange, selectedSlotKeys.length]);
-
-    useEffect(() => {
-        const handlePointerUp = () => {
-            setIsDragging(false);
-            setDragSelectMode(null);
-        };
-
-        window.addEventListener('pointerup', handlePointerUp);
-        return () => window.removeEventListener('pointerup', handlePointerUp);
-    }, []);
-
-    const isWithinSelectableWindow = useCallback(
-        (slotStart: Date) => slotStart >= minSelectable && slotStart < maxSelectable,
-        [maxSelectable, minSelectable]
-    );
-
-    const isGoogleBusy = useCallback(
-        (slotStart: Date) => {
-            const slotEnd = addMinutes(slotStart, SLOT_MINUTES);
-            return normalizedGoogleBusy.some((busy) => overlaps(slotStart, slotEnd, busy));
-        },
-        [normalizedGoogleBusy]
-    );
-
-    const setSlotSelection = useCallback(
-        (slotStart: Date, shouldSelect?: boolean) => {
-            if (!isWithinSelectableWindow(slotStart)) return;
-
-            const key = slotStart.toISOString();
-
-            setSelectedSlotKeys((previous) => {
-                const next = new Set(previous);
-
-                if (shouldSelect === undefined) {
-                    if (next.has(key)) {
-                        next.delete(key);
-                    } else {
-                        next.add(key);
-                    }
-                } else {
-                    if (shouldSelect) {
-                        next.add(key);
-                    } else {
-                        next.delete(key);
-                    }
-                }
-
-                return Array.from(next);
-            });
-        },
-        [isWithinSelectableWindow]
-    );
-
-    const canGoPrev = weekStart.getTime() > minWeekStart.getTime();
-    const canGoNext = weekStart.getTime() < maxWeekStart.getTime();
+    const {
+        weekStart,
+        canGoPrev,
+        canGoNext,
+        selectedCount,
+        getCellMeta,
+        goToPreviousWeek,
+        goToNextWeek,
+        clearSelection,
+        handleSlotPointerDown,
+        handleSlotPointerEnter,
+    } = useCandidateWeeklySlotSelection({
+        googleBusyIntervals,
+        onChange,
+    });
 
     return (
         <section className="space-y-4">
             <header className="space-y-2">
                 <div className="flex items-center justify-between gap-3">
                     <h3 className="text-lg font-semibold text-gray-900">Select your availability (30-minute slots)</h3>
-                    <div className="text-sm text-gray-600">{selectedSlotKeys.length} slots selected</div>
+                    <div className="text-sm text-gray-600">{selectedCount} slots selected</div>
                 </div>
                 <p className="text-sm text-gray-600">
                     Click or drag any 30-minute cell to toggle availability. You can override Google Calendar busy blocks.
@@ -193,7 +56,7 @@ export function CandidateWeeklySlotPicker({ googleBusyIntervals, onChange }: Can
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <button
                     type="button"
-                    onClick={() => setSelectedSlotKeys([])}
+                    onClick={clearSelection}
                     className="px-3 py-1.5 text-sm border border-gray-200 rounded hover:bg-gray-50"
                 >
                     Clear all
@@ -202,7 +65,7 @@ export function CandidateWeeklySlotPicker({ googleBusyIntervals, onChange }: Can
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
-                        onClick={() => setWeekStart((current) => addDays(current, -7))}
+                        onClick={goToPreviousWeek}
                         disabled={!canGoPrev}
                         className="px-3 py-1.5 text-sm border border-gray-200 rounded disabled:opacity-40"
                     >
@@ -213,7 +76,7 @@ export function CandidateWeeklySlotPicker({ googleBusyIntervals, onChange }: Can
                     </span>
                     <button
                         type="button"
-                        onClick={() => setWeekStart((current) => addDays(current, 7))}
+                        onClick={goToNextWeek}
                         disabled={!canGoNext}
                         className="px-3 py-1.5 text-sm border border-gray-200 rounded disabled:opacity-40"
                     >
@@ -248,46 +111,23 @@ export function CandidateWeeklySlotPicker({ googleBusyIntervals, onChange }: Can
                                 </td>
                                 {Array.from({ length: 7 }).map((__, dayOffset) => {
                                     const slotStart = slotDateForCell(weekStart, dayOffset, row);
-                                    const key = slotStart.toISOString();
-                                    const inWindow = isWithinSelectableWindow(slotStart);
-                                    const busy = isGoogleBusy(slotStart);
-                                    const selected = selectedSet.has(key);
-                                    const canInteract = inWindow;
-
-                                    let state: SlotCellState = 'disabled';
-                                    if (inWindow && busy && selected) state = 'google-busy-overridden';
-                                    else if (inWindow && busy) state = 'google-busy';
-                                    else if (inWindow && selected) state = 'available';
-                                    else if (inWindow) state = 'blocked';
-
-                                    const baseCellClasses = 'h-5 w-full border border-gray-100 transition-colors';
-                                    const stateClasses: Record<SlotCellState, string> = {
-                                        available: 'bg-green-300 hover:bg-green-400',
-                                        blocked: 'bg-gray-50 hover:bg-gray-100',
-                                        'google-busy': 'bg-red-100 text-red-600 hover:bg-red-200',
-                                        'google-busy-overridden': 'bg-orange-300 hover:bg-orange-400',
-                                        disabled: 'bg-gray-100 cursor-not-allowed opacity-70',
-                                    };
+                                    const cell = getCellMeta(slotStart);
 
                                     return (
                                         <td key={`${dayOffset}-${row}`} className="p-0">
                                             <button
                                                 type="button"
                                                 onPointerDown={(event) => {
-                                                    if (!canInteract) return;
+                                                    if (!cell.canInteract) return;
                                                     event.preventDefault();
-                                                    const shouldSelect = !selected;
-                                                    setIsDragging(true);
-                                                    setDragSelectMode(shouldSelect);
-                                                    setSlotSelection(slotStart, shouldSelect);
+                                                    handleSlotPointerDown(slotStart);
                                                 }}
                                                 onPointerEnter={() => {
-                                                    if (!isDragging || dragSelectMode === null) return;
-                                                    if (!canInteract) return;
-                                                    setSlotSelection(slotStart, dragSelectMode);
+                                                    if (!cell.canInteract) return;
+                                                    handleSlotPointerEnter(slotStart);
                                                 }}
-                                                className={`${baseCellClasses} ${stateClasses[state]}`}
-                                                disabled={!canInteract}
+                                                className={`${baseCellClasses} ${candidateStateClasses[cell.state]}`}
+                                                disabled={!cell.canInteract}
                                                 title={format(slotStart, 'PPpp')}
                                             />
                                         </td>
@@ -322,47 +162,32 @@ export function CandidateWeeklySlotPicker({ googleBusyIntervals, onChange }: Can
 }
 
 interface ProfessionalWeeklySlotPickerProps {
-    slots: Array<{ start: string | Date; end: string | Date }>;
+    slots: SlotInput[];
     selectedSlot: string | null;
     onSelect: (slotStartIso: string) => void;
 }
 
 export function ProfessionalWeeklySlotPicker({ slots, selectedSlot, onSelect }: ProfessionalWeeklySlotPickerProps) {
-    const normalizedSlots = useMemo(
-        () =>
-            slots
-                .map((slot) => normalizeInterval(slot))
-                .sort((a, b) => a.start.getTime() - b.start.getTime()),
-        [slots]
-    );
+    const {
+        weekStart,
+        hasSlots,
+        canGoPrev,
+        canGoNext,
+        goToPreviousWeek,
+        goToNextWeek,
+        getCellMeta,
+    } = useProfessionalWeeklySlotSelection({
+        slots,
+        selectedSlot,
+    });
 
-    const availableSlotKeys = useMemo(
-        () => new Set(normalizedSlots.map((slot) => slot.start.toISOString())),
-        [normalizedSlots]
-    );
-
-    const minWeekStart = useMemo(() => {
-        if (normalizedSlots.length === 0) return null;
-        return startOfWeek(normalizedSlots[0].start, { weekStartsOn: WEEK_STARTS_ON });
-    }, [normalizedSlots]);
-
-    const maxWeekStart = useMemo(() => {
-        if (normalizedSlots.length === 0) return null;
-        return startOfWeek(normalizedSlots[normalizedSlots.length - 1].start, { weekStartsOn: WEEK_STARTS_ON });
-    }, [normalizedSlots]);
-
-    const [weekStart, setWeekStart] = useState<Date | null>(minWeekStart);
-
-    if (!weekStart || !minWeekStart || !maxWeekStart) {
+    if (!hasSlots || !weekStart) {
         return (
             <div className="p-4 bg-yellow-50 text-yellow-800 rounded-md text-sm">
                 No overlapping slots found. Ask the candidate to share additional times.
             </div>
         );
     }
-
-    const canGoPrev = weekStart.getTime() > minWeekStart.getTime();
-    const canGoNext = weekStart.getTime() < maxWeekStart.getTime();
 
     return (
         <section className="space-y-4">
@@ -371,7 +196,7 @@ export function ProfessionalWeeklySlotPicker({ slots, selectedSlot, onSelect }: 
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
-                        onClick={() => setWeekStart((current) => (current ? addDays(current, -7) : current))}
+                        onClick={goToPreviousWeek}
                         disabled={!canGoPrev}
                         className="px-3 py-1.5 text-sm border border-gray-200 rounded disabled:opacity-40"
                     >
@@ -382,7 +207,7 @@ export function ProfessionalWeeklySlotPicker({ slots, selectedSlot, onSelect }: 
                     </span>
                     <button
                         type="button"
-                        onClick={() => setWeekStart((current) => (current ? addDays(current, 7) : current))}
+                        onClick={goToNextWeek}
                         disabled={!canGoNext}
                         className="px-3 py-1.5 text-sm border border-gray-200 rounded disabled:opacity-40"
                     >
@@ -417,13 +242,11 @@ export function ProfessionalWeeklySlotPicker({ slots, selectedSlot, onSelect }: 
                                 </td>
                                 {Array.from({ length: 7 }).map((__, dayOffset) => {
                                     const slotStart = slotDateForCell(weekStart, dayOffset, row);
-                                    const key = slotStart.toISOString();
-                                    const isSelectable = availableSlotKeys.has(key);
-                                    const isSelected = selectedSlot === key;
+                                    const cell = getCellMeta(slotStart);
 
-                                    const cellClass = isSelected
+                                    const cellClass = cell.isSelected
                                         ? 'bg-blue-500 text-white border-blue-600'
-                                        : isSelectable
+                                        : cell.isSelectable
                                             ? 'bg-green-100 hover:bg-green-200 border-green-200'
                                             : 'bg-gray-50 border-gray-100';
 
@@ -432,9 +255,9 @@ export function ProfessionalWeeklySlotPicker({ slots, selectedSlot, onSelect }: 
                                             <button
                                                 type="button"
                                                 onClick={() => {
-                                                    if (isSelectable) onSelect(key);
+                                                    if (cell.isSelectable) onSelect(cell.key);
                                                 }}
-                                                className={`h-5 w-full border transition-colors ${cellClass} ${!isSelectable ? 'cursor-default' : ''}`}
+                                                className={`h-5 w-full border transition-colors ${cellClass} ${!cell.isSelectable ? 'cursor-default' : ''}`}
                                                 title={format(slotStart, 'PPpp')}
                                             />
                                         </td>

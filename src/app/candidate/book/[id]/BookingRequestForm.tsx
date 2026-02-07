@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { CandidateWeeklySlotPicker, SlotInterval } from '@/components/bookings/WeeklySlotCalendar';
+import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
+import { CandidateWeeklySlotPicker } from '@/components/bookings/WeeklySlotCalendar';
+import type { SlotInterval } from '@/components/bookings/calendar/types';
+import { useCandidateBookingRequest } from '@/components/bookings/hooks/useCandidateBookingRequest';
+import { useCandidateGoogleBusy } from '@/components/bookings/hooks/useCandidateGoogleBusy';
 
-// Initialize Stripe outside component
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 interface BookingRequestFormProps {
@@ -13,22 +15,15 @@ interface BookingRequestFormProps {
     priceCents: number;
 }
 
-interface BusySlotResponse {
-    start?: string;
-    end?: string;
-}
-
 export function BookingRequestForm({ professionalId, priceCents }: BookingRequestFormProps) {
-    const [clientSecret, setClientSecret] = useState<string | null>(null);
-    const [bookingId, setBookingId] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [googleBusyIntervals, setGoogleBusyIntervals] = useState<SlotInterval[]>([]);
     const [availabilitySlots, setAvailabilitySlots] = useState<SlotInterval[]>([]);
     const [selectedSlotCount, setSelectedSlotCount] = useState(0);
-    const [isLoadingBusy, setIsLoadingBusy] = useState(true);
-    const [busyLoadError, setBusyLoadError] = useState<string | null>(null);
-    const [lastBusyRefreshAt, setLastBusyRefreshAt] = useState<Date | null>(null);
+
+    const { googleBusyIntervals, isLoadingBusy, busyLoadError, lastBusyRefreshAt, refreshGoogleBusy } =
+        useCandidateGoogleBusy();
+
+    const { clientSecret, bookingId, isSubmitting, error, submitRequest } =
+        useCandidateBookingRequest(professionalId);
 
     const handleSlotSelectionChange = useCallback(
         ({ availabilitySlots: slots, selectedCount }: { availabilitySlots: SlotInterval[]; selectedCount: number }) => {
@@ -38,89 +33,15 @@ export function BookingRequestForm({ professionalId, priceCents }: BookingReques
         []
     );
 
-    const loadGoogleBusy = useCallback(async () => {
-        setIsLoadingBusy(true);
-        setBusyLoadError(null);
-        try {
-            const response = await fetch('/api/candidate/busy');
-            if (!response.ok) {
-                throw new Error('Unable to load Google Calendar busy times.');
-            }
-
-            const data = await response.json();
-            const intervals = Array.isArray(data?.data)
-                ? (data.data as BusySlotResponse[])
-                    .filter((slot) => slot?.start && slot?.end)
-                    .map((slot) => ({
-                        start: new Date(slot.start as string).toISOString(),
-                        end: new Date(slot.end as string).toISOString(),
-                    }))
-                : [];
-
-            setGoogleBusyIntervals(intervals);
-            setLastBusyRefreshAt(new Date());
-        } catch (loadError: unknown) {
-            if (loadError instanceof Error) {
-                setBusyLoadError(loadError.message);
-            } else {
-                setBusyLoadError('Google Calendar data could not be loaded. You can still set availability.');
-            }
-        } finally {
-            setIsLoadingBusy(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        void loadGoogleBusy();
-    }, [loadGoogleBusy]);
-
     const handleCreateRequest = async () => {
-        setIsLoading(true);
-        setError(null);
-
-        try {
-            if (availabilitySlots.length === 0) {
-                throw new Error('Select at least one available 30-minute slot before continuing.');
-            }
-
-            const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-
-            const res = await fetch('/api/candidate/bookings/request', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    professionalId,
-                    availabilitySlots,
-                    timezone,
-                }),
-            });
-
-            const data = await res.json();
-
-            if (!res.ok) {
-                throw new Error(data.error || 'Failed to create booking request');
-            }
-
-            setClientSecret(data.data.clientSecret);
-            setBookingId(data.data.bookingId);
-        } catch (err: unknown) {
-            if (err instanceof Error) {
-                setError(err.message);
-            } else {
-                setError('Failed to create booking request.');
-            }
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const appearance = {
-        theme: 'stripe' as const,
+        await submitRequest(availabilitySlots);
     };
 
     const options = {
         clientSecret: clientSecret || '',
-        appearance,
+        appearance: {
+            theme: 'stripe' as const,
+        },
     };
 
     if (clientSecret && bookingId) {
@@ -137,7 +58,7 @@ export function BookingRequestForm({ professionalId, priceCents }: BookingReques
                 <div className="mb-3 flex flex-wrap items-center gap-3">
                     <button
                         type="button"
-                        onClick={() => void loadGoogleBusy()}
+                        onClick={() => void refreshGoogleBusy()}
                         disabled={isLoadingBusy}
                         className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
                     >
@@ -154,6 +75,7 @@ export function BookingRequestForm({ professionalId, priceCents }: BookingReques
                         {busyLoadError}
                     </div>
                 )}
+
                 <CandidateWeeklySlotPicker
                     googleBusyIntervals={googleBusyIntervals}
                     onChange={handleSlotSelectionChange}
@@ -179,10 +101,10 @@ export function BookingRequestForm({ professionalId, priceCents }: BookingReques
 
             <button
                 onClick={handleCreateRequest}
-                disabled={isLoading}
+                disabled={isSubmitting}
                 className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50 font-medium"
             >
-                {isLoading ? 'Processing...' : 'Proceed to Payment'}
+                {isSubmitting ? 'Processing...' : 'Proceed to Payment'}
             </button>
         </div>
     );
@@ -194,8 +116,8 @@ function CheckoutForm({ bookingId }: { bookingId: string }) {
     const [message, setMessage] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = async (event: React.FormEvent) => {
+        event.preventDefault();
 
         if (!stripe || !elements) {
             return;
@@ -206,18 +128,15 @@ function CheckoutForm({ bookingId }: { bookingId: string }) {
         const { error } = await stripe.confirmPayment({
             elements,
             confirmParams: {
-                // Return URL where the user is redirected after the payment.
-                // We'll redirect to the dashboard or a success page.
-                // For now, redirect to dashboard with success query param.
                 return_url: `${window.location.origin}/candidate/dashboard?payment_success=true&booking_id=${bookingId}`,
             },
         });
 
         if (error) {
-            if (error.type === "card_error" || error.type === "validation_error") {
-                setMessage(error.message || "An unexpected error occurred.");
+            if (error.type === 'card_error' || error.type === 'validation_error') {
+                setMessage(error.message || 'An unexpected error occurred.');
             } else {
-                setMessage("An unexpected error occurred.");
+                setMessage('An unexpected error occurred.');
             }
         }
 
@@ -227,7 +146,7 @@ function CheckoutForm({ bookingId }: { bookingId: string }) {
     return (
         <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg border shadow-sm">
             <h3 className="text-lg font-medium mb-4">Complete Payment</h3>
-            <PaymentElement id="payment-element" options={{ layout: "tabs" }} />
+            <PaymentElement id="payment-element" options={{ layout: 'tabs' }} />
             {message && <div id="payment-message" className="mt-4 text-red-600 text-sm">{message}</div>}
             <button
                 disabled={isLoading || !stripe || !elements}
@@ -235,7 +154,7 @@ function CheckoutForm({ bookingId }: { bookingId: string }) {
                 className="mt-6 w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50 font-medium"
             >
                 <span id="button-text">
-                    {isLoading ? "Processing..." : "Pay now"}
+                    {isLoading ? 'Processing...' : 'Pay now'}
                 </span>
             </button>
         </form>

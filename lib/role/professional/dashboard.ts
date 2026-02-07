@@ -41,7 +41,9 @@ export const ProfessionalDashboardService = {
             prisma.booking.findMany({
                 where: {
                     professionalId,
-                    status: BookingStatus.requested
+                    status: {
+                        in: [BookingStatus.requested, BookingStatus.reschedule_pending]
+                    }
                 },
                 include: {
                     candidate: {
@@ -51,12 +53,6 @@ export const ProfessionalDashboardService = {
                     }
                 },
                 orderBy: {
-                    // Booking model in CLAUDE.md does NOT have createdAt.
-                    // We use 'startAt' or 'expiresAt' or 'id'.
-                    // For requests, they have 'expiresAt'. Newest requests?
-                    // ID is slightly correlated with time (cuid), but not strictly.
-                    // Best proxy is implicit creation, but without field we can't sort by it.
-                    // I'll sort by 'expiresAt' asc? (Expires soonest).
                     expiresAt: 'asc'
                 }
             }),
@@ -67,7 +63,6 @@ export const ProfessionalDashboardService = {
                         in: [
                             BookingStatus.accepted,
                             BookingStatus.accepted_pending_integrations,
-                            BookingStatus.reschedule_pending
                         ]
                     }
                 },
