@@ -56,7 +56,7 @@ export function SignupForm() {
     };
 
     return (
-        <section className="w-full max-w-md bg-white p-8 rounded-xl border border-gray-200 shadow-lg space-y-6">
+        <section className="w-full max-w-md mx-auto bg-white p-8 rounded-xl border border-gray-200 shadow-lg space-y-6">
             <header className="text-center">
                 <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Get Started</p>
                 <h2 className="text-3xl font-extrabold text-gray-900 mb-2">Create your Monet account</h2>

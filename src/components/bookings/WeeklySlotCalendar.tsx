@@ -129,7 +129,7 @@ export function CandidateWeeklySlotPicker({ googleBusyIntervals, onChange }: Can
                         <tr>
                             <th
                                 className="w-20 border-b border-gray-200 bg-gray-50 sticky left-0"
-                                style={{ top: 0, zIndex: 30, backgroundColor: '#f8fafc' }}
+                                style={{ top: 0, zIndex: 30, backgroundColor: "#ffffff" }}
                             />
                             {Array.from({ length: 7 }).map((_, dayOffset) => {
                                 const day = addDays(weekStart, dayOffset);
@@ -137,7 +137,7 @@ export function CandidateWeeklySlotPicker({ googleBusyIntervals, onChange }: Can
                                     <th
                                         key={day.toISOString()}
                                         className="border-b border-gray-200 py-2 text-xs font-semibold text-gray-700 sticky"
-                                        style={{ top: 0, zIndex: 20, backgroundColor: '#ffffff' }}
+                                        style={{ top: 0, zIndex: 20, backgroundColor: "#ffffff" }}
                                     >
                                         {format(day, 'EEE MMM d')}
                                     </th>
@@ -150,7 +150,7 @@ export function CandidateWeeklySlotPicker({ googleBusyIntervals, onChange }: Can
                             <tr key={row} data-slot-row={row}>
                                 <td
                                     className="sticky left-0 border-r border-gray-200 bg-gray-50 pr-2 align-top text-right text-[11px] text-gray-500"
-                                    style={{ zIndex: 10, backgroundColor: '#f8fafc' }}
+                                    style={{ zIndex: 10, backgroundColor: "#ffffff" }}
                                 >
                                     {getSlotLabel(row)}
                                 </td>
@@ -277,7 +277,7 @@ export function ProfessionalWeeklySlotPicker({ slots, selectedSlot, onSelect, re
                         <tr>
                             <th
                                 className="w-20 border-b border-gray-200 bg-gray-50 sticky left-0"
-                                style={{ top: 0, zIndex: 30, backgroundColor: '#f8fafc' }}
+                                style={{ top: 0, zIndex: 30, backgroundColor: "#ffffff" }}
                             />
                             {Array.from({ length: 7 }).map((_, dayOffset) => {
                                 const day = addDays(weekStart, dayOffset);
@@ -285,7 +285,7 @@ export function ProfessionalWeeklySlotPicker({ slots, selectedSlot, onSelect, re
                                     <th
                                         key={day.toISOString()}
                                         className="border-b border-gray-200 py-2 text-xs font-semibold text-gray-700 sticky"
-                                        style={{ top: 0, zIndex: 20, backgroundColor: '#ffffff' }}
+                                        style={{ top: 0, zIndex: 20, backgroundColor: "#ffffff" }}
                                     >
                                         {format(day, 'EEE MMM d')}
                                     </th>
@@ -298,7 +298,7 @@ export function ProfessionalWeeklySlotPicker({ slots, selectedSlot, onSelect, re
                             <tr key={row} data-slot-row={row}>
                                 <td
                                     className="sticky left-0 border-r border-gray-200 bg-gray-50 pr-2 align-top text-right text-[11px] text-gray-500"
-                                    style={{ zIndex: 10, backgroundColor: '#f8fafc' }}
+                                    style={{ zIndex: 10, backgroundColor: "#ffffff" }}
                                 >
                                     {getSlotLabel(row)}
                                 </td>

@@ -68,7 +68,7 @@ export function AuthNavbar() {
                                     height: "24px",
                                     display: "inline-block",
                                     borderRadius: "7px",
-                                    background: "linear-gradient(135deg, #0b57d0, #14b8a6)",
+                                    background: "linear-gradient(135deg, var(--primary), #168AAD)",
                                 }}
                             />
                             Monet

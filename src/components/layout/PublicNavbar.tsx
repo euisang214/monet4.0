@@ -1,15 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import styles from "@/app/(public)/public.module.css";
 
 export function PublicNavbar() {
-    const pathname = usePathname();
-    const isLoginPage = pathname === "/api/auth/signin";
-
-    if (isLoginPage) return null;
-
     return (
         <nav className={styles.navbar}>
             <Link href="/" className={styles.navLogo}>
@@ -18,17 +12,10 @@ export function PublicNavbar() {
             </Link>
 
             <div className={styles.navLinks}>
-                <Link href="/pricing" className={styles.navLink}>Pricing</Link>
-                <Link href="/candidate/browse" className={styles.navLink}>Browse</Link>
-            </div>
-
-            <div className={styles.navButtons}>
-                <Link href="/api/auth/signin" className="btn bg-gray-100 text-gray-800 hover:bg-gray-200">
-                    Log in
-                </Link>
-                <Link href="/api/auth/signin?callbackUrl=/professional/dashboard" className="btn bg-blue-600 text-white hover:bg-blue-700">
-                    Get Started
-                </Link>
+                <Link href="/#about" className={styles.navLink}>About</Link>
+                <Link href="/#faq" className={styles.navLink}>FAQ</Link>
+                <Link href="/login" className={styles.navLink}>Login</Link>
+                <Link href="/signup" className={`${styles.navLink} ${styles.navLinkCta}`}>Signup</Link>
             </div>
         </nav>
     );

@@ -20,7 +20,7 @@ export default function PricingPage() {
                 </div>
 
                 <div style={{ marginTop: "2rem", textAlign: "center" }}>
-                    <Link href="/api/auth/signin?callbackUrl=/professional/dashboard" className="btn bg-blue-600 text-white hover:bg-blue-700">
+                    <Link href="/signup?role=professional" className="btn bg-blue-600 text-white hover:bg-blue-700">
                         Start Earning
                     </Link>
                 </div>

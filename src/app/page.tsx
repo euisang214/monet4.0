@@ -1,2 +1,10 @@
-// Re-export the public landing page as the home page
-export { default } from "./(public)/page";
+import PublicLayout from "./(public)/layout";
+import LandingPage from "./(public)/page";
+
+export default function HomePage() {
+    return (
+        <PublicLayout>
+            <LandingPage />
+        </PublicLayout>
+    );
+}
