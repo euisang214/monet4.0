@@ -2,9 +2,9 @@ import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import { BookingStatus, Role } from '@prisma/client';
 import { getPendingRequests } from '@/lib/shared/bookings/upcoming';
-import Link from 'next/link';
 import { EmptyState } from '@/components/ui/composites/EmptyState';
 import { appRoutes } from '@/lib/shared/routes';
+import { ProfessionalRequestActions } from '@/components/bookings/ProfessionalRequestActions';
 
 export default async function ProfessionalRequestsPage() {
     const session = await auth();
@@ -70,14 +70,13 @@ export default async function ProfessionalRequestsPage() {
                                     )}
                                 </div>
                             </div>
-                            <div className="mt-4 flex gap-2">
-                                <Link
-                                    href={href}
-                                    className="btn bg-blue-600 text-white hover:bg-blue-700 text-sm"
-                                >
-                                    {buttonText}
-                                </Link>
-                            </div>
+                            <ProfessionalRequestActions
+                                bookingId={request.id}
+                                reviewHref={href}
+                                reviewLabel={buttonText}
+                                resumeUrl={request.candidate.candidateProfile?.resumeUrl}
+                                isReschedule={isReschedule}
+                            />
                         </li>
                         );
                     })}

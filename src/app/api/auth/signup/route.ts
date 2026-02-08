@@ -8,6 +8,15 @@ const signupSchema = z.object({
     password: z.string().min(6, "Password must be at least 6 characters"),
     role: z.enum([Role.CANDIDATE, Role.PROFESSIONAL]),
     name: z.string().min(1, "Name is required"),
+    resumeUrl: z.string().url("Invalid resume URL").optional(),
+}).superRefine((data, ctx) => {
+    if (data.role === Role.CANDIDATE && !data.resumeUrl) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Resume is required for candidates",
+            path: ["resumeUrl"],
+        })
+    }
 })
 
 export async function POST(req: Request) {
@@ -22,9 +31,9 @@ export async function POST(req: Request) {
             )
         }
 
-        const { email, password, role, name } = result.data
+        const { email, password, role, name, resumeUrl } = result.data
 
-        const newUser = await AuthService.createUser(email, password, role, name)
+        const newUser = await AuthService.createUser(email, password, role, name, resumeUrl)
 
         return NextResponse.json(
             {

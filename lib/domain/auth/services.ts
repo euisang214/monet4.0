@@ -9,7 +9,13 @@ export const AuthService = {
      * Creates a new user with the appropriate profile based on role.
      * Uses a transaction to ensure user and profile are created atomically.
      */
-    async createUser(email: string, password: string, role: Role, _name: string) {
+    async createUser(
+        email: string,
+        password: string,
+        role: Role,
+        _name: string,
+        resumeUrl?: string
+    ) {
         const existingUser = await prisma.user.findUnique({
             where: { email },
         });
@@ -44,6 +50,7 @@ export const AuthService = {
                 await tx.candidateProfile.create({
                     data: {
                         userId: newUser.id,
+                        resumeUrl,
                     },
                 });
             }

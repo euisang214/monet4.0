@@ -5,6 +5,9 @@ import { Role } from "@prisma/client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
+const MAX_RESUME_SIZE_BYTES = 5 * 1024 * 1024;
+const PDF_CONTENT_TYPE = "application/pdf";
+
 function getPostLoginPath(role: Role): string {
     return role === Role.PROFESSIONAL ? "/professional/dashboard" : "/candidate/browse";
 }
@@ -21,8 +24,48 @@ export function SignupForm() {
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [resumeFile, setResumeFile] = useState<File | null>(null);
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [isUploadingResume, setIsUploadingResume] = useState(false);
+
+    const uploadResumeForSignup = async (file: File): Promise<string> => {
+        const uploadInitResponse = await fetch("/api/auth/signup/resume", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                contentType: PDF_CONTENT_TYPE,
+                size: file.size,
+            }),
+        });
+
+        const uploadInitPayload = (await uploadInitResponse.json().catch(() => null)) as
+            | { data?: { uploadUrl?: string; publicUrl?: string }; error?: string }
+            | null;
+
+        if (!uploadInitResponse.ok) {
+            throw new Error(uploadInitPayload?.error || "Failed to start resume upload");
+        }
+
+        const uploadUrl = uploadInitPayload?.data?.uploadUrl;
+        const publicUrl = uploadInitPayload?.data?.publicUrl;
+
+        if (!uploadUrl || !publicUrl) {
+            throw new Error("Resume upload URL is missing");
+        }
+
+        const uploadResponse = await fetch(uploadUrl, {
+            method: "PUT",
+            body: file,
+            headers: { "Content-Type": PDF_CONTENT_TYPE },
+        });
+
+        if (!uploadResponse.ok) {
+            throw new Error("Failed to upload resume");
+        }
+
+        return publicUrl;
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -30,16 +73,39 @@ export function SignupForm() {
         setError("");
 
         try {
+            let resumeUrl: string | undefined;
+
+            if (role === Role.CANDIDATE) {
+                if (!resumeFile) {
+                    throw new Error("Resume upload is required for candidates");
+                }
+
+                if (resumeFile.size > MAX_RESUME_SIZE_BYTES) {
+                    throw new Error("Resume must be 5MB or smaller");
+                }
+
+                const isPdf =
+                    resumeFile.type === PDF_CONTENT_TYPE || resumeFile.name.toLowerCase().endsWith(".pdf");
+                if (!isPdf) {
+                    throw new Error("Resume must be uploaded as a PDF");
+                }
+
+                setIsUploadingResume(true);
+                resumeUrl = await uploadResumeForSignup(resumeFile);
+                setIsUploadingResume(false);
+            }
+
             const res = await fetch("/api/auth/signup", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name, email, password, role }),
+                body: JSON.stringify({ name, email, password, role, resumeUrl }),
             });
 
-            const data = await res.json();
+            const data = await res.json().catch(() => null);
 
             if (!res.ok) {
-                throw new Error(data.error || "Signup failed");
+                const errorMessage = (data as { error?: string } | null)?.error || "Signup failed";
+                throw new Error(errorMessage);
             }
 
             const callbackUrl = getPostLoginPath(role);
@@ -51,6 +117,7 @@ export function SignupForm() {
                 setError("Could not create account");
             }
         } finally {
+            setIsUploadingResume(false);
             setIsLoading(false);
         }
     };
@@ -133,12 +200,40 @@ export function SignupForm() {
                     </div>
                 </div>
 
+                {role === Role.CANDIDATE && (
+                    <div className="rounded-md border border-gray-300 p-4 space-y-2">
+                        <label htmlFor="resume" className="block text-sm font-medium text-gray-700">
+                            Resume (PDF required)
+                        </label>
+                        <input
+                            id="resume"
+                            name="resume"
+                            type="file"
+                            accept=".pdf,application/pdf"
+                            required
+                            disabled={isLoading}
+                            onChange={(e) => setResumeFile(e.target.files?.[0] ?? null)}
+                            className="block w-full text-sm text-gray-500
+                                file:mr-4 file:py-2 file:px-4
+                                file:rounded-md file:border-0
+                                file:text-sm file:font-semibold
+                                file:bg-blue-50 file:text-blue-700
+                                hover:file:bg-blue-100"
+                        />
+                        <p className="text-xs text-gray-500">
+                            {resumeFile
+                                ? `Selected file: ${resumeFile.name}`
+                                : "Upload a PDF resume (max 5MB) to continue."}
+                        </p>
+                    </div>
+                )}
+
                 <button
                     type="submit"
                     disabled={isLoading}
                     className="group relative flex w-full justify-center rounded-md border border-transparent bg-black py-2 px-4 text-sm font-medium text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50"
                 >
-                    {isLoading ? "Creating account..." : "Create account"}
+                    {isUploadingResume ? "Uploading resume..." : isLoading ? "Creating account..." : "Create account"}
                 </button>
             </form>
 

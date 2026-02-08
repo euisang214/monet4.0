@@ -45,6 +45,12 @@ export default function CandidateSettingsPage() {
             return;
         }
 
+        const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+        if (!isPdf) {
+            setNotification({ type: "error", message: "Resume must be uploaded as a PDF." });
+            return;
+        }
+
         setUploading(true);
         setNotification(null);
 
@@ -52,7 +58,7 @@ export default function CandidateSettingsPage() {
             const res = await fetch("/api/candidate/upload/resume", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ contentType: file.type }),
+                body: JSON.stringify({ contentType: file.type, size: file.size }),
             });
 
             const payload = await res.json();
@@ -165,7 +171,7 @@ export default function CandidateSettingsPage() {
                         <span className="sr-only">Upload resume</span>
                         <input
                             type="file"
-                            accept=".pdf,.doc,.docx"
+                            accept=".pdf,application/pdf"
                             onChange={handleResumeUpload}
                             disabled={uploading}
                             className="block w-full text-sm text-gray-500
