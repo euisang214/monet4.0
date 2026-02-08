@@ -6,6 +6,59 @@ import Link from 'next/link';
 import { EmptyState } from '@/components/ui/composites/EmptyState';
 import { appRoutes } from '@/lib/shared/routes';
 
+type DateLike = Date | string | null | undefined;
+type TimelineItem = {
+    startDate: DateLike;
+    endDate?: DateLike;
+    isCurrent?: boolean | null;
+};
+
+const monthYearFormatter = new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    year: 'numeric',
+});
+
+const yearFormatter = new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+});
+
+function toValidDate(value: DateLike) {
+    if (!value) return null;
+    const parsed = value instanceof Date ? value : new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function compareTimelineItems<T extends TimelineItem>(a: T, b: T) {
+    const aCurrent = Boolean(a.isCurrent);
+    const bCurrent = Boolean(b.isCurrent);
+
+    if (aCurrent !== bCurrent) {
+        return aCurrent ? -1 : 1;
+    }
+
+    const aStart = toValidDate(a.startDate)?.getTime() ?? 0;
+    const bStart = toValidDate(b.startDate)?.getTime() ?? 0;
+
+    return bStart - aStart;
+}
+
+function formatDateRange(item: TimelineItem, formatter: Intl.DateTimeFormat) {
+    const startDate = toValidDate(item.startDate);
+    const endDate = toValidDate(item.endDate);
+    const startLabel = startDate ? formatter.format(startDate) : '';
+    const endLabel = endDate ? formatter.format(endDate) : '';
+
+    if (item.isCurrent) {
+        return startLabel ? `${startLabel} - Present` : 'Present';
+    }
+
+    if (startLabel && endLabel) {
+        return `${startLabel} - ${endLabel}`;
+    }
+
+    return startLabel || endLabel;
+}
+
 export default async function ProfessionalProfilePage(props: {
     params: Promise<{ id: string }>;
 }) {
@@ -22,6 +75,10 @@ export default async function ProfessionalProfilePage(props: {
     }
 
     const reviews = await CandidateBrowse.getProfessionalReviews(params.id);
+    const experienceItems = [...(profile.experience || [])].sort(compareTimelineItems);
+    const educationItems = [...(profile.education || [])].sort(compareTimelineItems);
+    const activityItems = [...(profile.activities || [])].sort(compareTimelineItems);
+    const hasBackgroundSections = experienceItems.length > 0 || educationItems.length > 0 || activityItems.length > 0;
 
     return (
         <main className="container py-8 max-w-4xl">
@@ -54,6 +111,66 @@ export default async function ProfessionalProfilePage(props: {
                             <h3 className="text-lg font-semibold text-gray-900 mb-2">About</h3>
                             <p className="whitespace-pre-line">{profile.bio || 'No bio provided yet.'}</p>
                         </section>
+
+                        {hasBackgroundSections ? (
+                            <div className="space-y-10 mb-8">
+                                {experienceItems.length > 0 ? (
+                                    <section>
+                                        <h3 className="text-4xl font-bold text-gray-900 mb-6">Experience</h3>
+                                        <div className="space-y-6">
+                                            {experienceItems.map((experience) => (
+                                                <article key={experience.id} className="border-l border-gray-900 p-2">
+                                                    <h4 className="font-semibold text-gray-900">{experience.title}</h4>
+                                                    <p className="text-gray-600 mt-1">{experience.company}</p>
+                                                    <p className="italic text-gray-500 mt-6">
+                                                        {formatDateRange(experience, monthYearFormatter)}
+                                                    </p>
+                                                </article>
+                                            ))}
+                                        </div>
+                                    </section>
+                                ) : null}
+
+                                {educationItems.length > 0 ? (
+                                    <section>
+                                        <h3 className="text-4xl font-bold text-gray-900 mb-6">Education</h3>
+                                        <div className="space-y-6">
+                                            {educationItems.map((education) => {
+                                                const educationTitle = [education.degree, education.fieldOfStudy]
+                                                    .filter(Boolean)
+                                                    .join(', ');
+                                                return (
+                                                    <article key={education.id} className="border-l border-gray-900 p-2">
+                                                        <h4 className="font-semibold text-gray-900">{educationTitle}</h4>
+                                                        <p className="text-gray-600 mt-1">{education.school}</p>
+                                                        <p className="italic text-gray-500 mt-6">
+                                                            {formatDateRange(education, yearFormatter)}
+                                                        </p>
+                                                    </article>
+                                                );
+                                            })}
+                                        </div>
+                                    </section>
+                                ) : null}
+
+                                {activityItems.length > 0 ? (
+                                    <section>
+                                        <h3 className="text-4xl font-bold text-gray-900 mb-6">Activities</h3>
+                                        <div className="space-y-6">
+                                            {activityItems.map((activity) => (
+                                                <article key={activity.id} className="border-l border-gray-900 pl-6">
+                                                    <h4 className="text-2xl font-semibold text-gray-900">{activity.title}</h4>
+                                                    <p className="text-2xl text-gray-600 mt-1">{activity.company}</p>
+                                                    <p className="text-2xl italic text-gray-500 mt-6">
+                                                        {formatDateRange(activity, monthYearFormatter)}
+                                                    </p>
+                                                </article>
+                                            ))}
+                                        </div>
+                                    </section>
+                                ) : null}
+                            </div>
+                        ) : null}
 
                         <section className="border-t pt-8">
                             <h3 className="text-xl font-bold text-gray-900 mb-5">Reviews ({reviews.length})</h3>
