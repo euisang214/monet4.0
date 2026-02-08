@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { CandidateSettings } from '@/lib/role/candidate/settings';
 import { Role } from '@prisma/client';
 import { EmptyState } from '@/components/ui/composites/EmptyState';
+import { ProfessionalWeeklySlotPicker } from '@/components/bookings/WeeklySlotCalendar';
 
 export default async function CandidateAvailabilityPage() {
     const session = await auth();
@@ -16,6 +17,10 @@ export default async function CandidateAvailabilityPage() {
     }
 
     const availability = await CandidateSettings.getAvailability(session.user.id);
+    const availableSlots = availability
+        .filter((slot) => !slot.busy)
+        .map((slot) => ({ start: slot.start, end: slot.end }));
+    const blockedSlotsCount = availability.length - availableSlots.length;
 
     return (
         <main className="container py-8">
@@ -25,31 +30,31 @@ export default async function CandidateAvailabilityPage() {
                 <p className="text-gray-600">Set clear availability to make scheduling and confirmations smoother.</p>
             </header>
 
-            {availability.length === 0 ? (
+            {availableSlots.length === 0 ? (
                 <EmptyState
                     badge="No slots configured"
-                    title="You have not set any availability yet"
-                    description="Add windows in your settings so professionals can propose times that work for you."
+                    title="You have not set any available slots yet"
+                    description={
+                        blockedSlotsCount > 0
+                            ? 'Only blocked windows were found. Add available windows in settings to populate the calendar.'
+                            : 'Add windows in your settings so professionals can propose times that work for you.'
+                    }
                     actionLabel="Open candidate settings"
                     actionHref="/candidate/settings"
                 />
             ) : (
                 <section className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Current availability slots</h2>
-                    <ul className="space-y-3">
-                        {availability.map((slot) => (
-                            <li key={slot.id} className="p-4 border border-gray-200 rounded-lg bg-gray-50">
-                                <div className="flex justify-between items-center gap-3">
-                                    <span className="text-sm text-gray-700">
-                                        {slot.start.toLocaleDateString()} {slot.start.toLocaleTimeString()} - {slot.end.toLocaleTimeString()}
-                                    </span>
-                                    <span className={`text-sm font-semibold ${slot.busy ? 'text-red-600' : 'text-green-700'}`}>
-                                        {slot.busy ? 'Busy' : 'Available'}
-                                    </span>
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Current availability calendar</h2>
+                    <ProfessionalWeeklySlotPicker
+                        slots={availableSlots}
+                        selectedSlot={null}
+                        readOnly
+                    />
+                    {blockedSlotsCount > 0 && (
+                        <p className="mt-4 text-sm text-gray-600">
+                            {blockedSlotsCount} blocked slot{blockedSlotsCount === 1 ? '' : 's'} are not shown as available.
+                        </p>
+                    )}
                 </section>
             )}
         </main>

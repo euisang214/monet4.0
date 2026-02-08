@@ -209,10 +209,11 @@ export function CandidateWeeklySlotPicker({ googleBusyIntervals, onChange }: Can
 interface ProfessionalWeeklySlotPickerProps {
     slots: SlotInput[];
     selectedSlot: string | null;
-    onSelect: (slotStartIso: string) => void;
+    onSelect?: (slotStartIso: string) => void;
+    readOnly?: boolean;
 }
 
-export function ProfessionalWeeklySlotPicker({ slots, selectedSlot, onSelect }: ProfessionalWeeklySlotPickerProps) {
+export function ProfessionalWeeklySlotPicker({ slots, selectedSlot, onSelect, readOnly = false }: ProfessionalWeeklySlotPickerProps) {
     const {
         weekStart,
         hasSlots,
@@ -230,7 +231,9 @@ export function ProfessionalWeeklySlotPicker({ slots, selectedSlot, onSelect }: 
     if (!hasSlots || !weekStart) {
         return (
             <div className="p-4 bg-yellow-50 text-yellow-800 rounded-md text-sm">
-                No overlapping slots found. Ask the candidate to share additional times.
+                {readOnly
+                    ? 'No availability slots found in your calendar window.'
+                    : 'No overlapping slots found. Ask the candidate to share additional times.'}
             </div>
         );
     }
@@ -238,7 +241,9 @@ export function ProfessionalWeeklySlotPicker({ slots, selectedSlot, onSelect }: 
     return (
         <section className="space-y-4">
             <div className="flex items-center justify-between gap-3">
-                <h3 className="text-lg font-medium text-gray-900">Choose from candidate-submitted times</h3>
+                <h3 className="text-lg font-medium text-gray-900">
+                    {readOnly ? 'Your availability calendar' : 'Choose from candidate-submitted times'}
+                </h3>
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
@@ -300,11 +305,14 @@ export function ProfessionalWeeklySlotPicker({ slots, selectedSlot, onSelect }: 
                                 {Array.from({ length: 7 }).map((__, dayOffset) => {
                                     const slotStart = slotDateForCell(weekStart, dayOffset, row);
                                     const cell = getCellMeta(slotStart);
+                                    const canSelect = cell.isSelectable && !readOnly && !!onSelect;
 
                                     const cellClass = cell.isSelected
                                         ? 'bg-blue-500 text-white border-blue-600'
                                         : cell.isSelectable
-                                            ? 'bg-green-100 hover:bg-green-200 border-green-200'
+                                            ? canSelect
+                                                ? 'bg-green-100 hover:bg-green-200 border-green-200'
+                                                : 'bg-green-100 border-green-200'
                                             : 'bg-gray-50 border-gray-100';
 
                                     return (
@@ -312,9 +320,9 @@ export function ProfessionalWeeklySlotPicker({ slots, selectedSlot, onSelect }: 
                                             <button
                                                 type="button"
                                                 onClick={() => {
-                                                    if (cell.isSelectable) onSelect(cell.key);
+                                                    if (canSelect && onSelect) onSelect(cell.key);
                                                 }}
-                                                className={`h-5 w-full border transition-colors ${cellClass} ${!cell.isSelectable ? 'cursor-default' : ''}`}
+                                                className={`h-5 w-full border transition-colors ${cellClass} ${!canSelect ? 'cursor-default' : ''}`}
                                                 title={format(slotStart, 'PPpp')}
                                             />
                                         </td>
@@ -329,12 +337,14 @@ export function ProfessionalWeeklySlotPicker({ slots, selectedSlot, onSelect }: 
             <div className="flex items-center gap-4 text-xs text-gray-600">
                 <span className="inline-flex items-center gap-2">
                     <span className="h-3 w-3 rounded-sm bg-green-100 border border-green-200" />
-                    Candidate available
+                    {readOnly ? 'Available' : 'Candidate available'}
                 </span>
-                <span className="inline-flex items-center gap-2">
-                    <span className="h-3 w-3 rounded-sm bg-blue-500 border border-blue-600" />
-                    Selected slot
-                </span>
+                {!readOnly && (
+                    <span className="inline-flex items-center gap-2">
+                        <span className="h-3 w-3 rounded-sm bg-blue-500 border border-blue-600" />
+                        Selected slot
+                    </span>
+                )}
             </div>
         </section>
     );

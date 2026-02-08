@@ -19,3 +19,20 @@ export async function getCandidateChats(candidateId: string) {
         ],
     });
 }
+
+export async function getCandidateBookingDetails(bookingId: string, candidateId: string) {
+    return prisma.booking.findUnique({
+        where: {
+            id: bookingId,
+            candidateId,
+        },
+        include: {
+            professional: {
+                include: {
+                    professionalProfile: true,
+                },
+            },
+            payment: true,
+        },
+    });
+}

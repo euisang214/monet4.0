@@ -1,6 +1,6 @@
 import React from 'react';
 import { auth } from '@/auth';
-import { getBookingDetails } from '@/lib/role/candidate/dashboard';
+import { getCandidateBookingDetails } from '@/lib/role/candidate/chats';
 import { notFound, redirect } from 'next/navigation';
 import { BookingActions } from './BookingActions';
 import { Role } from '@prisma/client';
@@ -27,7 +27,7 @@ export default async function BookingDetailsPage(props: {
         redirect('/');
     }
 
-    const booking = await getBookingDetails(params.id, session.user.id);
+    const booking = await getCandidateBookingDetails(params.id, session.user.id);
 
     if (!booking) {
         notFound();

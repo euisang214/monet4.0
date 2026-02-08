@@ -157,7 +157,7 @@ export default async function CandidateChatsPage() {
     const session = await auth();
 
     if (!session?.user) {
-        redirect('/login?callbackUrl=/candidate/history');
+        redirect(`/login?callbackUrl=${appRoutes.candidate.chats}`);
     }
 
     if (session.user.role !== Role.CANDIDATE) {

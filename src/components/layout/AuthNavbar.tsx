@@ -36,6 +36,8 @@ const ROLE_NAV_LINKS: Record<UserRole, NavLink[]> = {
     ],
 };
 
+const CANDIDATE_DASHBOARD_LEGACY_PATH = "/candidate/dashboard";
+
 export function AuthNavbar() {
     const { data: session, status } = useSession();
     const [isPending, startTransition] = useTransition();
@@ -75,7 +77,7 @@ export function AuthNavbar() {
                             const isCandidateChatsRoute =
                                 userRole === "CANDIDATE" &&
                                 link.href === appRoutes.candidate.chats &&
-                                (pathname.startsWith("/candidate/bookings/") || pathname === appRoutes.candidate.dashboard);
+                                (pathname.startsWith("/candidate/bookings/") || pathname === CANDIDATE_DASHBOARD_LEGACY_PATH);
 
                             const isActive =
                                 isCandidateChatsRoute ||

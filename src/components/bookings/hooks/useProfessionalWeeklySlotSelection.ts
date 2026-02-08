@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { addDays, startOfWeek } from 'date-fns';
-import { WEEK_STARTS_ON, normalizeInterval } from '@/components/bookings/calendar/slot-utils';
+import { addDays, addMinutes, startOfWeek } from 'date-fns';
+import { SLOT_MINUTES, WEEK_STARTS_ON, normalizeInterval, overlaps } from '@/components/bookings/calendar/slot-utils';
 import type { SlotInput } from '@/components/bookings/calendar/types';
 
 type ProfessionalCellMeta = {
@@ -23,11 +23,6 @@ export function useProfessionalWeeklySlotSelection({
     const normalizedSlots = useMemo(
         () => slots.map((slot) => normalizeInterval(slot)).sort((a, b) => a.start.getTime() - b.start.getTime()),
         [slots]
-    );
-
-    const availableSlotKeys = useMemo(
-        () => new Set(normalizedSlots.map((slot) => slot.start.toISOString())),
-        [normalizedSlots]
     );
 
     const minWeekStart = useMemo(() => {
@@ -57,13 +52,14 @@ export function useProfessionalWeeklySlotSelection({
     const getCellMeta = useCallback(
         (slotStart: Date): ProfessionalCellMeta => {
             const key = slotStart.toISOString();
+            const slotEnd = addMinutes(slotStart, SLOT_MINUTES);
             return {
                 key,
-                isSelectable: availableSlotKeys.has(key),
+                isSelectable: normalizedSlots.some((slot) => overlaps(slotStart, slotEnd, slot)),
                 isSelected: selectedSlot === key,
             };
         },
-        [availableSlotKeys, selectedSlot]
+        [normalizedSlots, selectedSlot]
     );
 
     return {
