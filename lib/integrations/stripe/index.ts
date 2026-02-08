@@ -10,6 +10,16 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 });
 
 /**
+ * Returns true for stale/invalid Connect account IDs that should trigger recovery.
+ */
+export function isMissingOrInvalidConnectAccountError(error: unknown): boolean {
+    if (!error || typeof error !== 'object') return false;
+
+    const stripeError = error as { code?: unknown };
+    return stripeError.code === 'account_invalid' || stripeError.code === 'resource_missing';
+}
+
+/**
  * Creates a PaymentIntent with manual capture for the "Separate Charges and Transfers" flow.
  * Funds are authorized but not captured until the professional accepts.
  */

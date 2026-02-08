@@ -1,5 +1,5 @@
 import { auth } from '@/auth';
-import { stripe } from '@/lib/integrations/stripe';
+import { stripe, isMissingOrInvalidConnectAccountError } from '@/lib/integrations/stripe';
 import { prisma } from '@/lib/core/db';
 
 /**
@@ -34,6 +34,16 @@ export async function GET() {
                 detailsSubmitted: account.details_submitted,
             });
         } catch (error) {
+            if (isMissingOrInvalidConnectAccountError(error)) {
+                console.warn(
+                    `[Stripe Account API] Stored Stripe account ${user.stripeAccountId} is invalid or missing. Returning disconnected state.`
+                );
+                return Response.json({
+                    accountId: null,
+                    customerId: user.stripeCustomerId,
+                    payoutsEnabled: false,
+                });
+            }
             console.error('Error fetching Stripe account:', error);
             return Response.json({ error: 'stripe_error' }, { status: 500 });
         }

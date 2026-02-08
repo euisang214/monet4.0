@@ -1,5 +1,9 @@
 import { prisma } from '@/lib/core/db';
-import { createConnectAccount, createAccountLink } from '@/lib/integrations/stripe';
+import {
+    createConnectAccount,
+    createAccountLink,
+    isMissingOrInvalidConnectAccountError,
+} from '@/lib/integrations/stripe';
 
 /**
  * OnboardingService - Professional Stripe Connect onboarding
@@ -32,6 +36,7 @@ export const OnboardingService = {
             throw new Error('user_not_found');
         }
 
+        const hadExistingAccountId = Boolean(user.stripeAccountId);
         let accountId = user.stripeAccountId;
 
         // Create Stripe Connect account if it doesn't exist (idempotent)
@@ -46,9 +51,30 @@ export const OnboardingService = {
             });
         }
 
-        // Generate Account Link for onboarding
-        const accountLink = await createAccountLink(accountId, returnUrl, refreshUrl);
+        try {
+            // Generate Account Link for onboarding
+            const accountLink = await createAccountLink(accountId, returnUrl, refreshUrl);
+            return { url: accountLink.url };
+        } catch (error) {
+            // Recover from stale DB account IDs (common in seeded dev data).
+            if (!hadExistingAccountId || !isMissingOrInvalidConnectAccountError(error)) {
+                throw error;
+            }
 
-        return { url: accountLink.url };
+            console.warn(
+                `[OnboardingService] Stored Stripe account ${accountId} is invalid. Creating a new Connect account.`
+            );
+
+            const recoveredAccount = await createConnectAccount(user.email);
+            accountId = recoveredAccount.id;
+
+            await prisma.user.update({
+                where: { id: userId },
+                data: { stripeAccountId: accountId },
+            });
+
+            const recoveredAccountLink = await createAccountLink(accountId, returnUrl, refreshUrl);
+            return { url: recoveredAccountLink.url };
+        }
     },
 };
