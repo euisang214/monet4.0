@@ -2,7 +2,7 @@ import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import { CandidateSettings } from '@/lib/role/candidate/settings';
 import { Role } from '@prisma/client';
-import { EmptyState } from '@/components/ui/EmptyState';
+import { EmptyState } from '@/components/ui/composites/EmptyState';
 
 export default async function CandidateAvailabilityPage() {
     const session = await auth();

@@ -3,7 +3,8 @@ import { auth } from '@/auth';
 import { CandidateBrowse } from '@/lib/role/candidate/browse';
 import { ListingCard } from '@/components/browse/ListingCard';
 import { redirect } from 'next/navigation';
-import { EmptyState } from '@/components/ui/EmptyState';
+import { EmptyState } from '@/components/ui/composites/EmptyState';
+import { appRoutes } from '@/lib/shared/routes';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,8 +29,8 @@ export default async function BrowsePage() {
                     badge="Directory unavailable"
                     title="No professionals are visible right now"
                     description="Profiles may be temporarily unavailable. Check back soon or review your account setup."
-                    actionLabel="Go to dashboard"
-                    actionHref="/candidate/dashboard"
+                    actionLabel="Go to chats"
+                    actionHref={appRoutes.candidate.chats}
                 />
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

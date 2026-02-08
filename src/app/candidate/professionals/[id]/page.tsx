@@ -3,7 +3,7 @@ import { auth } from '@/auth';
 import { CandidateBrowse } from '@/lib/role/candidate/browse';
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { EmptyState } from '@/components/ui/EmptyState';
+import { EmptyState } from '@/components/ui/composites/EmptyState';
 import { appRoutes } from '@/lib/shared/routes';
 
 export default async function ProfessionalProfilePage(props: {

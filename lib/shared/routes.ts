@@ -2,6 +2,7 @@ export const appRoutes = {
     candidate: {
         dashboard: "/candidate/dashboard",
         browse: "/candidate/browse",
+        chats: "/candidate/history",
         history: "/candidate/history",
         availability: "/candidate/availability",
         settings: "/candidate/settings",

@@ -4,7 +4,7 @@ import { NextResponse } from "next/server"
 /**
  * This endpoint handles post-OAuth login redirects.
  * After a successful OAuth login, NextAuth redirects here and we determine
- * the appropriate dashboard based on the user's role.
+ * the appropriate landing page based on the user's role.
  */
 export async function GET() {
     const session = await auth()
@@ -16,20 +16,20 @@ export async function GET() {
 
     const role = session.user.role
 
-    let dashboardUrl: string
+    let redirectUrl: string
     switch (role) {
         case "CANDIDATE":
-            dashboardUrl = "/candidate/dashboard"
+            redirectUrl = "/candidate/browse"
             break
         case "PROFESSIONAL":
-            dashboardUrl = "/professional/dashboard"
+            redirectUrl = "/professional/dashboard"
             break
         case "ADMIN":
-            dashboardUrl = "/admin/bookings"
+            redirectUrl = "/admin/bookings"
             break
         default:
-            dashboardUrl = "/"
+            redirectUrl = "/"
     }
 
-    return NextResponse.redirect(new URL(dashboardUrl, process.env.NEXTAUTH_URL || "http://localhost:3000"))
+    return NextResponse.redirect(new URL(redirectUrl, process.env.NEXTAUTH_URL || "http://localhost:3000"))
 }

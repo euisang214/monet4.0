@@ -7,6 +7,7 @@ import { CandidateWeeklySlotPicker } from '@/components/bookings/WeeklySlotCalen
 import type { SlotInterval } from '@/components/bookings/calendar/types';
 import { useCandidateBookingRequest } from '@/components/bookings/hooks/useCandidateBookingRequest';
 import { useCandidateGoogleBusy } from '@/components/bookings/hooks/useCandidateGoogleBusy';
+import { appRoutes } from '@/lib/shared/routes';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -128,7 +129,7 @@ function CheckoutForm({ bookingId }: { bookingId: string }) {
         const { error } = await stripe.confirmPayment({
             elements,
             confirmParams: {
-                return_url: `${window.location.origin}/candidate/dashboard?payment_success=true&booking_id=${bookingId}`,
+                return_url: `${window.location.origin}${appRoutes.candidate.chats}?payment_success=true&booking_id=${bookingId}`,
             },
         });
 

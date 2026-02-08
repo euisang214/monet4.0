@@ -4,7 +4,7 @@ import React, { useTransition } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/primitives/Button";
 import { appRoutes } from "@/lib/shared/routes";
 
 type UserRole = "CANDIDATE" | "PROFESSIONAL" | "ADMIN";
@@ -16,10 +16,9 @@ type NavLink = {
 
 const ROLE_NAV_LINKS: Record<UserRole, NavLink[]> = {
     CANDIDATE: [
-        { label: "Dashboard", href: appRoutes.candidate.dashboard },
         { label: "Browse", href: appRoutes.candidate.browse },
+        { label: "Chats", href: appRoutes.candidate.chats },
         { label: "Availability", href: appRoutes.candidate.availability },
-        { label: "History", href: appRoutes.candidate.history },
         { label: "Settings", href: appRoutes.candidate.settings },
     ],
     PROFESSIONAL: [
@@ -51,7 +50,8 @@ export function AuthNavbar() {
         });
     };
 
-    const navLinks = ROLE_NAV_LINKS[session.user.role as UserRole] ?? [];
+    const userRole = session.user.role as UserRole;
+    const navLinks = ROLE_NAV_LINKS[userRole] ?? [];
     const homeLink = navLinks[0]?.href ?? "/";
 
     return (
@@ -72,7 +72,15 @@ export function AuthNavbar() {
                             Monet
                         </Link>
                         {navLinks.map((link) => {
-                            const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
+                            const isCandidateChatsRoute =
+                                userRole === "CANDIDATE" &&
+                                link.href === appRoutes.candidate.chats &&
+                                (pathname.startsWith("/candidate/bookings/") || pathname === appRoutes.candidate.dashboard);
+
+                            const isActive =
+                                isCandidateChatsRoute ||
+                                pathname === link.href ||
+                                pathname.startsWith(`${link.href}/`);
                             const linkClasses = isActive
                                 ? "px-3 py-1.5 rounded-md text-sm bg-blue-600 text-white"
                                 : "px-3 py-1.5 rounded-md text-sm bg-gray-100 text-gray-700 hover:bg-gray-200";

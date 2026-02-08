@@ -5,7 +5,7 @@ import { redirect, notFound } from 'next/navigation';
 import { FeedbackForm } from '@/components/feedback/FeedbackForm';
 import { Role } from '@prisma/client';
 import Link from 'next/link';
-import { EmptyState } from '@/components/ui/EmptyState';
+import { EmptyState } from '@/components/ui/composites/EmptyState';
 
 export default async function FeedbackPage({
     params

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useTransition } from "react";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/primitives/Button";
 import { confirmBookingAction } from "@/app/professional/requests/actions";
 import { ProfessionalWeeklySlotPicker } from "@/components/bookings/WeeklySlotCalendar";
 

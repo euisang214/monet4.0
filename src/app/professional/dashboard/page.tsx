@@ -6,7 +6,7 @@ import { StatsCard } from "@/components/dashboard/StatsCard";
 import { ProfessionalRequestCard } from "@/components/bookings/ProfessionalRequestCard";
 import { FeedbackTaskCard } from "@/components/dashboard/FeedbackTaskCard";
 import { Role } from "@prisma/client";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { EmptyState } from "@/components/ui/composites/EmptyState";
 
 export default async function ProfessionalDashboardPage() {
     const session = await auth();

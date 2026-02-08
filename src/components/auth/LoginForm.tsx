@@ -76,7 +76,7 @@ export function LoginForm() {
     };
 
     return (
-        <section className="w-full max-w-md bg-white p-8 rounded-xl border border-gray-200 shadow-lg space-y-6">
+        <section className="w-full max-w-md mx-auto bg-white p-8 rounded-xl border border-gray-200 shadow-lg space-y-6">
             <header className="text-center">
                 <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Welcome Back</p>
                 <h2 className="text-3xl font-extrabold text-gray-900 mb-2">Sign in to Monet</h2>
@@ -158,7 +158,7 @@ export function LoginForm() {
                     </div>
                 </div>
 
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between p-3">
                     <Link href="/forgot-password" className="text-sm font-medium text-gray-600 hover:text-black">
                         Forgot your password?
                     </Link>

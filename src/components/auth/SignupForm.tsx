@@ -5,8 +5,8 @@ import { Role } from "@prisma/client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
-function getDashboardPath(role: Role): string {
-    return role === Role.PROFESSIONAL ? "/professional/dashboard" : "/candidate/dashboard";
+function getPostLoginPath(role: Role): string {
+    return role === Role.PROFESSIONAL ? "/professional/dashboard" : "/candidate/browse";
 }
 
 export function SignupForm() {
@@ -42,7 +42,7 @@ export function SignupForm() {
                 throw new Error(data.error || "Signup failed");
             }
 
-            const callbackUrl = getDashboardPath(role);
+            const callbackUrl = getPostLoginPath(role);
             router.push(`/login?signup=success&callbackUrl=${encodeURIComponent(callbackUrl)}`);
         } catch (error: unknown) {
             if (error instanceof Error) {

@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { Booking, BookingStatus, User } from "@prisma/client";
 import { format } from "date-fns";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/primitives/Button";
 import { appRoutes } from "@/lib/shared/routes";
 
 interface RequestCardProps {

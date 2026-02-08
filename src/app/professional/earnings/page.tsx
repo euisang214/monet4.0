@@ -2,7 +2,7 @@ import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import { Role } from '@prisma/client';
 import { ProfessionalEarningsService } from '@/lib/role/professional/earnings';
-import { EmptyState } from '@/components/ui/EmptyState';
+import { EmptyState } from '@/components/ui/composites/EmptyState';
 
 export default async function ProfessionalEarningsPage() {
     const session = await auth();

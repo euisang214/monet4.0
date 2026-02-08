@@ -6,6 +6,7 @@ import { BookingActions } from './BookingActions';
 import { Role } from '@prisma/client';
 import { format } from 'date-fns';
 import Link from 'next/link';
+import { appRoutes } from '@/lib/shared/routes';
 
 function statusTone(status: string) {
     if (status === 'accepted' || status === 'completed') return 'bg-green-50 text-green-800';
@@ -35,8 +36,8 @@ export default async function BookingDetailsPage(props: {
     return (
         <main className="container py-8 max-w-3xl">
             <div className="mb-6">
-                <Link href="/candidate/dashboard" className="text-sm text-gray-500 hover:text-gray-900 mb-4 inline-block">
-                    &larr; Back to Dashboard
+                <Link href={appRoutes.candidate.chats} className="text-sm text-gray-500 hover:text-gray-900 mb-4 inline-block">
+                    &larr; Back to Chats
                 </Link>
                 <div className="flex justify-between items-start">
                     <div>

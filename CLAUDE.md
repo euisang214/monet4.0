@@ -68,8 +68,8 @@
 - **Framework**: Next.js 
 - **Language**: TypeScript (strict mode)
 - **UI Library**: React 
-- **UI Authoring**: Webflow (visual design) + DevLink CLI (component export)
-- **Styling**: DevLink exported CSS Modules + scoped custom CSS
+- **UI Authoring**: Hand-authored React components (`tsx` + semantic HTML) in-repo
+- **Styling**: Custom CSS (global tokens/utilities + component-scoped CSS Modules)
 - **Icons**: Lucide React 
 - **Date Handling**: date-fns 
 - **Payment UI**: @stripe/react-stripe-js 
@@ -131,16 +131,15 @@ Browser → API Routes → Service Layer → Prisma → PostgreSQL
 Background Jobs → BullMQ → Redis → Service Layer → Prisma
 ```
 
-### Webflow + DevLink UI Layer
+### Custom Component UI Layer
 
-- **Webflow** owns visual structure and styling as exported React components
-- **DevLink CLI** syncs components into `src/devlink/` (committed, not built at deploy)
 - **Next.js** owns routing, auth gating, data fetching, and API routes
-- **Pattern**: Server Component fetches data → Client wrapper renders DevLink component + binds runtime props
+- **UI Components** are authored directly in `src/components/` and grouped by domain + UI layer
+- **Pattern**: Server Component fetches data → passes serializable props to route-local/shared client components
 - **Booking Calendar Pattern**: presentation (`WeeklySlotCalendar`) stays thin while interaction/data logic lives in `components/bookings/hooks/*` and `components/bookings/services/*`
 
 > [!NOTE]
-> DevLink components are client-only. Any file importing from `@/devlink/*` must use `'use client'`.
+> There is no generated UI pipeline. Frontend components are long-lived custom implementations (HTML/CSS + TypeScript).
 
 ### Three User Portals
 
@@ -167,12 +166,10 @@ Background Jobs → BullMQ → Redis → Service Layer → Prisma
 
 ## Directory Structure
 
-```
-monet3.0/
+``` 
+monet gemini/
 ├── src/
-│   ├── devlink/                     # GENERATED: DevLink components + global.css + DevLinkProvider (DO NOT EDIT)
 │   ├── app/                          # Next.js App Router
-│   │   ├── DevLinkClientProvider.tsx # Client wrapper for DevLinkProvider
 │   │   ├── (public)/                # Public routes (landing, pricing, etc.)
 │   │   ├── candidate/               # Candidate portal
 │   │   │   ├── dashboard/
@@ -199,7 +196,8 @@ monet3.0/
 │   │       ├── candidate/           # Candidate-specific endpoints
 │   │       ├── shared/              # Shared/common endpoints
 │   │       └── admin/               # Admin-only endpoints
-│   ├── components/                  # Shared React components (organized by domain)
+│   ├── components/                  # Shared React components (organized by domain + UI layer)
+│   │   ├── auth/
 │   │   ├── bookings/               # Booking-related UI wrappers + calendar rendering
 │   │   │   ├── WeeklySlotCalendar.tsx
 │   │   │   ├── ConfirmBookingForm.tsx
@@ -217,11 +215,21 @@ monet3.0/
 │   │   │   └── services/           # Client-side API access used by booking hooks
 │   │   │       ├── candidateBookingApi.ts
 │   │   │       └── professionalRescheduleApi.ts
-│   │   ├── feedback/               # Feedback components
-│   │   ├── profile/                # Profile components
+│   │   ├── browse/
 │   │   ├── dashboard/              # Dashboard components
-│   │   ├── c/          # Table-style UI for listing items (professionals or booking requests)
-│   │   └── ui/                     # Shared UI primitives
+│   │   ├── feedback/
+│   │   ├── layout/
+│   │   └── ui/                     # Shared custom UI primitives/composites
+│   │       ├── primitives/
+│   │       │   └── Button/
+│   │       │       ├── Button.tsx
+│   │       │       └── index.ts
+│   │       ├── composites/
+│   │       │   └── EmptyState/
+│   │       │       ├── EmptyState.tsx
+│   │       │       └── index.ts
+│   │       ├── index.ts
+│   │       └── README.md
 │   ├── types/                       # TypeScript type definitions
 │   ├── auth.ts                      # NextAuth configuration
 │   └── middleware.ts                # Auth middleware
@@ -288,17 +296,10 @@ monet3.0/
 │   ├── zoom.test.ts
 │   └── e2e/
 │       └── flow.test.ts
-├── docs/
-│   ├── ARCHITECTURE.md              # Architecture overview
-│   ├── QC_RUBRIC.md                 # QC validation rules
-│   └── Monet.postman_collection.json
 ├── scripts/
 │   └── dev-queue.ts                 # Queue worker script
-├── styles/                          # Global CSS
-├── public/                          # Static assets
-│   └── brand/                       # Logo and branding
+├── public/                          # Static assets (icons/images)
 ├── package.json
-├── webflow.json                     # DevLink CLI configuration
 ├── tsconfig.json
 ├── .env.example
 ├── docker-compose.yml
@@ -339,7 +340,6 @@ The `lib/` directory uses a **hybrid approach**:
 - PostgreSQL 14+
 - Redis 6+
 - npm
-- (UI syncing devs only) Webflow workspace with DevLink access enabled
 
 ### Quick Start
 
@@ -356,26 +356,6 @@ npm run seed
 npm run dev        # Terminal 1
 npm run dev:queue  # Terminal 2
 ```
-
-#### UI Syncer Development (Webflow Access Required)
-
-For developers updating DevLink components from Webflow:
-
-```bash
-# One-time auth (note: --force required because .env already exists)
-webflow auth login --force
-# This adds WEBFLOW_SITE_ID and WEBFLOW_SITE_API_TOKEN to .env
-
-# Sync components from Webflow
-npm run devlink:sync
-
-# Commit the updated src/devlink/ files
-git add src/devlink/
-git commit -m "Sync DevLink components"
-```
-
-> [!NOTE]
-> The `--force` flag is required because this repo already uses `.env` for DB/Stripe/etc. Without it, the Webflow CLI will fail to modify the existing `.env` file.
 
 ### Seeded Test Users
 
@@ -399,14 +379,11 @@ After running `npm run seed`, these users are available:
 ```bash
 npm run dev          # Start Next.js dev server (port 3000)
 npm run dev:queue    # Start BullMQ background worker
-npm run devlink:sync # Sync DevLink components from Webflow
 npm run build        # Production build
 npm run start        # Production server
 npm run seed         # Run database seed
 npm run test         # Run unit tests
 npm run test:e2e     # Run E2E tests
-npm run clean        # Clean build cache
-npm run reset-packages # Remove node_modules and reinstall
 ```
 
 ### Two-Process Development
@@ -445,8 +422,8 @@ The queue worker handles:
 
 1. **Route Collocation**: Forms and components in same directory as pages
 2. **Shared Components**: `/src/components` for reusable UI
-3. **"use client" Directive**: Required for any file importing from `@/devlink/*` and interactive client components
-4. **Server Components**: Default for all components unless importing DevLink or using interactive client components
+3. **"use client" Directive**: Required for interactive components (hooks, browser APIs, event-heavy UI)
+4. **Server Components**: Default for routes and data-fetching components unless interactivity is required
 
 **Route-Colocated Component Boundaries**:
 
@@ -461,12 +438,12 @@ Route-colocated components must NOT contain:
 - ❌ Business logic (use domain services in `/lib/domain/`)
 - ❌ Reusable UI elements (move to `/src/components/`)
 
-### DevLink Conventions
+### Custom UI Conventions
 
-1. **Client Component Requirement**: Any file importing from `@/devlink/*` MUST include `'use client'` directive
-2. **No Manual Edits**: Never edit files in `src/devlink/` — wrap components externally if customization is needed
-3. **CSS Strategy**: Use CSS Modules for scoped overrides; avoid global CSS except DevLink's `global.css`
-4. **Wrapper Pattern**: DevLink components handle presentation; wrapper components handle data and callbacks
+1. **No Generated UI**: Build frontend components directly in this repo (`tsx` + custom CSS)
+2. **Layered UI Structure**: Keep reusable atoms in `components/ui/primitives`, composed blocks in `components/ui/composites`
+3. **Styling Strategy**: Use component-scoped CSS Modules first; keep `app/globals.css` for tokens/utilities/reset only
+4. **Composition Pattern**: Shared components handle presentation; route/page files own data access and orchestration
 
 ### API Response Patterns
 
@@ -1860,27 +1837,30 @@ if (process.env.NODE_ENV !== 'production')
 
 **Why**: Prevents multiple Prisma instances during hot reload in development
 
-### DevLink Component Wrapping Pattern
+### Component Composition Pattern
 
-Wrap DevLink components in client components to bind runtime props:
+Build explicit presentational components with typed props; keep data-fetching in route/page layers.
 
 ```typescript
-// src/components/BookingCard.tsx
-'use client';
-import { DevLinkBookingCard } from '@/devlink';
+// src/components/bookings/BookingCard.tsx
+interface BookingCardProps {
+  title: string;
+  priceLabel: string;
+  onCancelClick?: () => void;
+}
 
-export function BookingCard({ booking, onCancel }: Props) {
+export function BookingCard({ title, priceLabel, onCancelClick }: BookingCardProps) {
   return (
-    <DevLinkBookingCard
-      title={booking.title}
-      price={`$${booking.priceCents / 100}`}
-      onCancelClick={onCancel}
-    />
+    <article className="surface p-4">
+      <h3 className="text-lg font-semibold">{title}</h3>
+      <p className="text-sm text-gray-600">{priceLabel}</p>
+      {onCancelClick ? <button onClick={onCancelClick}>Cancel</button> : null}
+    </article>
   );
 }
 ```
 
-**Why**: DevLink components are presentation-only. Wrappers connect them to Next.js data and actions.
+**Why**: Components stay portable and easy to restyle while routes retain ownership of domain data and side effects.
 
 ### Service Layer Pattern
 
@@ -2346,18 +2326,18 @@ it('should process refund', async () => {
 
 ### Adding a New Page
 
-1. **Design in Webflow**: Create component representing page layout
-2. **Expose dynamic regions**: Use component props and slots for variable content
-3. **Sync**: `npm run devlink:sync`
-4. **Create Next.js route**: `/src/app/your-route/page.tsx` (Server Component)
-5. **Create client wrapper**: Import DevLink component, bind runtime props
-6. **Connect data**: Fetch in Server Component, pass to client wrapper
+1. **Create Next.js route**: `/src/app/your-route/page.tsx` (Server Component by default)
+2. **Compose shared UI**: Reuse components from `/src/components/*` first
+3. **Add new components modularly**: create `ComponentName.tsx` (+ `ComponentName.module.css` when needed) in the right domain folder
+4. **Use client only when necessary**: split interactive logic into a colocated `*Client.tsx`
+5. **Connect data**: Fetch in Server Component, pass serializable props to client/shared components
 
 Example structure:
 ```
 /src/app/booking/[id]/
 ├── page.tsx              # Server: fetches data, renders BookingPageClient
-└── BookingPageClient.tsx # Client: imports DevLink component, binds props
+├── BookingPageClient.tsx # Client: interaction layer only (if needed)
+└── BookingDetails.module.css
 ```
 
 ### Adding a Background Job
@@ -2634,27 +2614,27 @@ npm run build
 # Look for errors or warnings
 ```
 
-### Webflow / DevLink Issues
+### Frontend Component Issues
 
-#### "DevLink components error in Server Component context"
+#### "Hooks/Event handlers in a Server Component error"
 
-**Cause**: DevLink components are client-only
+**Cause**: Interactive logic in a Server Component
 
-**Solution**: Move DevLink usage into a Client Component wrapper with `'use client'`
+**Solution**: Move interactivity into a colocated Client Component (`'use client'`) and pass data via props
 
 #### "CSS conflicts or unexpected base styles"
 
-**Cause**: Conflicting global resets
+**Cause**: Global utility classes overriding component styles (or vice versa)
 
 **Solution**:
-1. Remove any Bootstrap or Tailwind CSS imports
-2. Only import DevLink's `global.css` once in root layout
+1. Keep tokens/resets/utilities in `src/app/globals.css`
+2. Move component-specific styling into local CSS Modules to isolate style scope
 
-#### "Webflow interactions not working"
+#### "Hydration mismatch warnings"
 
-**Cause**: Missing provider
+**Cause**: Client-only values rendered on the server (time, random, browser APIs)
 
-**Solution**: Ensure `DevLinkProvider` wraps the app via `DevLinkClientProvider.tsx`
+**Solution**: Compute browser-only state in `useEffect` or gate rendering until mounted
 
 ---
 
@@ -2691,10 +2671,11 @@ npm run build
 - `/tests/*.test.ts` - Unit tests
 - `/tests/e2e/*.test.ts` - E2E tests
 
-### Webflow / DevLink
-- `/src/devlink/` - Generated DevLink components (DO NOT EDIT)
-- `/src/app/DevLinkClientProvider.tsx` - Client wrapper for DevLinkProvider
-- `/webflow.json` - DevLink CLI configuration
+### Frontend Component System
+- `/src/components/ui/README.md` - UI architecture and layering conventions
+- `/src/components/ui/primitives/` - Reusable low-level custom UI primitives
+- `/src/components/ui/composites/` - Composed custom UI building blocks
+- `/src/app/globals.css` - Global tokens, reset, and utility classes
 
 ---
 
@@ -2782,8 +2763,8 @@ git push -u origin <branch-name>
 - [ ] Tests are updated/added
 - [ ] Feature flags are used for optional features
 - [ ] Secrets are in environment variables (not hardcoded)
-- [ ] DevLink files (`src/devlink/`) are never edited manually
-- [ ] Files importing `@/devlink/*` include `'use client'`
+- [ ] New frontend UI is authored as custom components (no generated UI dependencies)
+- [ ] Reusable UI is placed under `src/components/ui/primitives` or `src/components/ui/composites`
 
 ### Security Checklist
 
@@ -2810,6 +2791,7 @@ git push -u origin <branch-name>
 
 | Date | Summary |
 |------|---------|
+| 2026-02-08 | Frontend architecture shift to custom HTML/CSS components: removed DevLink/Webflow guidance, added modular `components/ui/primitives` + `components/ui/composites` structure, and documented long-term component conventions |
 | 2026-02-07 | Booking calendar refactor docs update: added `components/bookings/calendar|hooks|services`, slot-based candidate request payloads, manual Google refresh/override behavior, and professional reschedule review flow updates |
 | 2026-01-19 | Webflow + DevLink integration: replaced React Bootstrap with DevLink as UI layer, added DevLink conventions and patterns |
 | 2026-01-17 | Schema fixes (attendanceOutcome, candidateLateCancellation, PaymentStatus.cancelled/capture_failed), QC flow update to LLM-only (Claude API), success fee removal, async confirm-and-schedule pattern, webhook loopback fix |

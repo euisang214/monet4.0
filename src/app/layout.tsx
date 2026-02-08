@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Manrope, Space_Grotesk } from "next/font/google";
 import "./globals.css";
-import { DevLinkProvider } from "@/devlink/DevLinkProvider";
 import { SessionProvider } from "next-auth/react";
 import { AuthNavbar } from "@/components/layout/AuthNavbar";
 
@@ -29,10 +28,8 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${bodyFont.variable} ${displayFont.variable}`}>
         <SessionProvider>
-          <DevLinkProvider>
-            <AuthNavbar />
-            {children}
-          </DevLinkProvider>
+          <AuthNavbar />
+          {children}
         </SessionProvider>
       </body>
     </html>

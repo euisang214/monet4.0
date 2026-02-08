@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/primitives/Button';
 import { ProfessionalWeeklySlotPicker } from '@/components/bookings/WeeklySlotCalendar';
 import { useProfessionalRescheduleActions } from '@/components/bookings/hooks/useProfessionalRescheduleActions';
 

@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { BookingStatus, Role } from '@prisma/client';
 import { getPendingRequests } from '@/lib/shared/bookings/upcoming';
 import Link from 'next/link';
-import { EmptyState } from '@/components/ui/EmptyState';
+import { EmptyState } from '@/components/ui/composites/EmptyState';
 import { appRoutes } from '@/lib/shared/routes';
 
 export default async function ProfessionalRequestsPage() {
