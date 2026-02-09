@@ -217,7 +217,7 @@ export default async function ProfessionalProfilePage(props: {
                                 Book Now
                             </Link>
 
-                            <p className="text-xs text-center text-gray-500 mt-4">
+                            <p className="text-xs text-center text-gray-500 mt-4 italic">
                                 Secure payment via Stripe. Satisfaction guaranteed.
                             </p>
                         </div>

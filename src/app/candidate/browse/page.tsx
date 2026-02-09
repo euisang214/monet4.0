@@ -19,9 +19,9 @@ export default async function BrowsePage() {
     return (
         <main className="container py-8">
             <header className="mb-8">
-                <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Candidate Browse</p>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Find a professional to book</h1>
-                <p className="text-gray-600">Explore vetted experts and compare focus areas, pricing, and fit.</p>
+                <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Browse Professionals</p>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Find Your Next Career Mentor</h1>
+                <p className="text-gray-600">Connect with vetted experts and top professionals from leading companies</p>
             </header>
 
             {professionals.length === 0 ? (
