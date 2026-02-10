@@ -79,7 +79,7 @@ export function CandidateWeeklySlotPicker({ googleBusyIntervals, onChange }: Can
         <section className="space-y-4">
             <header className="space-y-2">
                 <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-lg font-semibold text-gray-900">Select your availability (30-minute slots)</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">Select Your Availability (30-minute slots)</h3>
                     <div className="text-sm text-gray-600">{selectedCount} slots selected</div>
                 </div>
                 <p className="text-sm text-gray-600">
@@ -93,7 +93,7 @@ export function CandidateWeeklySlotPicker({ googleBusyIntervals, onChange }: Can
                     onClick={clearSelection}
                     className="px-3 py-1.5 text-sm border border-gray-200 rounded hover:bg-gray-50"
                 >
-                    Clear all
+                    Clear All
                 </button>
 
                 <div className="flex items-center gap-2">
@@ -103,7 +103,7 @@ export function CandidateWeeklySlotPicker({ googleBusyIntervals, onChange }: Can
                         disabled={!canGoPrev}
                         className="px-3 py-1.5 text-sm border border-gray-200 rounded disabled:opacity-40"
                     >
-                        Previous week
+                        Previous Week
                     </button>
                     <span className="text-sm text-gray-700 min-w-[180px] text-center">
                         {format(weekStart, 'MMM d')} - {format(addDays(weekStart, 6), 'MMM d')}
@@ -114,7 +114,7 @@ export function CandidateWeeklySlotPicker({ googleBusyIntervals, onChange }: Can
                         disabled={!canGoNext}
                         className="px-3 py-1.5 text-sm border border-gray-200 rounded disabled:opacity-40"
                     >
-                        Next week
+                        Next Week
                     </button>
                 </div>
             </div>
@@ -149,7 +149,7 @@ export function CandidateWeeklySlotPicker({ googleBusyIntervals, onChange }: Can
                         {Array.from({ length: SLOTS_PER_DAY }).map((_, row) => (
                             <tr key={row} data-slot-row={row}>
                                 <td
-                                    className="sticky left-0 border-r border-gray-200 bg-gray-50 pr-2 align-top text-right text-[11px] text-gray-500"
+                                    className="sticky left-0 border-r border-gray-200 bg-gray-50 pr-2 align-top text-right text-xs text-gray-500 pr-3"
                                     style={{ zIndex: 10, backgroundColor: "#ffffff" }}
                                 >
                                     {getSlotLabel(row)}
