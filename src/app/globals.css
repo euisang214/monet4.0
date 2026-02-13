@@ -13,11 +13,13 @@
   --bg-deep: var(--tone-2);
   --surface: var(--tone-2);
   --surface-soft: var(--tone-3);
-  --text: var(--tone-10);
+  --text: #184e77;
   --muted: var(--tone-9);
   --border: var(--tone-4);
-  --primary: var(--tone-8);
-  --primary-strong: var(--tone-10);
+  --primary-soft: #cfe9fb;
+  --primary: #9fd4f8;
+  --primary-strong: #89c6f1;
+  --button-text: #184e77;
   --success: var(--tone-5);
   --warning: var(--tone-6);
   --danger: var(--tone-7);
@@ -39,11 +41,26 @@ html,
 body {
   max-width: 100vw;
   overflow-x: hidden;
+  min-height: 100%;
+}
+
+html {
+  background-color: #f7fcff;
+  background-image:
+    radial-gradient(circle at 12% 10%, rgba(181, 228, 140, 0.42) 0%, rgba(181, 228, 140, 0) 42%),
+    radial-gradient(circle at 88% 16%, rgba(52, 160, 164, 0.34) 0%, rgba(52, 160, 164, 0) 40%),
+    radial-gradient(circle at 24% 74%, rgba(153, 217, 140, 0.36) 0%, rgba(153, 217, 140, 0) 44%),
+    radial-gradient(circle at 78% 70%, rgba(26, 117, 159, 0.34) 0%, rgba(26, 117, 159, 0) 46%),
+    linear-gradient(180deg, #f7fcff 0%, #ffffff 100%);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-attachment: fixed;
 }
 
 body {
+  min-height: 100dvh;
   color: var(--text);
-  background: linear-gradient(180deg, rgba(217, 237, 146, 0.38) 0%, #ffffff 55%, #ffffff 100%);
+  background: transparent;
   font-family: var(--font-body, "Manrope", "Segoe UI", sans-serif);
   line-height: 1.4;
   -webkit-font-smoothing: antialiased;
@@ -398,7 +415,7 @@ img {
 }
 
 .text-black {
-  color: var(--text);
+  color: #000000;
 }
 
 .text-white {
@@ -430,7 +447,7 @@ img {
 }
 
 .text-blue-600 {
-  color: var(--primary);
+  color: var(--tone-10);
 }
 
 .text-green-600 {
@@ -511,17 +528,19 @@ img {
 }
 
 .bg-blue-500 {
-  background-color: var(--tone-7);
-  color: #ffffff;
+  background-color: var(--primary-soft);
+  color: var(--button-text);
+  border-color: rgba(24, 78, 119, 0.16);
 }
 
 .bg-blue-600 {
   background-color: var(--primary);
-  color: #ffffff;
+  color: var(--button-text);
+  border-color: rgba(24, 78, 119, 0.2);
 }
 
 .bg-blue-100 {
-  background-color: rgba(118, 200, 147, 0.82);
+  background-color: var(--primary-soft);
 }
 
 .bg-green-50 {
@@ -1069,8 +1088,6 @@ button:disabled,
   box-shadow: none;
 }
 
-.bg-blue-600,
-.bg-blue-500,
 .bg-indigo-600,
 .bg-black {
   color: #ffffff;
@@ -1081,11 +1098,11 @@ button:disabled,
 }
 
 .hover\:bg-blue-100:hover {
-  background-color: rgba(118, 200, 147, 0.9);
+  background-color: #b8e1fc;
 }
 
 .hover\:bg-blue-600:hover {
-  background-color: var(--tone-9);
+  background-color: var(--primary-strong);
 }
 
 .hover\:bg-gray-50:hover {
@@ -1129,11 +1146,11 @@ button:disabled,
 }
 
 .hover\:bg-blue-50:hover {
-  background-color: rgba(153, 217, 140, 0.88);
+  background-color: var(--primary-soft);
 }
 
 .hover\:text-black:hover {
-  color: var(--text);
+  color: #000000;
 }
 
 .hover\:text-gray-700:hover {
@@ -1244,7 +1261,7 @@ button:disabled,
 }
 
 .file\:bg-blue-50::file-selector-button {
-  background-color: rgba(153, 217, 140, 0.8);
+  background-color: var(--primary-soft);
 }
 
 .file\:text-blue-700::file-selector-button {
@@ -1252,7 +1269,7 @@ button:disabled,
 }
 
 .hover\:file\:bg-blue-100:hover::file-selector-button {
-  background-color: rgba(118, 200, 147, 0.85);
+  background-color: #b8e1fc;
 }
 
 .animate-spin {
