@@ -102,7 +102,7 @@ export default async function ProfessionalProfilePage(props: {
                                     {profile.employer}
                                 </p>
                             </div>
-                            <div className="text-2xl font-bold text-green-700 bg-green-50 px-4 py-2 rounded-lg">
+                            <div className="text-xl font-bold text-green-700 bg-green-50 px-4 py-2 rounded-lg">
                                 {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((profile.priceCents || 0) / 100)}
                             </div>
                         </div>
