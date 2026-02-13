@@ -1,14 +1,18 @@
+import { auth } from "@/auth";
 import { PublicNavbar } from "@/components/layout/PublicNavbar";
 import styles from "./public.module.css";
 
-export default function PublicLayout({
+export default async function PublicLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
+    const session = await auth();
+    const shouldRenderPublicNavbar = !session?.user;
+
     return (
         <div className={styles.publicLayout}>
-            <PublicNavbar />
+            {shouldRenderPublicNavbar ? <PublicNavbar /> : null}
             <main className={styles.main}>
                 {children}
             </main>
