@@ -34,7 +34,7 @@ export default async function ConfirmAndSchedulePage({ params }: PageProps) {
     const slots = await ProfessionalRequestService.getBookingCandidateAvailability(id, session.user.id);
 
     return (
-        <main className="max-w-2xl mx-auto px-4 py-8">
+        <main className="container py-8">
             <Link href={appRoutes.professional.requests} className="text-sm text-gray-500 hover:text-gray-900 mb-4 inline-block">
                 &larr; Back to requests
             </Link>

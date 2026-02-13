@@ -16,7 +16,7 @@ export function EmptyState({
     badge = "Nothing here yet",
 }: EmptyStateProps) {
     return (
-        <section className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm text-center max-w-lg mx-auto">
+        <section className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm text-center w-full">
             <p className="text-xs uppercase tracking-wider text-blue-600 mb-3">{badge}</p>
             <h3 className="text-2xl font-bold text-gray-900 mb-3">{title}</h3>
             <p className="text-sm text-gray-600 mb-6">{description}</p>

@@ -49,7 +49,7 @@ export default async function FeedbackPage({
 
     if (booking.feedback?.qcStatus === 'passed') {
         return (
-            <main className="max-w-3xl mx-auto px-4 py-8">
+            <main className="container py-8">
                 <Link href="/professional/dashboard" className="text-sm text-gray-500 hover:text-gray-900 mb-4 inline-block">
                     &larr; Back to dashboard
                 </Link>
@@ -71,7 +71,7 @@ export default async function FeedbackPage({
     } : undefined;
 
     return (
-        <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main className="container py-8">
             <Link href="/professional/dashboard" className="text-sm text-gray-500 hover:text-gray-900 mb-4 inline-block">
                 &larr; Back to dashboard
             </Link>

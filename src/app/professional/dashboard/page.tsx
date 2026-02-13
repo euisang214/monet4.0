@@ -32,7 +32,7 @@ export default async function ProfessionalDashboardPage() {
         new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="container py-8">
             <header className="mb-8">
                 <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Professional Dashboard</p>
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">Action queue, bookings, and payouts</h1>
