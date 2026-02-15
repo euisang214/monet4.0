@@ -13,9 +13,16 @@ interface Slot {
 interface ConfirmBookingFormProps {
     bookingId: string;
     slots: Slot[];
+    calendarTimezone?: string;
+    professionalTimezone?: string | null;
 }
 
-export function ConfirmBookingForm({ bookingId, slots }: ConfirmBookingFormProps) {
+export function ConfirmBookingForm({
+    bookingId,
+    slots,
+    calendarTimezone,
+    professionalTimezone,
+}: ConfirmBookingFormProps) {
     const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
     const [isPending, startTransition] = useTransition();
     const [error, setError] = useState<string | null>(null);
@@ -53,6 +60,8 @@ export function ConfirmBookingForm({ bookingId, slots }: ConfirmBookingFormProps
                     slots={slots}
                     selectedSlot={selectedSlot}
                     onSelect={(slot) => setSelectedSlot(slot)}
+                    calendarTimezone={calendarTimezone}
+                    professionalTimezone={professionalTimezone}
                 />
             </div>
 

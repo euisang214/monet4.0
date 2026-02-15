@@ -14,9 +14,16 @@ interface Slot {
 interface ConfirmRescheduleFormProps {
     bookingId: string;
     slots: Slot[];
+    calendarTimezone?: string;
+    professionalTimezone?: string | null;
 }
 
-export function ConfirmRescheduleForm({ bookingId, slots }: ConfirmRescheduleFormProps) {
+export function ConfirmRescheduleForm({
+    bookingId,
+    slots,
+    calendarTimezone,
+    professionalTimezone,
+}: ConfirmRescheduleFormProps) {
     const router = useRouter();
     const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
 
@@ -54,6 +61,8 @@ export function ConfirmRescheduleForm({ bookingId, slots }: ConfirmRescheduleFor
                     slots={slots}
                     selectedSlot={selectedSlot}
                     onSelect={(slot) => setSelectedSlot(slot)}
+                    calendarTimezone={calendarTimezone}
+                    professionalTimezone={professionalTimezone}
                 />
             </div>
 

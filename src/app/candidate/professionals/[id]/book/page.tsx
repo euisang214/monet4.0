@@ -40,6 +40,7 @@ export default async function BookingRequestPage(props: {
             <CandidateBookingRequestForm
                 professionalId={params.id}
                 priceCents={professional.priceCents}
+                professionalTimezone={professional.timezone}
             />
         </div>
     );

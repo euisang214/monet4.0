@@ -2,19 +2,17 @@
 
 import React from 'react';
 import { format } from 'date-fns';
-import type { SlotCellState, SlotInput, SlotInterval } from '@/components/bookings/calendar/types';
-import { SLOT_MINUTES } from '@/components/bookings/calendar/slot-utils';
+import type { SlotInput, SlotInterval } from '@/components/bookings/calendar/types';
+import { VISIBLE_END_ROW_EXCLUSIVE, VISIBLE_ROW_COUNT, VISIBLE_START_ROW } from '@/components/bookings/calendar/slot-utils';
 import { WeekRangeNavigator, WeeklySlotGrid } from '@/components/bookings/calendar/WeeklySlotGrid';
+import { baseSlotCellClasses, candidateSlotStateClasses, getProfessionalSlotClass } from '@/components/bookings/calendar/slot-styles';
 import { useCandidateWeeklySlotSelection } from '@/components/bookings/hooks/useCandidateWeeklySlotSelection';
 import { useProfessionalWeeklySlotSelection } from '@/components/bookings/hooks/useProfessionalWeeklySlotSelection';
 
 export type { SlotInterval } from '@/components/bookings/calendar/types';
 
-const baseCellClasses = 'h-5 w-full border border-gray-100 transition-colors';
-const DEFAULT_VIEW_START_HOUR = 9;
-const DEFAULT_VIEW_END_HOUR = 18;
-const DEFAULT_VIEW_START_ROW = (DEFAULT_VIEW_START_HOUR * 60) / SLOT_MINUTES;
-const DEFAULT_VIEW_VISIBLE_ROWS = ((DEFAULT_VIEW_END_HOUR - DEFAULT_VIEW_START_HOUR) * 60) / SLOT_MINUTES;
+const DEFAULT_VIEW_START_ROW = VISIBLE_START_ROW;
+const DEFAULT_VIEW_VISIBLE_ROWS = VISIBLE_ROW_COUNT;
 const MIN_CALENDAR_VIEWPORT_HEIGHT = 320;
 
 function useDefaultBusinessHoursViewport(anchor: Date | null) {
@@ -26,7 +24,7 @@ function useDefaultBusinessHoursViewport(anchor: Date | null) {
         if (!container) return;
 
         const header = container.querySelector('thead');
-        const sampleRow = container.querySelector<HTMLTableRowElement>('tbody tr[data-slot-row="0"]');
+        const sampleRow = container.querySelector<HTMLTableRowElement>(`tbody tr[data-slot-row="${VISIBLE_START_ROW}"]`);
         const startRow = container.querySelector<HTMLTableRowElement>(`tbody tr[data-slot-row="${DEFAULT_VIEW_START_ROW}"]`);
 
         if (!header || !sampleRow || !startRow) return;
@@ -45,20 +43,19 @@ function useDefaultBusinessHoursViewport(anchor: Date | null) {
     };
 }
 
-const candidateStateClasses: Record<SlotCellState, string> = {
-    available: 'bg-green-300 hover:bg-green-400',
-    blocked: 'bg-gray-50 hover:bg-gray-100',
-    'google-busy': 'bg-red-100 text-red-600 hover:bg-red-200',
-    'google-busy-overridden': 'bg-orange-300 hover:bg-orange-400',
-    disabled: 'bg-gray-100 cursor-not-allowed opacity-70',
-};
-
 interface CandidateWeeklySlotPickerProps {
     googleBusyIntervals: SlotInterval[];
     onChange: (payload: { availabilitySlots: SlotInterval[]; selectedCount: number }) => void;
+    calendarTimezone?: string;
+    professionalTimezone?: string | null;
 }
 
-export function CandidateWeeklySlotPicker({ googleBusyIntervals, onChange }: CandidateWeeklySlotPickerProps) {
+export function CandidateWeeklySlotPicker({
+    googleBusyIntervals,
+    onChange,
+    calendarTimezone,
+    professionalTimezone,
+}: CandidateWeeklySlotPickerProps) {
     const {
         weekStart,
         canGoPrev,
@@ -75,6 +72,12 @@ export function CandidateWeeklySlotPicker({ googleBusyIntervals, onChange }: Can
         onChange,
     });
     const { scrollRef, viewportHeight } = useDefaultBusinessHoursViewport(weekStart);
+    const resolvedCalendarTimezone = React.useMemo(
+        () => calendarTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        [calendarTimezone]
+    );
+    const showProfessionalTimezoneAxis =
+        !!professionalTimezone && professionalTimezone !== resolvedCalendarTimezone;
 
     return (
         <section className="space-y-4">
@@ -104,6 +107,7 @@ export function CandidateWeeklySlotPicker({ googleBusyIntervals, onChange }: Can
                     onPrev={goToPreviousWeek}
                     onNext={goToNextWeek}
                     rangeLabelMinWidthClassName="min-w-[180px]"
+                    calendarTimezone={resolvedCalendarTimezone}
                 />
             </div>
 
@@ -111,12 +115,17 @@ export function CandidateWeeklySlotPicker({ googleBusyIntervals, onChange }: Can
                 weekStart={weekStart}
                 scrollRef={scrollRef}
                 viewportHeight={viewportHeight}
-                tableClassName="w-full border-collapse table-fixed select-none"
+                tableClassName="select-none"
+                visibleRowStart={VISIBLE_START_ROW}
+                visibleRowEndExclusive={VISIBLE_END_ROW_EXCLUSIVE}
+                calendarTimezone={resolvedCalendarTimezone}
+                professionalTimezone={professionalTimezone}
+                showProfessionalTimezoneAxis={showProfessionalTimezoneAxis}
                 renderCell={({ slotStart }) => {
                     const cell = getCellMeta(slotStart);
 
                     return (
-                        <td className="p-0">
+                        <td className="calendar-slot-grid-cell">
                             <button
                                 type="button"
                                 onPointerDown={(event) => {
@@ -128,7 +137,7 @@ export function CandidateWeeklySlotPicker({ googleBusyIntervals, onChange }: Can
                                     if (!cell.canInteract) return;
                                     handleSlotPointerEnter(slotStart);
                                 }}
-                                className={`${baseCellClasses} ${candidateStateClasses[cell.state]}`}
+                                className={`${baseSlotCellClasses} ${candidateSlotStateClasses[cell.state]} ${cell.canInteract ? 'cursor-pointer' : ''}`}
                                 disabled={!cell.canInteract}
                                 title={format(slotStart, 'PPpp')}
                             />
@@ -139,19 +148,19 @@ export function CandidateWeeklySlotPicker({ googleBusyIntervals, onChange }: Can
 
             <div className="flex flex-wrap gap-4 text-xs text-gray-600">
                 <span className="inline-flex items-center gap-2">
-                    <span className="h-3 w-3 rounded-sm bg-green-300 border border-green-400" />
+                    <span className="calendar-slot-legend-swatch calendar-slot-state-candidate-available" />
                     Available
                 </span>
                 <span className="inline-flex items-center gap-2">
-                    <span className="h-3 w-3 rounded-sm bg-red-100 border border-red-200" />
+                    <span className="calendar-slot-legend-swatch calendar-slot-state-candidate-google-busy" />
                     Busy on Google Calendar (click to override)
                 </span>
                 <span className="inline-flex items-center gap-2">
-                    <span className="h-3 w-3 rounded-sm bg-orange-300 border border-orange-400" />
+                    <span className="calendar-slot-legend-swatch calendar-slot-state-candidate-google-busy-overridden" />
                     Busy but overridden
                 </span>
                 <span className="inline-flex items-center gap-2">
-                    <span className="h-3 w-3 rounded-sm bg-gray-50 border border-gray-200" />
+                    <span className="calendar-slot-legend-swatch calendar-slot-state-candidate-blocked" />
                     Unselected
                 </span>
             </div>
@@ -164,9 +173,18 @@ interface ProfessionalWeeklySlotPickerProps {
     selectedSlot: string | null;
     onSelect?: (slotStartIso: string) => void;
     readOnly?: boolean;
+    calendarTimezone?: string;
+    professionalTimezone?: string | null;
 }
 
-export function ProfessionalWeeklySlotPicker({ slots, selectedSlot, onSelect, readOnly = false }: ProfessionalWeeklySlotPickerProps) {
+export function ProfessionalWeeklySlotPicker({
+    slots,
+    selectedSlot,
+    onSelect,
+    readOnly = false,
+    calendarTimezone,
+    professionalTimezone,
+}: ProfessionalWeeklySlotPickerProps) {
     const {
         weekStart,
         hasSlots,
@@ -180,6 +198,12 @@ export function ProfessionalWeeklySlotPicker({ slots, selectedSlot, onSelect, re
         selectedSlot,
     });
     const { scrollRef, viewportHeight } = useDefaultBusinessHoursViewport(weekStart);
+    const resolvedCalendarTimezone = React.useMemo(
+        () => calendarTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        [calendarTimezone]
+    );
+    const showProfessionalTimezoneAxis =
+        !!professionalTimezone && professionalTimezone !== resolvedCalendarTimezone;
 
     if (!hasSlots || !weekStart) {
         return (
@@ -203,6 +227,7 @@ export function ProfessionalWeeklySlotPicker({ slots, selectedSlot, onSelect, re
                     canGoNext={canGoNext}
                     onPrev={goToPreviousWeek}
                     onNext={goToNextWeek}
+                    calendarTimezone={resolvedCalendarTimezone}
                 />
             </div>
 
@@ -210,26 +235,29 @@ export function ProfessionalWeeklySlotPicker({ slots, selectedSlot, onSelect, re
                 weekStart={weekStart}
                 scrollRef={scrollRef}
                 viewportHeight={viewportHeight}
+                visibleRowStart={VISIBLE_START_ROW}
+                visibleRowEndExclusive={VISIBLE_END_ROW_EXCLUSIVE}
+                calendarTimezone={resolvedCalendarTimezone}
+                professionalTimezone={professionalTimezone}
+                showProfessionalTimezoneAxis={showProfessionalTimezoneAxis}
                 renderCell={({ slotStart }) => {
                     const cell = getCellMeta(slotStart);
                     const canSelect = cell.isSelectable && !readOnly && !!onSelect;
-
-                    const cellClass = cell.isSelected
-                        ? 'bg-blue-500 text-white border-blue-600'
-                        : cell.isSelectable
-                            ? canSelect
-                                ? 'bg-green-100 hover:bg-green-200 border-green-200'
-                                : 'bg-green-100 border-green-200'
-                            : 'bg-gray-50 border-gray-100';
+                    const cellClass = getProfessionalSlotClass({
+                        isSelected: cell.isSelected,
+                        isSelectable: cell.isSelectable,
+                        canSelect,
+                        readOnly,
+                    });
 
                     return (
-                        <td className="p-0">
+                        <td className="calendar-slot-grid-cell">
                             <button
                                 type="button"
                                 onClick={() => {
                                     if (canSelect && onSelect) onSelect(cell.key);
                                 }}
-                                className={`h-5 w-full border transition-colors ${cellClass} ${!canSelect ? 'cursor-default' : ''}`}
+                                className={`${baseSlotCellClasses} ${cellClass} ${canSelect ? 'cursor-pointer' : 'cursor-not-allowed'}`}
                                 title={format(slotStart, 'PPpp')}
                             />
                         </td>
@@ -239,13 +267,23 @@ export function ProfessionalWeeklySlotPicker({ slots, selectedSlot, onSelect, re
 
             <div className="flex items-center gap-4 text-xs text-gray-600">
                 <span className="inline-flex items-center gap-2">
-                    <span className="h-3 w-3 rounded-sm bg-green-100 border border-green-200" />
-                    {readOnly ? 'Available' : 'Candidate available'}
+                    <span
+                        className={`calendar-slot-legend-swatch ${
+                            readOnly ? 'calendar-slot-state-professional-readonly' : 'calendar-slot-state-professional-selectable'
+                        }`}
+                    />
+                    {readOnly ? 'Available' : 'Can choose'}
                 </span>
                 {!readOnly && (
                     <span className="inline-flex items-center gap-2">
-                        <span className="h-3 w-3 rounded-sm bg-blue-500 border border-blue-600" />
+                        <span className="calendar-slot-legend-swatch calendar-slot-state-professional-selected" />
                         Selected slot
+                    </span>
+                )}
+                {!readOnly && (
+                    <span className="inline-flex items-center gap-2">
+                        <span className="calendar-slot-legend-swatch calendar-slot-state-professional-unavailable" />
+                        Unavailable
                     </span>
                 )}
             </div>

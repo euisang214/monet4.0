@@ -22,7 +22,7 @@ export default async function ProfessionalReschedulePage({ params }: PageProps) 
 
     const booking = await prisma.booking.findUnique({
         where: { id },
-        include: { candidate: true },
+        include: { candidate: true, professional: true },
     });
 
     if (!booking) notFound();
@@ -48,7 +48,12 @@ export default async function ProfessionalReschedulePage({ params }: PageProps) 
             </header>
 
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                <ConfirmRescheduleForm bookingId={id} slots={slots} />
+                <ConfirmRescheduleForm
+                    bookingId={id}
+                    slots={slots}
+                    calendarTimezone={booking.candidate.timezone}
+                    professionalTimezone={booking.professional.timezone}
+                />
             </div>
         </main>
     );

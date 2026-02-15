@@ -22,7 +22,7 @@ export default async function ConfirmAndSchedulePage({ params }: PageProps) {
 
     const booking = await prisma.booking.findUnique({
         where: { id },
-        include: { candidate: true }
+        include: { candidate: true, professional: true }
     });
 
     if (!booking) notFound();
@@ -47,7 +47,12 @@ export default async function ConfirmAndSchedulePage({ params }: PageProps) {
             </header>
 
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                <ConfirmBookingForm bookingId={id} slots={slots} />
+                <ConfirmBookingForm
+                    bookingId={id}
+                    slots={slots}
+                    calendarTimezone={booking.candidate.timezone}
+                    professionalTimezone={booking.professional.timezone}
+                />
             </div>
         </main>
     );

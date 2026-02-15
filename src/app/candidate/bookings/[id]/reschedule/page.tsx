@@ -1,120 +1,48 @@
-'use client';
+import { auth } from '@/auth';
+import { prisma } from '@/lib/core/db';
+import { Role } from '@prisma/client';
+import { notFound, redirect } from 'next/navigation';
+import { ReschedulePageClient } from './ReschedulePageClient';
 
-import React, { useCallback, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { CandidateWeeklySlotPicker } from '@/components/bookings/WeeklySlotCalendar';
-import type { SlotInterval } from '@/components/bookings/calendar/types';
-import { useCandidateGoogleBusy } from '@/components/bookings/hooks/useCandidateGoogleBusy';
-import { useCandidateRescheduleRequest } from '@/components/bookings/hooks/useCandidateRescheduleRequest';
+interface PageProps {
+    params: Promise<{ id: string }>;
+}
 
-export default function ReschedulePage() {
-    const router = useRouter();
-    const params = useParams<{ id: string }>();
-    const bookingId = Array.isArray(params.id) ? params.id[0] : params.id;
+export default async function ReschedulePage({ params }: PageProps) {
+    const { id } = await params;
+    const session = await auth();
 
-    const [availabilitySlots, setAvailabilitySlots] = useState<SlotInterval[]>([]);
-    const [selectedSlotCount, setSelectedSlotCount] = useState(0);
-    const [reason, setReason] = useState('');
+    if (!session?.user) {
+        redirect(`/login?callbackUrl=/candidate/bookings/${id}/reschedule`);
+    }
 
-    const { googleBusyIntervals, isLoadingBusy, busyLoadError, lastBusyRefreshAt, refreshGoogleBusy } =
-        useCandidateGoogleBusy();
+    if (session.user.role !== Role.CANDIDATE) {
+        redirect('/');
+    }
 
-    const { isSubmitting, error, submitRequest } = useCandidateRescheduleRequest(bookingId);
-
-    const handleSlotSelectionChange = useCallback(
-        ({ availabilitySlots: slots, selectedCount }: { availabilitySlots: SlotInterval[]; selectedCount: number }) => {
-            setAvailabilitySlots(slots);
-            setSelectedSlotCount(selectedCount);
+    const booking = await prisma.booking.findUnique({
+        where: { id },
+        select: {
+            id: true,
+            candidateId: true,
+            timezone: true,
+            professional: {
+                select: {
+                    timezone: true,
+                },
+            },
         },
-        []
-    );
+    });
 
-    const handleSubmit = async () => {
-        const success = await submitRequest({
-            slots: availabilitySlots,
-            reason,
-        });
-
-        if (!success || !bookingId) {
-            return;
-        }
-
-        router.push(`/candidate/bookings/${bookingId}`);
-        router.refresh();
-    };
+    if (!booking || booking.candidateId !== session.user.id) {
+        notFound();
+    }
 
     return (
-        <div className="container mx-auto py-8 max-w-3xl">
-            <h1 className="text-2xl font-bold mb-2">Reschedule Booking</h1>
-            <p className="text-sm text-gray-600 mb-6">
-                Select your new availability on the calendar. The professional will pick one slot from this set.
-            </p>
-
-            <div className="bg-white p-6 rounded-lg shadow mb-6 border border-gray-200">
-                <div className="mb-3 flex flex-wrap items-center gap-3">
-                    <button
-                        type="button"
-                        onClick={() => void refreshGoogleBusy()}
-                        disabled={isLoadingBusy}
-                        className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
-                    >
-                        {isLoadingBusy ? 'Refreshing calendar...' : 'Refresh Google Calendar'}
-                    </button>
-                    {lastBusyRefreshAt && (
-                        <span className="text-xs text-gray-500">
-                            Last synced {lastBusyRefreshAt.toLocaleTimeString()}
-                        </span>
-                    )}
-                </div>
-
-                {busyLoadError && (
-                    <div className="mb-3 p-3 bg-yellow-50 text-yellow-700 rounded text-sm">
-                        {busyLoadError}
-                    </div>
-                )}
-
-                <CandidateWeeklySlotPicker
-                    googleBusyIntervals={googleBusyIntervals}
-                    onChange={handleSlotSelectionChange}
-                />
-
-                <p className="text-sm text-gray-500 mt-4">
-                    Selected candidate slots: <span className="font-medium">{selectedSlotCount}</span>
-                </p>
-
-                <div className="mt-6">
-                    <label className="block text-sm font-medium mb-1">Reason (Optional)</label>
-                    <textarea
-                        className="w-full border rounded p-2 text-sm"
-                        rows={3}
-                        value={reason}
-                        onChange={(event) => setReason(event.target.value)}
-                        placeholder="e.g. Conflict with work meeting..."
-                    />
-                </div>
-
-                {error && (
-                    <div className="mt-4 text-red-600 text-sm bg-red-50 p-2 rounded">
-                        {error}
-                    </div>
-                )}
-
-                <div className="mt-6 flex gap-3">
-                    <button
-                        onClick={() => router.back()}
-                        className="px-4 py-2 border rounded text-gray-700 hover:bg-gray-50"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={handleSubmit}
-                        disabled={isSubmitting || availabilitySlots.length === 0}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                    >
-                        {isSubmitting ? 'Submitting...' : 'Submit Request'}
-                    </button>
-                </div>
-            </div>
-        </div>
+        <ReschedulePageClient
+            bookingId={booking.id}
+            calendarTimezone={booking.timezone}
+            professionalTimezone={booking.professional.timezone}
+        />
     );
 }

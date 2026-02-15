@@ -1296,6 +1296,218 @@ table {
   border-spacing: 0;
 }
 
+/* Booking weekly slot calendar */
+.calendar-week-nav-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid #d3dee8;
+  border-radius: 0.5rem;
+  background-color: #f3f7fb;
+  color: #48627a;
+  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.calendar-week-nav-button:hover:not(:disabled) {
+  background-color: #e8f0f7;
+  border-color: #bfd0df;
+  color: #2f516d;
+}
+
+.calendar-week-nav-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.calendar-week-nav-icon {
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: currentColor;
+}
+
+.calendar-week-range-label {
+  color: #48627a;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.calendar-slot-grid-shell {
+  overflow-y: auto;
+  border: 1px solid #d2dee8;
+  border-radius: 0.75rem;
+  background-color: #ffffff;
+}
+
+.calendar-slot-grid-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.calendar-slot-grid-header-axis {
+  width: 5rem;
+  border-bottom: 1px solid #dbe6ef;
+  border-right: 1px solid #dbe6ef;
+  padding: 0.5rem 0.5rem;
+  background-color: #f4f8fb;
+  color: #5f7489;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.calendar-slot-grid-header-axis-left {
+  position: sticky;
+  left: 0;
+  text-align: right;
+  z-index: 30;
+}
+
+.calendar-slot-grid-header-axis-right {
+  text-align: left;
+}
+
+.calendar-slot-grid-header-day {
+  border-bottom: 1px solid #dbe6ef;
+  border-left: 1px solid #dbe6ef;
+  padding: 0.5rem 0.35rem;
+  background-color: #f7fafe;
+  color: #355069;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.calendar-slot-grid-time-axis {
+  border-top: 1px solid #dfe8f0;
+  border-right: 1px solid #dfe8f0;
+  padding-right: 0.5rem;
+  background-color: #f8fbfd;
+  color: #5f7489;
+  font-size: 0.7rem;
+  text-align: right;
+  position: sticky;
+  left: 0;
+  z-index: 10;
+}
+
+.calendar-slot-grid-time-axis-right {
+  border-top: 1px solid #dfe8f0;
+  border-left: 1px solid #dfe8f0;
+  padding-left: 0.5rem;
+  background-color: #f8fbfd;
+  color: #5f7489;
+  font-size: 0.7rem;
+  text-align: left;
+}
+
+.calendar-slot-grid-cell {
+  padding: 0;
+  border: 1px solid #dfe8f0;
+  background-color: #ffffff;
+}
+
+.calendar-slot-cell {
+  display: block;
+  appearance: none;
+  width: 100%;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  box-shadow: none;
+  transition: background-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+.calendar-slot-cell:focus-visible {
+  outline: 2px solid rgba(56, 132, 194, 0.55);
+  outline-offset: -2px;
+}
+
+.calendar-slot-state-candidate-available {
+  background-color: #34a0a4;
+  border-radius: 4px;
+}
+
+.calendar-slot-state-candidate-available:hover {
+  background-color: #2f8f95;
+}
+
+.calendar-slot-state-candidate-blocked {
+  background-color: #ffffff;
+}
+
+.calendar-slot-state-candidate-blocked:hover {
+  background-color: #f1f6fb;
+}
+
+.calendar-slot-state-candidate-google-busy {
+  background-color: #eef1f4;
+}
+
+.calendar-slot-state-candidate-google-busy:hover {
+  background-color: #e5ebf0;
+}
+
+.calendar-slot-state-candidate-google-busy-overridden {
+  background-color: #ffc55e;
+  border-radius: 4px;
+}
+
+.calendar-slot-state-candidate-google-busy-overridden:hover {
+  background-color: #ffb53a;
+}
+
+.calendar-slot-state-candidate-disabled {
+  background-color: #e1e7ed;
+  cursor: not-allowed;
+}
+
+.calendar-slot-state-professional-selected {
+  background-color: #57a8e6;
+  color: #103f64;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px #3b8fce;
+}
+
+.calendar-slot-state-professional-selected:hover {
+  background-color: #4998d6;
+}
+
+.calendar-slot-state-professional-selectable {
+  background-color: #ffffff;
+  box-shadow: inset 0 0 0 1px #7ab2de;
+}
+
+.calendar-slot-state-professional-selectable:hover {
+  background-color: #edf6fe;
+  box-shadow: inset 0 0 0 2px #5e9fce;
+}
+
+.calendar-slot-state-professional-readonly {
+  background-color: #f6fbff;
+  box-shadow: inset 0 0 0 1px #bfd8ee;
+}
+
+.calendar-slot-state-professional-unavailable {
+  background-color: #dce3ea;
+}
+
+.calendar-slot-legend-swatch {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 2px;
+  border: 1px solid #d0dde8;
+  box-shadow: none;
+  display: inline-block;
+}
+
 @media (min-width: 640px) {
   .sm\:text-sm {
     font-size: 0.875rem;

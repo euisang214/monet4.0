@@ -14,11 +14,20 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 interface CandidateBookingRequestFormProps {
     professionalId: string;
     priceCents: number;
+    professionalTimezone?: string | null;
 }
 
-export function CandidateBookingRequestForm({ professionalId, priceCents }: CandidateBookingRequestFormProps) {
+export function CandidateBookingRequestForm({
+    professionalId,
+    priceCents,
+    professionalTimezone,
+}: CandidateBookingRequestFormProps) {
     const [availabilitySlots, setAvailabilitySlots] = useState<SlotInterval[]>([]);
     const [selectedSlotCount, setSelectedSlotCount] = useState(0);
+    const calendarTimezone = React.useMemo(
+        () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        []
+    );
 
     const { googleBusyIntervals, isLoadingBusy, busyLoadError, lastBusyRefreshAt, refreshGoogleBusy } =
         useCandidateGoogleBusy();
@@ -80,6 +89,8 @@ export function CandidateBookingRequestForm({ professionalId, priceCents }: Cand
                 <CandidateWeeklySlotPicker
                     googleBusyIntervals={googleBusyIntervals}
                     onChange={handleSlotSelectionChange}
+                    calendarTimezone={calendarTimezone}
+                    professionalTimezone={professionalTimezone}
                 />
             </div>
 

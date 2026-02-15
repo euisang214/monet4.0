@@ -21,6 +21,7 @@ export default async function CandidateAvailabilityPage() {
         .filter((slot) => !slot.busy)
         .map((slot) => ({ start: slot.start, end: slot.end }));
     const blockedSlotsCount = availability.length - availableSlots.length;
+    const calendarTimezone = availability.find((slot) => !slot.busy)?.timezone || 'UTC';
 
     return (
         <main className="container py-8">
@@ -49,6 +50,7 @@ export default async function CandidateAvailabilityPage() {
                         slots={availableSlots}
                         selectedSlot={null}
                         readOnly
+                        calendarTimezone={calendarTimezone}
                     />
                     {blockedSlotsCount > 0 && (
                         <p className="mt-4 text-sm text-gray-600">

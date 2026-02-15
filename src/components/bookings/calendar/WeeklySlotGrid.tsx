@@ -1,8 +1,14 @@
 'use client';
 
 import React from 'react';
-import { addDays, format } from 'date-fns';
-import { SLOTS_PER_DAY, getSlotLabel, slotDateForCell } from '@/components/bookings/calendar/slot-utils';
+import {
+    VISIBLE_END_ROW_EXCLUSIVE,
+    VISIBLE_START_ROW,
+    getDayHeaderLabel,
+    getSlotLabel,
+    getWeekRangeLabel,
+    slotDateForCell,
+} from '@/components/bookings/calendar/slot-utils';
 
 interface WeekRangeNavigatorProps {
     weekStart: Date;
@@ -11,6 +17,7 @@ interface WeekRangeNavigatorProps {
     onPrev: () => void;
     onNext: () => void;
     rangeLabelMinWidthClassName?: string;
+    calendarTimezone?: string;
 }
 
 export function WeekRangeNavigator({
@@ -20,6 +27,7 @@ export function WeekRangeNavigator({
     onPrev,
     onNext,
     rangeLabelMinWidthClassName = 'min-w-[170px]',
+    calendarTimezone,
 }: WeekRangeNavigatorProps) {
     return (
         <div className="flex items-center gap-2">
@@ -27,20 +35,26 @@ export function WeekRangeNavigator({
                 type="button"
                 onClick={onPrev}
                 disabled={!canGoPrev}
-                className="px-3 py-1.5 text-sm border border-gray-200 rounded disabled:opacity-40"
+                aria-label="Previous week"
+                className="calendar-week-nav-button"
             >
-                Previous week
+                <svg aria-hidden="true" viewBox="0 0 20 20" className="calendar-week-nav-icon">
+                    <path d="M12.5 4.5L7 10l5.5 5.5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
             </button>
-            <span className={`text-sm text-gray-700 ${rangeLabelMinWidthClassName} text-center`}>
-                {format(weekStart, 'MMM d')} - {format(addDays(weekStart, 6), 'MMM d')}
+            <span className={`calendar-week-range-label ${rangeLabelMinWidthClassName}`}>
+                {getWeekRangeLabel(weekStart, calendarTimezone)}
             </span>
             <button
                 type="button"
                 onClick={onNext}
                 disabled={!canGoNext}
-                className="px-3 py-1.5 text-sm border border-gray-200 rounded disabled:opacity-40"
+                aria-label="Next week"
+                className="calendar-week-nav-button"
             >
-                Next week
+                <svg aria-hidden="true" viewBox="0 0 20 20" className="calendar-week-nav-icon">
+                    <path d="M7.5 4.5L13 10l-5.5 5.5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
             </button>
         </div>
     );
@@ -51,6 +65,11 @@ interface WeeklySlotGridProps {
     scrollRef: React.RefObject<HTMLDivElement | null>;
     viewportHeight: number;
     tableClassName?: string;
+    visibleRowStart?: number;
+    visibleRowEndExclusive?: number;
+    calendarTimezone?: string;
+    professionalTimezone?: string | null;
+    showProfessionalTimezoneAxis?: boolean;
     renderCell: (args: { slotStart: Date; dayOffset: number; row: number }) => React.ReactNode;
 }
 
@@ -58,47 +77,75 @@ export function WeeklySlotGrid({
     weekStart,
     scrollRef,
     viewportHeight,
-    tableClassName = 'w-full border-collapse table-fixed',
+    tableClassName = '',
+    visibleRowStart = VISIBLE_START_ROW,
+    visibleRowEndExclusive = VISIBLE_END_ROW_EXCLUSIVE,
+    calendarTimezone = 'UTC',
+    professionalTimezone,
+    showProfessionalTimezoneAxis = false,
     renderCell,
 }: WeeklySlotGridProps) {
+    const rowCount = Math.max(0, visibleRowEndExclusive - visibleRowStart);
+    const rows = Array.from({ length: rowCount }, (_, index) => visibleRowStart + index);
+    const hasProfessionalAxis =
+        showProfessionalTimezoneAxis && !!professionalTimezone && professionalTimezone !== calendarTimezone;
+
     return (
         <div
             ref={scrollRef}
-            className="overflow-y-auto border border-gray-200 rounded-lg bg-white"
+            className="calendar-slot-grid-shell"
             style={{ height: `${viewportHeight}px` }}
         >
-            <table className={tableClassName}>
+            <table className={`calendar-slot-grid-table ${tableClassName}`.trim()}>
+                <colgroup>
+                    <col style={{ width: '5rem' }} />
+                    {Array.from({ length: 7 }).map((_, index) => (
+                        <col key={`day-col-${index}`} />
+                    ))}
+                    {hasProfessionalAxis && <col style={{ width: '5rem' }} />}
+                </colgroup>
                 <thead>
                     <tr>
                         <th
-                            className="w-20 border-b border-gray-200 bg-gray-50 sticky left-0"
-                            style={{ top: 0, zIndex: 30, backgroundColor: '#ffffff' }}
-                        />
+                            className="calendar-slot-grid-header-axis calendar-slot-grid-header-axis-left sticky"
+                            style={{ top: 0, zIndex: 30 }}
+                        >
+                            {calendarTimezone}
+                        </th>
                         {Array.from({ length: 7 }).map((_, dayOffset) => {
-                            const day = addDays(weekStart, dayOffset);
                             return (
                                 <th
-                                    key={day.toISOString()}
-                                    className="border-b border-gray-200 py-2 text-xs font-semibold text-gray-700 sticky"
-                                    style={{ top: 0, zIndex: 20, backgroundColor: '#ffffff' }}
+                                    key={`day-header-${dayOffset}`}
+                                    className="calendar-slot-grid-header-day sticky"
+                                    style={{ top: 0, zIndex: 20 }}
                                 >
-                                    {format(day, 'EEE MMM d')}
+                                    {getDayHeaderLabel(weekStart, dayOffset, calendarTimezone)}
                                 </th>
                             );
                         })}
+                        {hasProfessionalAxis && (
+                            <th
+                                className="calendar-slot-grid-header-axis calendar-slot-grid-header-axis-right"
+                                style={{ top: 0, zIndex: 20 }}
+                            >
+                                {professionalTimezone}
+                            </th>
+                        )}
                     </tr>
                 </thead>
                 <tbody>
-                    {Array.from({ length: SLOTS_PER_DAY }).map((_, row) => (
+                    {rows.map((row) => (
                         <tr key={row} data-slot-row={row}>
                             <td
-                                className="sticky left-0 border-r border-gray-200 bg-gray-50 pr-2 align-top text-right text-[11px] text-gray-500"
-                                style={{ zIndex: 10, backgroundColor: '#ffffff' }}
+                                className="calendar-slot-grid-time-axis sticky"
+                                style={{ zIndex: 10 }}
                             >
-                                {getSlotLabel(row)}
+                                <div style={{ height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                                    {getSlotLabel(row, calendarTimezone, weekStart)}
+                                </div>
                             </td>
                             {Array.from({ length: 7 }).map((__, dayOffset) => {
-                                const slotStart = slotDateForCell(weekStart, dayOffset, row);
+                                const slotStart = slotDateForCell(weekStart, dayOffset, row, calendarTimezone);
 
                                 return (
                                     <React.Fragment key={`${dayOffset}-${row}`}>
@@ -106,6 +153,13 @@ export function WeeklySlotGrid({
                                     </React.Fragment>
                                 );
                             })}
+                            {hasProfessionalAxis && (
+                                <td className="calendar-slot-grid-time-axis-right">
+                                    <div style={{ height: '20px', display: 'flex', alignItems: 'center' }}>
+                                        {getSlotLabel(row, professionalTimezone || undefined, weekStart, calendarTimezone)}
+                                    </div>
+                                </td>
+                            )}
                         </tr>
                     ))}
                 </tbody>
