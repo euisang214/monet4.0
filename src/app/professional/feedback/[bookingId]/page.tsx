@@ -1,7 +1,7 @@
 import React from 'react';
-import { auth } from '@/auth';
+import { requireRole } from '@/lib/core/api-helpers';
 import { prisma } from '@/lib/core/db';
-import { redirect, notFound } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { FeedbackForm } from '@/components/feedback/FeedbackForm';
 import { Role } from '@prisma/client';
 import Link from 'next/link';
@@ -13,11 +13,7 @@ export default async function FeedbackPage({
     params: Promise<{ bookingId: string }>
 }) {
     const { bookingId } = await params;
-    const session = await auth();
-
-    if (!session || session.user.role !== Role.PROFESSIONAL) {
-        redirect(`/login?callbackUrl=/professional/feedback/${bookingId}`);
-    }
+    const user = await requireRole(Role.PROFESSIONAL, `/professional/feedback/${bookingId}`);
 
     const booking = await prisma.booking.findUnique({
         where: { id: bookingId },
@@ -33,7 +29,7 @@ export default async function FeedbackPage({
         notFound();
     }
 
-    if (booking.professionalId !== session.user.id) {
+    if (booking.professionalId !== user.id) {
         return (
             <main className="container py-12">
                 <EmptyState

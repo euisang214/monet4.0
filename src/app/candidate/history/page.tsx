@@ -1,6 +1,5 @@
-import { auth } from '@/auth';
+import { requireRole } from '@/lib/core/api-helpers';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { BookingStatus, Role } from '@prisma/client';
 import { getCandidateChats } from '@/lib/role/candidate/chats';
 import { appRoutes } from '@/lib/shared/routes';
@@ -154,17 +153,9 @@ function scheduleLabel(booking: CandidateChatBooking) {
 }
 
 export default async function CandidateChatsPage() {
-    const session = await auth();
+    const user = await requireRole(Role.CANDIDATE, appRoutes.candidate.chats);
 
-    if (!session?.user) {
-        redirect(`/login?callbackUrl=${appRoutes.candidate.chats}`);
-    }
-
-    if (session.user.role !== Role.CANDIDATE) {
-        redirect('/');
-    }
-
-    const bookings = await getCandidateChats(session.user.id);
+    const bookings = await getCandidateChats(user.id);
 
     const groupedBookings: Record<ChatSectionKey, CandidateChatBooking[]> = {
         upcoming: [],

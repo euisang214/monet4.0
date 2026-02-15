@@ -1,8 +1,8 @@
 import React from 'react';
-import { auth } from '@/auth';
+import { requireRole } from '@/lib/core/api-helpers';
 import { CandidateBrowse } from '@/lib/role/candidate/browse';
 import { CandidateBookingRequestForm } from '@/components/bookings/CandidateBookingRequestForm';
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { Role } from '@prisma/client';
 import { appRoutes } from '@/lib/shared/routes';
 
@@ -10,14 +10,7 @@ export default async function BookingRequestPage(props: {
     params: Promise<{ id: string }>;
 }) {
     const params = await props.params;
-    const session = await auth();
-    if (!session?.user) {
-        redirect(`/login?callbackUrl=${appRoutes.candidate.professionalBook(params.id)}`);
-    }
-
-    if (session.user.role !== Role.CANDIDATE) {
-        redirect('/');
-    }
+    const user = await requireRole(Role.CANDIDATE, appRoutes.candidate.professionalBook(params.id));
 
     const professional = await CandidateBrowse.getProfessionalDetails(params.id);
     if (!professional) {

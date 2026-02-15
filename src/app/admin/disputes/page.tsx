@@ -2,8 +2,55 @@
 import Link from 'next/link';
 import { AdminDisputeService } from '@/lib/role/admin/disputes';
 import { format } from 'date-fns';
+import { AdminDataTable, type Column } from '@/components/ui/composites/AdminDataTable';
+import { StatusBadge } from '@/components/ui/composites/StatusBadge';
 
 export const dynamic = 'force-dynamic';
+
+type DisputeRow = Awaited<ReturnType<typeof AdminDisputeService.listDisputes>>[number];
+
+function disputeStatusVariant(status: string) {
+    if (status === 'open') return 'danger' as const;
+    if (status === 'under_review') return 'warning' as const;
+    return 'success' as const;
+}
+
+const columns: Column<DisputeRow>[] = [
+    {
+        header: 'Date',
+        accessor: (dispute) => format(new Date(dispute.createdAt), 'MMM d, yyyy'),
+    },
+    {
+        header: 'Status',
+        accessor: (dispute) => (
+            <StatusBadge
+                label={dispute.status.replace('_', ' ').toUpperCase()}
+                variant={disputeStatusVariant(dispute.status)}
+            />
+        ),
+    },
+    {
+        header: 'Reason',
+        accessor: (dispute) => dispute.reason.replace('_', ' '),
+    },
+    {
+        header: 'Initiator',
+        accessor: (dispute) => dispute.initiator.email,
+    },
+    {
+        header: 'Booking ID',
+        accessor: (dispute) => <span className="font-mono">{dispute.bookingId.slice(0, 8)}...</span>,
+    },
+    {
+        header: '',
+        accessor: (dispute) => (
+            <Link href={`/admin/disputes/${dispute.id}`} className="text-indigo-600 hover:text-indigo-900">
+                View
+            </Link>
+        ),
+        className: 'text-right',
+    },
+];
 
 export default async function DisputesPage() {
     const disputes = await AdminDisputeService.listDisputes();
@@ -14,70 +61,12 @@ export default async function DisputesPage() {
                 <h1 className="text-2xl font-bold text-gray-900">Disputes</h1>
             </div>
 
-            <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Date
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Status
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Reason
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Initiator
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Booking ID
-                            </th>
-                            <th scope="col" className="relative px-6 py-3">
-                                <span className="sr-only">View</span>
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {disputes.map((dispute) => (
-                            <tr key={dispute.id} className="hover:bg-gray-50">
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {format(new Date(dispute.createdAt), 'MMM d, yyyy')}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                    ${dispute.status === 'open' ? 'bg-red-100 text-red-800' :
-                                            dispute.status === 'under_review' ? 'bg-yellow-100 text-yellow-800' :
-                                                'bg-green-100 text-green-800'}`}>
-                                        {dispute.status.replace('_', ' ').toUpperCase()}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {dispute.reason.replace('_', ' ')}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {dispute.initiator.email}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
-                                    {dispute.bookingId.slice(0, 8)}...
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <Link href={`/admin/disputes/${dispute.id}`} className="text-indigo-600 hover:text-indigo-900">
-                                        View
-                                    </Link>
-                                </td>
-                            </tr>
-                        ))}
-                        {disputes.length === 0 && (
-                            <tr>
-                                <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
-                                    No disputes found.
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
+            <AdminDataTable
+                columns={columns}
+                data={disputes}
+                getRowKey={(dispute) => dispute.id}
+                emptyMessage="No disputes found."
+            />
         </div>
     );
 }

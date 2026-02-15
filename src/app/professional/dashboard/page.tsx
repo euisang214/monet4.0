@@ -1,6 +1,5 @@
 import React from "react";
-import { auth } from "@/auth";
-import { redirect } from "next/navigation";
+import { requireRole } from "@/lib/core/api-helpers";
 import { ProfessionalDashboardService } from "@/lib/role/professional/dashboard";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { ProfessionalRequestCard } from "@/components/bookings/ProfessionalRequestCard";
@@ -11,23 +10,15 @@ import { EmptyState } from "@/components/ui/composites/EmptyState";
 import { ProfessionalUpcomingCallsList } from "@/components/dashboard/ProfessionalUpcomingCallsList";
 
 export default async function ProfessionalDashboardPage() {
-    const session = await auth();
-
-    if (!session) {
-        redirect("/login?callbackUrl=/professional/dashboard");
-    }
-
-    if (session.user.role !== Role.PROFESSIONAL) {
-        redirect("/");
-    }
+    const user = await requireRole(Role.PROFESSIONAL, "/professional/dashboard");
 
     const {
         pendingFeedbackCount,
         upcomingBookingsCount,
-    } = await ProfessionalDashboardService.getDashboardStats(session.user.id);
+    } = await ProfessionalDashboardService.getDashboardStats(user.id);
 
     const { actionRequired, pendingFeedback, upcoming, recentFeedback, reviewStats } =
-        await ProfessionalDashboardService.getDashboardBookings(session.user.id);
+        await ProfessionalDashboardService.getDashboardBookings(user.id);
 
     const requestedTasks = actionRequired.filter((booking) => booking.status === BookingStatus.requested);
     const rescheduleTasks = actionRequired.filter((booking) => booking.status === BookingStatus.reschedule_pending);

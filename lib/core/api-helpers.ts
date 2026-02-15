@@ -8,16 +8,16 @@ export async function currentUser() {
     return session?.user
 }
 
-export async function requireAuth() {
+export async function requireAuth(callbackUrl?: string) {
     const user = await currentUser()
     if (!user) {
-        redirect("/api/auth/signin")
+        redirect(callbackUrl ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/login")
     }
     return user
 }
 
-export async function requireRole(role: Role) {
-    const user = await requireAuth()
+export async function requireRole(role: Role, callbackUrl?: string) {
+    const user = await requireAuth(callbackUrl)
     if (user.role !== role) {
         redirect("/")
     }

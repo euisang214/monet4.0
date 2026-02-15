@@ -3,8 +3,68 @@ import { AdminBookingService } from '@/lib/role/admin/bookings';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import BookingSearch from './BookingSearch';
+import { AdminDataTable, type Column } from '@/components/ui/composites/AdminDataTable';
+import { StatusBadge } from '@/components/ui/composites/StatusBadge';
 
 export const dynamic = 'force-dynamic';
+
+type BookingRow = Awaited<ReturnType<typeof AdminBookingService.listBookings>>[number];
+
+function bookingStatusVariant(status: string) {
+    if (status === 'completed') return 'success' as const;
+    if (status === 'cancelled' || status === 'declined') return 'neutral' as const;
+    if (status === 'dispute_pending') return 'danger' as const;
+    return 'info' as const;
+}
+
+function paymentStatusVariant(status: string) {
+    if (status === 'released') return 'success' as const;
+    return 'warning' as const;
+}
+
+const columns: Column<BookingRow>[] = [
+    {
+        header: 'ID',
+        accessor: (booking) => <span className="font-mono text-xs text-gray-500">{booking.id.slice(0, 8)}...</span>,
+    },
+    {
+        header: 'Start Date',
+        accessor: (booking) => (booking.startAt ? format(new Date(booking.startAt), 'MMM d, yy') : '-'),
+    },
+    {
+        header: 'Status',
+        accessor: (booking) => <StatusBadge label={booking.status} variant={bookingStatusVariant(booking.status)} />,
+    },
+    {
+        header: 'Candidate',
+        accessor: (booking) => booking.candidateId,
+    },
+    {
+        header: 'Professional',
+        accessor: (booking) => booking.professionalId,
+    },
+    {
+        header: 'Date',
+        accessor: (booking) => (booking.startAt ? format(new Date(booking.startAt), 'MMM d, h:mm a') : '-'),
+    },
+    {
+        header: 'Payment',
+        accessor: (booking) =>
+            (booking as any).payment ? (
+                <StatusBadge
+                    label={`${(booking as any).payment.status} ($${((booking as any).payment.amountGross / 100).toFixed(2)})`}
+                    variant={paymentStatusVariant((booking as any).payment.status)}
+                />
+            ) : (
+                '-'
+            ),
+    },
+    {
+        header: '',
+        accessor: () => null,
+        className: 'text-right',
+    },
+];
 
 export default async function BookingsPage({
     searchParams,
@@ -26,85 +86,12 @@ export default async function BookingsPage({
                 <BookingSearch />
             </div>
 
-            <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                ID
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Start Date
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Status
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Candidate
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Professional
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Date
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Payment
-                            </th>
-                            <th scope="col" className="relative px-6 py-3">
-                                <span className="sr-only">Actions</span>
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {bookings.map((booking: any) => (
-                            <tr key={booking.id} className="hover:bg-gray-50">
-                                <td className="px-6 py-4 whitespace-nowrap text-xs font-mono text-gray-500">
-                                    {booking.id.slice(0, 8)}...
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {booking.startAt ? format(new Date(booking.startAt), 'MMM d, yy') : '-'}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                    ${booking.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                            booking.status === 'cancelled' || booking.status === 'declined' ? 'bg-gray-100 text-gray-800' :
-                                                booking.status === 'dispute_pending' ? 'bg-red-100 text-red-800' :
-                                                    'bg-blue-100 text-blue-800'}`}>
-                                        {booking.status}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {booking.candidateId}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {booking.professionalId}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {booking.startAt ? format(new Date(booking.startAt), 'MMM d, h:mm a') : '-'}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {booking.payment ? (
-                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                      ${booking.payment.status === 'released' ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-700'}`}>
-                                            {booking.payment.status} (${(booking.payment.amountGross / 100).toFixed(2)})
-                                        </span>
-                                    ) : '-'}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                </td>
-                            </tr>
-                        ))}
-                        {bookings.length === 0 && (
-                            <tr>
-                                <td colSpan={8} className="px-6 py-4 text-center text-sm text-gray-500">
-                                    No bookings found.
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
+            <AdminDataTable
+                columns={columns}
+                data={bookings}
+                getRowKey={(booking) => booking.id}
+                emptyMessage="No bookings found."
+            />
         </div>
     );
 }

@@ -3,6 +3,8 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/primitives/Button";
+import { useNotification } from "@/components/ui/hooks/useNotification";
+import { NotificationBanner } from "@/components/ui/composites/NotificationBanner";
 
 interface ProfessionalProfileData {
     price?: number;
@@ -20,10 +22,7 @@ interface StripeAccountData {
     detailsSubmitted?: boolean;
 }
 
-type Notification = {
-    type: "success" | "error";
-    message: string;
-} | null;
+
 
 function ProfessionalSettingsPageContent() {
     const searchParams = useSearchParams();
@@ -45,15 +44,15 @@ function ProfessionalSettingsPageContent() {
     const [verificationSent, setVerificationSent] = useState(false);
     const [verificationCode, setVerificationCode] = useState("");
     const [verifying, setVerifying] = useState(false);
-    const [notification, setNotification] = useState<Notification>(null);
+    const { notification, notify, clear } = useNotification();
 
     useEffect(() => {
         if (successParam) {
-            setNotification({ type: "success", message: "Stripe account connected successfully." });
+            notify("success", "Stripe account connected successfully.");
             router.replace("/professional/settings");
         }
         if (errorParam) {
-            setNotification({ type: "error", message: "Stripe connection failed. Please try again." });
+            notify("error", "Stripe connection failed. Please try again.");
             router.replace("/professional/settings");
         }
     }, [successParam, errorParam, router]);
@@ -79,14 +78,14 @@ function ProfessionalSettingsPageContent() {
                 }
             })
             .catch(() => {
-                setNotification({ type: "error", message: "Could not load professional settings." });
+                notify("error", "Could not load professional settings.");
             })
             .finally(() => setLoading(false));
     }, []);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
-        setNotification(null);
+        clear();
 
         try {
             await fetch("/api/shared/settings", {
@@ -99,15 +98,15 @@ function ProfessionalSettingsPageContent() {
                     price: parseFloat(price || "0"),
                 }),
             });
-            setNotification({ type: "success", message: "Profile settings saved." });
+            notify("success", "Profile settings saved.");
         } catch (error) {
             console.error(error);
-            setNotification({ type: "error", message: "Failed to save profile settings." });
+            notify("error", "Failed to save profile settings.");
         }
     };
 
     const handleConnectStripe = async () => {
-        setNotification(null);
+        clear();
         try {
             const res = await fetch("/api/professional/onboarding", { method: "POST" });
             const data = await res.json();
@@ -118,13 +117,13 @@ function ProfessionalSettingsPageContent() {
             throw new Error("Unable to start Stripe onboarding");
         } catch (error) {
             console.error(error);
-            setNotification({ type: "error", message: "Failed to initiate Stripe onboarding." });
+            notify("error", "Failed to initiate Stripe onboarding.");
         }
     };
 
     const handleVerifyEmail = async () => {
         if (!corporateEmail.trim()) {
-            setNotification({ type: "error", message: "Enter a corporate email before requesting verification." });
+            notify("error", "Enter a corporate email before requesting verification.");
             return;
         }
 
@@ -140,10 +139,10 @@ function ProfessionalSettingsPageContent() {
             }
 
             setVerificationSent(true);
-            setNotification({ type: "success", message: "Verification email sent. Check your inbox for the code." });
+            notify("success", "Verification email sent. Check your inbox for the code.");
         } catch (error) {
             console.error(error);
-            setNotification({ type: "error", message: "Failed to send verification email." });
+            notify("error", "Failed to send verification email.");
         }
     };
 
@@ -151,7 +150,7 @@ function ProfessionalSettingsPageContent() {
         if (!verificationCode.trim()) return;
 
         setVerifying(true);
-        setNotification(null);
+        clear();
         try {
             const res = await fetch("/api/shared/verification/confirm", {
                 method: "POST",
@@ -168,10 +167,10 @@ function ProfessionalSettingsPageContent() {
             setProfile((prev) => ({ ...(prev || {}), verifiedAt: new Date().toISOString() }));
             setVerificationSent(false);
             setVerificationCode("");
-            setNotification({ type: "success", message: "Email verified successfully." });
+            notify("success", "Email verified successfully.");
         } catch (error) {
             console.error(error);
-            setNotification({ type: "error", message: "Verification code is invalid or expired." });
+            notify("error", "Verification code is invalid or expired.");
         } finally {
             setVerifying(false);
         }
@@ -199,14 +198,7 @@ function ProfessionalSettingsPageContent() {
                     <p className="text-gray-600">Keep your consulting profile and payout setup production-ready.</p>
                 </header>
 
-                {notification && (
-                    <div className={`p-4 mb-6 rounded-md text-sm ${notification.type === "success"
-                        ? "bg-green-50 text-green-700"
-                        : "bg-red-50 text-red-700"
-                        }`}>
-                        {notification.message}
-                    </div>
-                )}
+                <NotificationBanner notification={notification} />
 
                 <section className="mb-8 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                     <h2 className="text-xl font-semibold text-gray-900 mb-2">Payouts</h2>

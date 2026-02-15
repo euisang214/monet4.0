@@ -1,5 +1,4 @@
-import { auth } from '@/auth';
-import { redirect } from 'next/navigation';
+import { requireRole } from '@/lib/core/api-helpers';
 import { Role } from '@prisma/client';
 import { getPendingRequests } from '@/lib/shared/bookings/upcoming';
 import { EmptyState } from '@/components/ui/composites/EmptyState';
@@ -7,17 +6,9 @@ import { appRoutes } from '@/lib/shared/routes';
 import { ProfessionalRequestListItem } from '@/components/bookings/ProfessionalRequestListItem';
 
 export default async function ProfessionalRequestsPage() {
-    const session = await auth();
+    const user = await requireRole(Role.PROFESSIONAL, appRoutes.professional.requests);
 
-    if (!session?.user) {
-        redirect(`/login?callbackUrl=${appRoutes.professional.requests}`);
-    }
-
-    if (session.user.role !== Role.PROFESSIONAL) {
-        redirect('/');
-    }
-
-    const requests = await getPendingRequests(session.user.id, 'PROFESSIONAL');
+    const requests = await getPendingRequests(user.id, 'PROFESSIONAL');
 
     return (
         <main className="container py-8">

@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
-import { auth } from "@/auth";
-import { redirect, notFound } from "next/navigation";
+import { requireRole } from "@/lib/core/api-helpers";
+import { notFound, redirect } from "next/navigation";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/core/db";
 import { ProfessionalRescheduleService } from "@/lib/role/professional/reschedule";
@@ -13,12 +13,8 @@ interface PageProps {
 }
 
 export default async function ProfessionalReschedulePage({ params }: PageProps) {
-    const session = await auth();
     const { id } = await params;
-
-    if (!session || session.user.role !== Role.PROFESSIONAL) {
-        redirect(`/login?callbackUrl=${appRoutes.professional.requestReschedule(id)}`);
-    }
+    const user = await requireRole(Role.PROFESSIONAL, appRoutes.professional.requestReschedule(id));
 
     const booking = await prisma.booking.findUnique({
         where: { id },
@@ -26,12 +22,12 @@ export default async function ProfessionalReschedulePage({ params }: PageProps) 
     });
 
     if (!booking) notFound();
-    if (booking.professionalId !== session.user.id) redirect(appRoutes.professional.requests);
+    if (booking.professionalId !== user.id) redirect(appRoutes.professional.requests);
     if (booking.status !== "reschedule_pending") {
         redirect(appRoutes.professional.requests);
     }
 
-    const slots = await ProfessionalRescheduleService.getRescheduleAvailability(id, session.user.id);
+    const slots = await ProfessionalRescheduleService.getRescheduleAvailability(id, user.id);
 
     return (
         <main className="container py-8">

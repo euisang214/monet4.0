@@ -1,4 +1,4 @@
-import { auth } from '@/auth';
+import { requireRole } from '@/lib/core/api-helpers';
 import { prisma } from '@/lib/core/db';
 import { Role } from '@prisma/client';
 import { notFound, redirect } from 'next/navigation';
@@ -10,15 +10,7 @@ interface PageProps {
 
 export default async function ReschedulePage({ params }: PageProps) {
     const { id } = await params;
-    const session = await auth();
-
-    if (!session?.user) {
-        redirect(`/login?callbackUrl=/candidate/bookings/${id}/reschedule`);
-    }
-
-    if (session.user.role !== Role.CANDIDATE) {
-        redirect('/');
-    }
+    const user = await requireRole(Role.CANDIDATE, `/candidate/bookings/${id}/reschedule`);
 
     const booking = await prisma.booking.findUnique({
         where: { id },
@@ -34,7 +26,7 @@ export default async function ReschedulePage({ params }: PageProps) {
         },
     });
 
-    if (!booking || booking.candidateId !== session.user.id) {
+    if (!booking || booking.candidateId !== user.id) {
         notFound();
     }
 
