@@ -1328,6 +1328,12 @@ table {
   stroke: currentColor;
 }
 
+.calendar-week-nav-arrow {
+  font-size: 1.2rem;
+  line-height: 1;
+  font-weight: 600;
+}
+
 .calendar-week-range-label {
   color: #48627a;
   font-size: 0.875rem;
@@ -1358,6 +1364,11 @@ table {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.2;
+  vertical-align: middle;
 }
 
 .calendar-slot-grid-header-axis-left {
@@ -1383,7 +1394,6 @@ table {
 }
 
 .calendar-slot-grid-time-axis {
-  border-top: 1px solid #dfe8f0;
   border-right: 1px solid #dfe8f0;
   padding-right: 0.5rem;
   background-color: #f8fbfd;
@@ -1396,7 +1406,6 @@ table {
 }
 
 .calendar-slot-grid-time-axis-right {
-  border-top: 1px solid #dfe8f0;
   border-left: 1px solid #dfe8f0;
   padding-left: 0.5rem;
   background-color: #f8fbfd;
@@ -1482,6 +1491,7 @@ table {
 
 .calendar-slot-state-professional-selectable {
   background-color: #ffffff;
+  border-radius: 4px;
   box-shadow: inset 0 0 0 1px #7ab2de;
 }
 

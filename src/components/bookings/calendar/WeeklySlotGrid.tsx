@@ -38,9 +38,7 @@ export function WeekRangeNavigator({
                 aria-label="Previous week"
                 className="calendar-week-nav-button"
             >
-                <svg aria-hidden="true" viewBox="0 0 20 20" className="calendar-week-nav-icon">
-                    <path d="M12.5 4.5L7 10l5.5 5.5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                <span aria-hidden="true" className="calendar-week-nav-arrow">‹</span>
             </button>
             <span className={`calendar-week-range-label ${rangeLabelMinWidthClassName}`}>
                 {getWeekRangeLabel(weekStart, calendarTimezone)}
@@ -52,9 +50,7 @@ export function WeekRangeNavigator({
                 aria-label="Next week"
                 className="calendar-week-nav-button"
             >
-                <svg aria-hidden="true" viewBox="0 0 20 20" className="calendar-week-nav-icon">
-                    <path d="M7.5 4.5L13 10l-5.5 5.5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                <span aria-hidden="true" className="calendar-week-nav-arrow">›</span>
             </button>
         </div>
     );
@@ -89,6 +85,7 @@ export function WeeklySlotGrid({
     const rows = Array.from({ length: rowCount }, (_, index) => visibleRowStart + index);
     const hasProfessionalAxis =
         showProfessionalTimezoneAxis && !!professionalTimezone && professionalTimezone !== calendarTimezone;
+    const axisColumnWidth = '6.75rem';
 
     return (
         <div
@@ -98,11 +95,11 @@ export function WeeklySlotGrid({
         >
             <table className={`calendar-slot-grid-table ${tableClassName}`.trim()}>
                 <colgroup>
-                    <col style={{ width: '5rem' }} />
+                    <col style={{ width: axisColumnWidth }} />
                     {Array.from({ length: 7 }).map((_, index) => (
                         <col key={`day-col-${index}`} />
                     ))}
-                    {hasProfessionalAxis && <col style={{ width: '5rem' }} />}
+                    {hasProfessionalAxis && <col style={{ width: axisColumnWidth }} />}
                 </colgroup>
                 <thead>
                     <tr>

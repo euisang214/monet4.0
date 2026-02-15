@@ -59,8 +59,12 @@ describe('WeekRangeNavigator', () => {
         expect(buttons[0].props.className).toContain('calendar-week-nav-button');
         expect(buttons[1].props.className).toContain('calendar-week-nav-button');
 
-        const svgs = collectElementsByType(tree, 'svg');
-        expect(svgs).toHaveLength(2);
+        const arrowSpans = collectElementsByType(tree, 'span').filter(
+            (span) => typeof span.props.className === 'string' && span.props.className.includes('calendar-week-nav-arrow')
+        );
+        expect(arrowSpans).toHaveLength(2);
+        expect(arrowSpans[0].props.children).toBe('‹');
+        expect(arrowSpans[1].props.children).toBe('›');
 
         const prevClick = buttons[0].props.onClick as (() => void) | undefined;
         const nextClick = buttons[1].props.onClick as (() => void) | undefined;
@@ -70,7 +74,9 @@ describe('WeekRangeNavigator', () => {
         expect(onPrev).toHaveBeenCalledTimes(1);
         expect(onNext).toHaveBeenCalledTimes(1);
 
-        const spans = collectElementsByType(tree, 'span');
+        const spans = collectElementsByType(tree, 'span').filter(
+            (span) => typeof span.props.className === 'string' && span.props.className.includes('calendar-week-range-label')
+        );
         expect(spans).toHaveLength(1);
         expect(spans[0].props.className).toContain('min-w-[170px]');
 
@@ -89,7 +95,9 @@ describe('WeekRangeNavigator', () => {
             calendarTimezone: 'UTC',
         });
 
-        const spans = collectElementsByType(tree, 'span');
+        const spans = collectElementsByType(tree, 'span').filter(
+            (span) => typeof span.props.className === 'string' && span.props.className.includes('calendar-week-range-label')
+        );
         expect(spans).toHaveLength(1);
         expect(spans[0].props.className).toContain('min-w-[220px]');
         expect(spans[0].props.className).not.toContain('min-w-[170px]');
