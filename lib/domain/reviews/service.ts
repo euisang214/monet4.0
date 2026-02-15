@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/core/db';
-import { BookingStatus, Role } from '@prisma/client';
+import { BookingStatus } from '@prisma/client';
 
 export const ReviewsService = {
     async createReview(candidateId: string, data: {
@@ -50,40 +50,76 @@ export const ReviewsService = {
      * Get reviews for a professional with aggregated statistics
      * Used by /api/shared/reviews GET
      */
-    async getProfessionalReviews(professionalId: string): Promise<{
+    async getProfessionalReviews(
+        professionalId: string,
+        options?: {
+            take?: number;
+        },
+    ): Promise<{
         reviews: {
             bookingId: string;
             rating: number;
             text: string | null;
             submittedAt: Date;
+            candidateEmail: string | null;
         }[];
         stats: {
             count: number;
             average: number | null;
         };
     }> {
-        const reviews = await prisma.professionalRating.findMany({
-            where: {
-                booking: {
-                    professionalId,
-                },
+        const where = {
+            booking: {
+                professionalId,
             },
-            orderBy: { submittedAt: 'desc' },
-            select: {
-                bookingId: true,
-                rating: true,
-                text: true,
-                submittedAt: true,
-            },
-        });
-
-        const stats = {
-            count: reviews.length,
-            average: reviews.length > 0
-                ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
-                : null,
         };
 
-        return { reviews, stats };
+        const [reviews, aggregate] = await Promise.all([
+            prisma.professionalRating.findMany({
+                where,
+                orderBy: { submittedAt: 'desc' },
+                ...(typeof options?.take === 'number' ? { take: options.take } : {}),
+                select: {
+                    bookingId: true,
+                    rating: true,
+                    text: true,
+                    submittedAt: true,
+                    booking: {
+                        select: {
+                            candidate: {
+                                select: {
+                                    email: true,
+                                },
+                            },
+                        },
+                    },
+                },
+            }),
+            prisma.professionalRating.aggregate({
+                where,
+                _count: {
+                    _all: true,
+                },
+                _avg: {
+                    rating: true,
+                },
+            }),
+        ]);
+
+        const stats = {
+            count: aggregate._count._all,
+            average: aggregate._avg.rating,
+        };
+
+        return {
+            reviews: reviews.map((review) => ({
+                bookingId: review.bookingId,
+                rating: review.rating,
+                text: review.text,
+                submittedAt: review.submittedAt,
+                candidateEmail: review.booking.candidate.email,
+            })),
+            stats,
+        };
     }
 };
