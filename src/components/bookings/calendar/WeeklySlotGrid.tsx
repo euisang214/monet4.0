@@ -10,6 +10,11 @@ import {
     slotDateForCell,
 } from '@/components/bookings/calendar/slot-utils';
 
+const DAY_OFFSETS = [0, 1, 2, 3, 4, 5, 6];
+const AXIS_COLUMN_WIDTH = '6.75rem';
+const LEFT_AXIS_LABEL_STYLE = { height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' } as const;
+const RIGHT_AXIS_LABEL_STYLE = { height: '20px', display: 'flex', alignItems: 'center' } as const;
+
 interface WeekRangeNavigatorProps {
     weekStart: Date;
     canGoPrev: boolean;
@@ -69,6 +74,71 @@ interface WeeklySlotGridProps {
     renderCell: (args: { slotStart: Date; dayOffset: number; row: number }) => React.ReactNode;
 }
 
+type SlotRowModel = {
+    row: number;
+    slotStarts: Date[];
+    leftAxisLabel: string;
+    rightAxisLabel: string;
+};
+
+type WeeklyGridModelArgs = {
+    weekStart: Date;
+    visibleRowStart: number;
+    visibleRowEndExclusive: number;
+    calendarTimezone: string;
+    professionalTimezone?: string | null;
+    hasProfessionalAxis: boolean;
+};
+
+type CachedWeeklyGridModel = {
+    key: string;
+    dayHeaderLabels: string[];
+    rowModels: SlotRowModel[];
+};
+
+let cachedWeeklyGridModel: CachedWeeklyGridModel | null = null;
+
+function getWeeklyGridModel({
+    weekStart,
+    visibleRowStart,
+    visibleRowEndExclusive,
+    calendarTimezone,
+    professionalTimezone,
+    hasProfessionalAxis,
+}: WeeklyGridModelArgs): CachedWeeklyGridModel {
+    const cacheKey = [
+        weekStart.getTime(),
+        visibleRowStart,
+        visibleRowEndExclusive,
+        calendarTimezone,
+        hasProfessionalAxis ? professionalTimezone || '' : '',
+        hasProfessionalAxis ? 1 : 0,
+    ].join('|');
+
+    if (cachedWeeklyGridModel?.key === cacheKey) return cachedWeeklyGridModel;
+
+    const rowCount = Math.max(0, visibleRowEndExclusive - visibleRowStart);
+    const rows = Array.from({ length: rowCount }, (_, index) => visibleRowStart + index);
+    const dayHeaderLabels = DAY_OFFSETS.map((dayOffset) => getDayHeaderLabel(weekStart, dayOffset, calendarTimezone));
+    const rowModels = rows.map((row) => ({
+        row,
+        slotStarts: DAY_OFFSETS.map((dayOffset) => slotDateForCell(weekStart, dayOffset, row, calendarTimezone)),
+        leftAxisLabel: getSlotLabel(row, calendarTimezone, weekStart),
+        rightAxisLabel: hasProfessionalAxis
+            ? getSlotLabel(row, professionalTimezone || undefined, weekStart, calendarTimezone)
+            : '',
+    }));
+
+    const nextModel: CachedWeeklyGridModel = {
+        key: cacheKey,
+        dayHeaderLabels,
+        rowModels,
+    };
+
+    cachedWeeklyGridModel = nextModel;
+    return nextModel;
+}
+
 export function WeeklySlotGrid({
     weekStart,
     scrollRef,
@@ -81,11 +151,16 @@ export function WeeklySlotGrid({
     showProfessionalTimezoneAxis = false,
     renderCell,
 }: WeeklySlotGridProps) {
-    const rowCount = Math.max(0, visibleRowEndExclusive - visibleRowStart);
-    const rows = Array.from({ length: rowCount }, (_, index) => visibleRowStart + index);
     const hasProfessionalAxis =
         showProfessionalTimezoneAxis && !!professionalTimezone && professionalTimezone !== calendarTimezone;
-    const axisColumnWidth = '6.75rem';
+    const { dayHeaderLabels, rowModels } = getWeeklyGridModel({
+        weekStart,
+        visibleRowStart,
+        visibleRowEndExclusive,
+        calendarTimezone,
+        professionalTimezone,
+        hasProfessionalAxis,
+    });
 
     return (
         <div
@@ -95,11 +170,11 @@ export function WeeklySlotGrid({
         >
             <table className={`calendar-slot-grid-table ${tableClassName}`.trim()}>
                 <colgroup>
-                    <col style={{ width: axisColumnWidth }} />
-                    {Array.from({ length: 7 }).map((_, index) => (
+                    <col style={{ width: AXIS_COLUMN_WIDTH }} />
+                    {DAY_OFFSETS.map((index) => (
                         <col key={`day-col-${index}`} />
                     ))}
-                    {hasProfessionalAxis && <col style={{ width: axisColumnWidth }} />}
+                    {hasProfessionalAxis && <col style={{ width: AXIS_COLUMN_WIDTH }} />}
                 </colgroup>
                 <thead>
                     <tr>
@@ -109,14 +184,14 @@ export function WeeklySlotGrid({
                         >
                             {calendarTimezone}
                         </th>
-                        {Array.from({ length: 7 }).map((_, dayOffset) => {
+                        {DAY_OFFSETS.map((dayOffset) => {
                             return (
                                 <th
                                     key={`day-header-${dayOffset}`}
                                     className="calendar-slot-grid-header-day sticky"
                                     style={{ top: 0, zIndex: 20 }}
                                 >
-                                    {getDayHeaderLabel(weekStart, dayOffset, calendarTimezone)}
+                                    {dayHeaderLabels[dayOffset]}
                                 </th>
                             );
                         })}
@@ -131,29 +206,25 @@ export function WeeklySlotGrid({
                     </tr>
                 </thead>
                 <tbody>
-                    {rows.map((row) => (
-                        <tr key={row} data-slot-row={row}>
+                    {rowModels.map((rowModel) => (
+                        <tr key={rowModel.row} data-slot-row={rowModel.row}>
                             <td
                                 className="calendar-slot-grid-time-axis sticky"
                                 style={{ zIndex: 10 }}
                             >
-                                <div style={{ height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                                    {getSlotLabel(row, calendarTimezone, weekStart)}
+                                <div style={LEFT_AXIS_LABEL_STYLE}>
+                                    {rowModel.leftAxisLabel}
                                 </div>
                             </td>
-                            {Array.from({ length: 7 }).map((__, dayOffset) => {
-                                const slotStart = slotDateForCell(weekStart, dayOffset, row, calendarTimezone);
-
-                                return (
-                                    <React.Fragment key={`${dayOffset}-${row}`}>
-                                        {renderCell({ slotStart, dayOffset, row })}
-                                    </React.Fragment>
-                                );
-                            })}
+                            {rowModel.slotStarts.map((slotStart, dayOffset) => (
+                                <React.Fragment key={`${dayOffset}-${rowModel.row}`}>
+                                    {renderCell({ slotStart, dayOffset, row: rowModel.row })}
+                                </React.Fragment>
+                            ))}
                             {hasProfessionalAxis && (
                                 <td className="calendar-slot-grid-time-axis-right">
-                                    <div style={{ height: '20px', display: 'flex', alignItems: 'center' }}>
-                                        {getSlotLabel(row, professionalTimezone || undefined, weekStart, calendarTimezone)}
+                                    <div style={RIGHT_AXIS_LABEL_STYLE}>
+                                        {rowModel.rightAxisLabel}
                                     </div>
                                 </td>
                             )}
