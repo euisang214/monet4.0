@@ -3,9 +3,9 @@ import { prisma } from '@/lib/core/db';
 import { CandidateBookings } from '@/lib/role/candidate/bookings';
 import { ProfessionalRequestService } from '@/lib/role/professional/requests';
 import { mockStripe } from '../mocks/stripe';
-import { mockZoom } from '../mocks/zoom';
-import { BookingStatus, PaymentStatus, Role } from '@prisma/client';
+import { BookingStatus, PaymentStatus } from '@prisma/client';
 import { addDays } from 'date-fns';
+import { configureE2EMocks, createE2EActors, cleanupE2EData } from './fixtures';
 
 // --- Mocks ---
 // Mock Stripe Integration
@@ -39,68 +39,14 @@ describe('Golden Path E2E: Book -> Pay -> Accept', () => {
 
     beforeEach(async () => {
         vi.clearAllMocks();
-
-        // 1. Create Data
-        // Create Candidate
-        const candidate = await prisma.user.create({
-            data: {
-                email: `test-candidate-${Date.now()}@example.com`,
-                role: Role.CANDIDATE,
-                candidateProfile: {
-                    create: {
-                        interests: ['Testing'],
-                    }
-                }
-            }
-        });
-        candidateId = candidate.id;
-
-        // Create Professional
-        const professional = await prisma.user.create({
-            data: {
-                email: `test-pro-${Date.now()}@example.com`,
-                role: Role.PROFESSIONAL,
-                professionalProfile: {
-                    create: {
-                        employer: 'Test Corp',
-                        title: 'Senior Tester',
-                        bio: 'I test things',
-                        priceCents: 10000, // $100.00
-                        corporateEmail: `pro-corp-${Date.now()}@example.com`,
-                    }
-                }
-            }
-        });
-        professionalId = professional.id;
-
-        // Mock Stripe Responses
-        mockStripe.paymentIntents.create.mockResolvedValue({
-            id: 'pi_test_123',
-            client_secret: 'secret_123',
-        });
-
-        mockStripe.paymentIntents.capture.mockResolvedValue({
-            id: 'pi_test_123',
-            status: 'succeeded',
-        });
-
-        // Mock Zoom Response
-        mockZoom.createZoomMeeting.mockResolvedValue({
-            id: 123456789,
-            join_url: 'https://zoom.us/j/123456789',
-            start_url: 'https://zoom.us/s/123456789',
-        });
+        configureE2EMocks();
+        const actors = await createE2EActors();
+        candidateId = actors.candidateId;
+        professionalId = actors.professionalId;
     });
 
     afterEach(async () => {
-        // Cleanup
-        await prisma.payment.deleteMany({ where: { booking: { candidateId: candidateId } } });
-        await prisma.booking.deleteMany({ where: { candidateId: candidateId } });
-        await prisma.experience.deleteMany({ where: { OR: [{ candidateId }, { professionalId }] } });
-        await prisma.education.deleteMany({ where: { OR: [{ candidateId }, { professionalId }] } });
-        await prisma.candidateProfile.delete({ where: { userId: candidateId } });
-        await prisma.professionalProfile.delete({ where: { userId: professionalId } });
-        await prisma.user.deleteMany({ where: { id: { in: [candidateId, professionalId] } } });
+        await cleanupE2EData(candidateId, professionalId);
     });
 
     it('should successfully request and accept a booking', async () => {
