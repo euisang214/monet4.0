@@ -70,7 +70,7 @@ export default function LandingPage() {
                 <h2 className={styles.sectionTitle}>About</h2>
                 <p className={styles.sectionLead}>
                     Undergraduate recruiting and networking is a black box. We saw brilliant students get shut out, so we built <b>Monet</b> to change the odds.
-                    <br></br><br></br>Join the marketplace that democratizes recruiting, bringing students the right tools, prep, and insider knowledge through genuine conversations with professionals.
+                    <br></br><br></br>Join the marketplace that democratizes recruiting. Students access the right tools, prep, and insider knowledge through real conversations with professionals.
                 </p>
                 <div className={styles.aboutGrid}>
                     <article className={styles.aboutCard}>

@@ -87,7 +87,7 @@ export default async function ProfessionalProfilePage(props: {
             </Link>
             <header className="mb-6">
                 <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Professional Profile</p>
-                <h1 className="text-3xl font-bold text-gray-900">Review background and book confidently</h1>
+                <h1 className="text-3xl font-bold text-gray-900">Background Overview</h1>
             </header>
 
             <div className="bg-white rounded-lg shadow-lg overflow-hidden">
@@ -116,13 +116,13 @@ export default async function ProfessionalProfilePage(props: {
                             <div className="space-y-10 mb-8">
                                 {experienceItems.length > 0 ? (
                                     <section>
-                                        <h3 className="text-4xl font-bold text-gray-900 mb-6">Experience</h3>
+                                        <h3 className="text-4xl font-bold text-gray-900 mb-3 mt-3">Experience</h3>
                                         <div className="space-y-6">
                                             {experienceItems.map((experience) => (
                                                 <article key={experience.id} className="border-l border-gray-900 p-2">
                                                     <h4 className="font-semibold text-gray-900">{experience.title}</h4>
                                                     <p className="text-gray-600 mt-1">{experience.company}</p>
-                                                    <p className="italic text-gray-500 mt-6">
+                                                    <p className="italic text-gray-500 mt-1">
                                                         {formatDateRange(experience, monthYearFormatter)}
                                                     </p>
                                                 </article>
@@ -133,7 +133,7 @@ export default async function ProfessionalProfilePage(props: {
 
                                 {educationItems.length > 0 ? (
                                     <section>
-                                        <h3 className="text-4xl font-bold text-gray-900 mb-6">Education</h3>
+                                        <h3 className="text-4xl font-bold text-gray-900 mb-3 mt-3">Education</h3>
                                         <div className="space-y-6">
                                             {educationItems.map((education) => {
                                                 const educationTitle = [education.degree, education.fieldOfStudy]
@@ -143,7 +143,7 @@ export default async function ProfessionalProfilePage(props: {
                                                     <article key={education.id} className="border-l border-gray-900 p-2">
                                                         <h4 className="font-semibold text-gray-900">{educationTitle}</h4>
                                                         <p className="text-gray-600 mt-1">{education.school}</p>
-                                                        <p className="italic text-gray-500 mt-6">
+                                                        <p className="italic text-gray-500 mt-1">
                                                             {formatDateRange(education, yearFormatter)}
                                                         </p>
                                                     </article>
@@ -181,7 +181,7 @@ export default async function ProfessionalProfilePage(props: {
                                     description="Reviews appear here after completed consultations."
                                 />
                             ) : (
-                                <div className="space-y-6">
+                                <div className="space-y-6 mt-3">
                                     {reviews.map((review) => (
                                         <article key={review.bookingId} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                                             <div className="flex items-start justify-between gap-4 mb-2">
@@ -209,7 +209,7 @@ export default async function ProfessionalProfilePage(props: {
 
                     <div className="md:w-1/3 bg-gray-50 p-8 border-l border-gray-100 flex flex-col">
                         <div className="sticky top-8">
-                            <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Next Step</p>
+                            <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Next Steps</p>
                             <h3 className="text-lg font-semibold mb-3">Ready to book?</h3>
                             <p className="text-gray-600 mb-6 text-sm">
                                 Schedule a consultation with {profile.title} to discuss your career goals.
@@ -223,7 +223,7 @@ export default async function ProfessionalProfilePage(props: {
                             </Link>
 
                             <p className="text-xs text-center text-gray-500 mt-4 italic">
-                                Secure payment via Stripe. Satisfaction guaranteed.
+                                Secure payment via Stripe. 
                             </p>
                         </div>
                     </div>
