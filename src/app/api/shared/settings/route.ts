@@ -5,6 +5,7 @@ import {
     candidateProfileSchema,
     professionalProfileSchema
 } from "@/lib/domain/users/profile-service"
+import { createResumeUrlSigner } from "@/lib/integrations/resume-storage"
 
 export async function PUT(request: Request) {
     const session = await auth()
@@ -35,17 +36,24 @@ export async function PUT(request: Request) {
     }
 }
 
-export async function GET(request: Request) {
+export async function GET() {
     const session = await auth()
     if (!session?.user) {
         return Response.json({ error: "unauthorized" }, { status: 401 })
     }
 
     try {
+        const role = session.user.role as Role
         const profile = await ProfileService.getProfileByUserId(
             session.user.id,
-            session.user.role as Role
+            role
         )
+
+        if (role === Role.CANDIDATE && profile) {
+            const signResumeUrl = createResumeUrlSigner()
+            const candidateProfile = profile as { resumeUrl?: string | null }
+            candidateProfile.resumeUrl = (await signResumeUrl(candidateProfile.resumeUrl)) ?? null
+        }
 
         return Response.json({ data: profile })
     } catch (error) {

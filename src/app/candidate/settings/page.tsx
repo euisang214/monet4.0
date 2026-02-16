@@ -11,6 +11,8 @@ interface CandidateProfileData {
     interests?: string[] | null;
 }
 
+const MAX_RESUME_SIZE_BYTES = 4 * 1024 * 1024;
+
 export default function CandidateSettingsPage() {
     const [profile, setProfile] = useState<CandidateProfileData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -31,14 +33,14 @@ export default function CandidateSettingsPage() {
                 notify("error", "Could not load profile settings.");
             })
             .finally(() => setLoading(false));
-    }, []);
+    }, [notify]);
 
     const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        if (file.size > 5 * 1024 * 1024) {
-            notify("error", "File too large. Max size is 5MB.");
+        if (file.size > MAX_RESUME_SIZE_BYTES) {
+            notify("error", "File too large. Max size is 4MB.");
             return;
         }
 
@@ -52,33 +54,36 @@ export default function CandidateSettingsPage() {
         clear();
 
         try {
+            const formData = new FormData();
+            formData.append("file", file);
+
             const res = await fetch("/api/candidate/upload/resume", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ contentType: file.type, size: file.size }),
+                body: formData,
             });
 
-            const payload = await res.json();
-            const uploadUrl = payload?.data?.uploadUrl as string | undefined;
-            const publicUrl = payload?.data?.publicUrl as string | undefined;
+            const payload = (await res.json().catch(() => null)) as
+                | { data?: { storageUrl?: string; viewUrl?: string }; error?: string }
+                | null;
 
-            if (!uploadUrl || !publicUrl) {
-                throw new Error("Failed to prepare upload");
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to upload resume");
             }
 
-            await fetch(uploadUrl, {
-                method: "PUT",
-                body: file,
-                headers: { "Content-Type": file.type },
-            });
+            const storageUrl = payload?.data?.storageUrl;
+            const viewUrl = payload?.data?.viewUrl;
+
+            if (!storageUrl || !viewUrl) {
+                throw new Error("Failed to prepare resume URL");
+            }
 
             await fetch("/api/shared/settings", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ resumeUrl: publicUrl }),
+                body: JSON.stringify({ resumeUrl: storageUrl }),
             });
 
-            setProfile((prev) => ({ ...(prev || {}), resumeUrl: publicUrl }));
+            setProfile((prev) => ({ ...(prev || {}), resumeUrl: viewUrl }));
             notify("success", "Resume uploaded successfully.");
         } catch (error) {
             console.error(error);

@@ -84,7 +84,7 @@
 - **Payment Processing**: Stripe (Connect with Separate Charges and Transfers)
 - **Video**: Zoom Server-to-Server OAuth
 - **Email**: Nodemailer + AWS SES
-- **File Storage**: AWS S3
+- **File Storage**: Supabase Storage (private bucket + signed URLs)
 - **Validation**: Zod
 
 ### Deployment
@@ -653,7 +653,7 @@ model ProfessionalProfile {
 ```prisma
 model CandidateProfile {
   userId     String       @id
-  resumeUrl  String?      // S3 URL to uploaded resume
+  resumeUrl  String?      // Supabase Storage URL to uploaded resume
   interests  String[]
   activities Experience[]
   experience Experience[]
@@ -2483,7 +2483,7 @@ ZOOM_CLIENT_ID="your-client-id"
 ZOOM_CLIENT_SECRET="your-client-secret"
 ```
 
-### AWS (Email & Storage)
+### AWS + Supabase Storage
 
 ```bash
 # SES for Email
@@ -2491,8 +2491,10 @@ AWS_REGION="us-east-1"
 AWS_ACCESS_KEY_ID="your-access-key"
 AWS_SECRET_ACCESS_KEY="your-secret-key"
 
-# S3 for File Storage
-AWS_S3_BUCKET="your-bucket-name"
+# Supabase Storage for Resume PDFs
+SUPABASE_URL="https://your-project-ref.supabase.co"
+SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
+SUPABASE_RESUME_BUCKET="candidate-resumes"
 ```
 
 ### Feature Flags

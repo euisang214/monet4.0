@@ -44,7 +44,7 @@ Edit `.env` with your configuration values. At minimum, you need:
 | `STRIPE_SECRET_KEY` | Stripe secret key | `sk_test_...` |
 | `STRIPE_PUBLISHABLE_KEY` | Stripe publishable key | `pk_test_...` |
 
-See `.env.example` for the full list of available environment variables including Google OAuth, Zoom integration, AWS SES/S3, and feature flags.
+See `.env.example` for the full list of available environment variables including Google OAuth, Zoom integration, AWS SES, Supabase Storage, and feature flags.
 
 ### Step 3: Start Docker Services (Postgres + Redis)
 
@@ -128,7 +128,7 @@ The queue worker handles background jobs including:
 | **Application** | Vercel | Next.js optimized hosting |
 | **Database** | Supabase | Managed PostgreSQL |
 | **Redis** | Upstash or Railway | For BullMQ job queue |
-| **File Storage** | AWS S3 | Resume uploads |
+| **File Storage** | Supabase Storage | Private resume uploads |
 | **Email** | AWS SES | Transactional emails |
 | **Payments** | Stripe Connect | Separate charges and transfers |
 
@@ -147,10 +147,13 @@ The queue worker handles background jobs including:
    - Set up a Stripe account with Connect enabled
    - Use live keys (`sk_live_...`, `pk_live_...`) for production
 
-4. **AWS Services** (Optional but recommended)
-   - Create an S3 bucket for file uploads
+4. **AWS SES** (Optional but recommended)
    - Configure SES for email sending
    - Create IAM credentials with appropriate permissions
+
+5. **Supabase Storage**
+   - Create a private bucket for resumes (default: `candidate-resumes`)
+   - Generate a service role key for server-side uploads/signing
 
 ### Step 2: Deploy to Vercel
 
@@ -185,11 +188,15 @@ The queue worker handles background jobs including:
    ZOOM_CLIENT_ID=...
    ZOOM_CLIENT_SECRET=...
    
-   # AWS
+   # AWS SES
    AWS_REGION=us-east-1
    AWS_ACCESS_KEY_ID=...
    AWS_SECRET_ACCESS_KEY=...
-   AWS_S3_BUCKET=your-bucket-name
+   
+   # Supabase Storage (Resume PDFs)
+   SUPABASE_URL=https://<project-ref>.supabase.co
+   SUPABASE_SERVICE_ROLE_KEY=...
+   SUPABASE_RESUME_BUCKET=candidate-resumes
    
    # Optional Configuration
    PLATFORM_FEE=0.20

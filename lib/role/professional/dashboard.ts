@@ -2,6 +2,28 @@ import { prisma } from '@/lib/core/db';
 import { BookingStatus } from '@prisma/client';
 import { ProfessionalFeedbackService } from './feedback';
 import { ReviewsService } from '@/lib/domain/reviews/service';
+import { createResumeUrlSigner } from '@/lib/integrations/resume-storage';
+
+type BookingWithCandidateResume = {
+    candidate: {
+        candidateProfile?: {
+            resumeUrl?: string | null;
+        } | null;
+    };
+};
+
+async function signActionRequiredResumeUrls(bookings: BookingWithCandidateResume[]) {
+    const signResumeUrl = createResumeUrlSigner();
+
+    await Promise.all(
+        bookings.map(async (booking) => {
+            const candidateProfile = booking.candidate.candidateProfile;
+            if (!candidateProfile?.resumeUrl) return;
+
+            candidateProfile.resumeUrl = (await signResumeUrl(candidateProfile.resumeUrl)) ?? null;
+        })
+    );
+}
 
 export const ProfessionalDashboardService = {
     async getDashboardStats(professionalId: string) {
@@ -71,6 +93,8 @@ export const ProfessionalDashboardService = {
             ProfessionalFeedbackService.getPendingFeedback(professionalId),
             ReviewsService.getProfessionalReviews(professionalId, { take: 5 }),
         ]);
+
+        await signActionRequiredResumeUrls(actionRequired);
 
         return {
             actionRequired,

@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/core/db';
+import { createResumeUrlSigner } from '@/lib/integrations/resume-storage';
 import { Role } from '@prisma/client';
 
 /**
@@ -29,6 +30,9 @@ export async function GET(
     if (!user || !user.candidateProfile) {
         return Response.json({ error: 'profile_not_found' }, { status: 404 });
     }
+
+    const signResumeUrl = createResumeUrlSigner();
+    user.candidateProfile.resumeUrl = (await signResumeUrl(user.candidateProfile.resumeUrl)) ?? null;
 
     return Response.json({
         id: user.id,

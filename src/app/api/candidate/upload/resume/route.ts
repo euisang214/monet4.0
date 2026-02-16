@@ -1,11 +1,10 @@
 import { auth } from "@/auth"
-import { s3 } from "@/lib/integrations/s3"
-import { z } from "zod"
-
-const schema = z.object({
-    contentType: z.literal("application/pdf"),
-    size: z.number().max(5 * 1024 * 1024), // Max 5MB
-})
+import {
+    getSignedResumeViewUrl,
+    MAX_RESUME_SIZE_BYTES,
+    RESUME_CONTENT_TYPE,
+    uploadResume,
+} from "@/lib/integrations/resume-storage"
 
 export async function POST(request: Request) {
     const session = await auth()
@@ -14,21 +13,29 @@ export async function POST(request: Request) {
     }
 
     try {
-        const body = await request.json()
-        const parsed = schema.safeParse(body)
+        const formData = await request.formData()
+        const file = formData.get("file")
 
-        if (!parsed.success) {
+        if (!(file instanceof File)) {
             return Response.json({ error: "validation_error" }, { status: 400 })
         }
 
-        const { contentType } = parsed.data
-        const key = `resumes/${session.user.id}/${Date.now()}.pdf`
+        if (file.size <= 0 || file.size > MAX_RESUME_SIZE_BYTES) {
+            return Response.json({ error: "validation_error" }, { status: 400 })
+        }
 
-        const { uploadUrl, publicUrl } = await s3.getPresignedUploadUrl(key, contentType)
+        const isPdf = file.type === RESUME_CONTENT_TYPE || file.name.toLowerCase().endsWith(".pdf")
+        if (!isPdf) {
+            return Response.json({ error: "validation_error" }, { status: 400 })
+        }
 
-        return Response.json({ data: { uploadUrl, publicUrl } })
+        const fileBuffer = await file.arrayBuffer()
+        const { storageUrl } = await uploadResume("candidate", fileBuffer, RESUME_CONTENT_TYPE, session.user.id)
+        const viewUrl = await getSignedResumeViewUrl(storageUrl)
+
+        return Response.json({ data: { storageUrl, viewUrl } })
     } catch (error) {
-        console.error("Error generating upload URL:", error)
+        console.error("Error uploading candidate resume:", error)
         return Response.json({ error: "internal_error" }, { status: 500 })
     }
 }

@@ -5,7 +5,7 @@ import { Role } from "@prisma/client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
-const MAX_RESUME_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_RESUME_SIZE_BYTES = 4 * 1024 * 1024;
 const PDF_CONTENT_TYPE = "application/pdf";
 
 function getPostLoginPath(role: Role): string {
@@ -30,41 +30,29 @@ export function SignupForm() {
     const [isUploadingResume, setIsUploadingResume] = useState(false);
 
     const uploadResumeForSignup = async (file: File): Promise<string> => {
-        const uploadInitResponse = await fetch("/api/auth/signup/resume", {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const uploadResponse = await fetch("/api/auth/signup/resume", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                contentType: PDF_CONTENT_TYPE,
-                size: file.size,
-            }),
+            body: formData,
         });
 
-        const uploadInitPayload = (await uploadInitResponse.json().catch(() => null)) as
-            | { data?: { uploadUrl?: string; publicUrl?: string }; error?: string }
+        const payload = (await uploadResponse.json().catch(() => null)) as
+            | { data?: { storageUrl?: string; viewUrl?: string }; error?: string }
             | null;
 
-        if (!uploadInitResponse.ok) {
-            throw new Error(uploadInitPayload?.error || "Failed to start resume upload");
-        }
-
-        const uploadUrl = uploadInitPayload?.data?.uploadUrl;
-        const publicUrl = uploadInitPayload?.data?.publicUrl;
-
-        if (!uploadUrl || !publicUrl) {
-            throw new Error("Resume upload URL is missing");
-        }
-
-        const uploadResponse = await fetch(uploadUrl, {
-            method: "PUT",
-            body: file,
-            headers: { "Content-Type": PDF_CONTENT_TYPE },
-        });
-
         if (!uploadResponse.ok) {
-            throw new Error("Failed to upload resume");
+            throw new Error(payload?.error || "Failed to upload resume");
         }
 
-        return publicUrl;
+        const storageUrl = payload?.data?.storageUrl;
+
+        if (!storageUrl) {
+            throw new Error("Resume storage URL is missing");
+        }
+
+        return storageUrl;
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -81,7 +69,7 @@ export function SignupForm() {
                 }
 
                 if (resumeFile.size > MAX_RESUME_SIZE_BYTES) {
-                    throw new Error("Resume must be 5MB or smaller");
+                    throw new Error("Resume must be 4MB or smaller");
                 }
 
                 const isPdf =
@@ -223,7 +211,7 @@ export function SignupForm() {
                         <p className="text-xs text-gray-500">
                             {resumeFile
                                 ? `Selected file: ${resumeFile.name}`
-                                : "Upload a PDF resume (max 5MB) to continue."}
+                                : "Upload a PDF resume (max 4MB) to continue."}
                         </p>
                     </div>
                 )}

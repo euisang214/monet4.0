@@ -1,29 +1,35 @@
-import { randomUUID } from "crypto";
-import { s3 } from "@/lib/integrations/s3";
-import { z } from "zod";
-
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
-
-const schema = z.object({
-    contentType: z.literal("application/pdf"),
-    size: z.number().int().positive().max(MAX_FILE_SIZE_BYTES),
-});
+import {
+    getSignedResumeViewUrl,
+    MAX_RESUME_SIZE_BYTES,
+    RESUME_CONTENT_TYPE,
+    uploadResume,
+} from "@/lib/integrations/resume-storage";
 
 export async function POST(request: Request) {
     try {
-        const body = await request.json();
-        const parsed = schema.safeParse(body);
+        const formData = await request.formData();
+        const file = formData.get("file");
 
-        if (!parsed.success) {
+        if (!(file instanceof File)) {
             return Response.json({ error: "validation_error" }, { status: 400 });
         }
 
-        const key = `resumes/signup/${Date.now()}-${randomUUID()}.pdf`;
-        const { uploadUrl, publicUrl } = await s3.getPresignedUploadUrl(key, parsed.data.contentType);
+        if (file.size <= 0 || file.size > MAX_RESUME_SIZE_BYTES) {
+            return Response.json({ error: "validation_error" }, { status: 400 });
+        }
 
-        return Response.json({ data: { uploadUrl, publicUrl } });
+        const isPdf = file.type === RESUME_CONTENT_TYPE || file.name.toLowerCase().endsWith(".pdf");
+        if (!isPdf) {
+            return Response.json({ error: "validation_error" }, { status: 400 });
+        }
+
+        const fileBuffer = await file.arrayBuffer();
+        const { storageUrl } = await uploadResume("signup", fileBuffer, RESUME_CONTENT_TYPE);
+        const viewUrl = await getSignedResumeViewUrl(storageUrl);
+
+        return Response.json({ data: { storageUrl, viewUrl } });
     } catch (error) {
-        console.error("Error generating signup resume upload URL:", error);
+        console.error("Error uploading signup resume:", error);
         return Response.json({ error: "internal_error" }, { status: 500 });
     }
 }

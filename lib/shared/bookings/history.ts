@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/core/db';
 import { BookingStatus } from '@prisma/client';
+import { createResumeUrlSigner } from '@/lib/integrations/resume-storage';
 
 /**
  * Booking History Queries
@@ -13,6 +14,27 @@ type BookingHistoryOptions = {
 };
 
 const DEFAULT_LIMIT = 20;
+
+type BookingWithCandidateResume = {
+    candidate: {
+        candidateProfile?: {
+            resumeUrl?: string | null;
+        } | null;
+    };
+};
+
+async function signCandidateResumeUrls(bookings: BookingWithCandidateResume[]) {
+    const signResumeUrl = createResumeUrlSigner();
+
+    await Promise.all(
+        bookings.map(async (booking) => {
+            const candidateProfile = booking.candidate.candidateProfile;
+            if (!candidateProfile?.resumeUrl) return;
+
+            candidateProfile.resumeUrl = (await signResumeUrl(candidateProfile.resumeUrl)) ?? null;
+        })
+    );
+}
 
 /**
  * Get booking history for a user (completed, cancelled, refunded bookings)
@@ -55,6 +77,8 @@ export async function getBookingHistory(
         take: limit + 1, // Fetch one extra for cursor-based pagination
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     });
+
+    await signCandidateResumeUrls(bookings);
 
     const hasMore = bookings.length > limit;
     const items = hasMore ? bookings.slice(0, limit) : bookings;
