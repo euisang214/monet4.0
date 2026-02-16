@@ -61,7 +61,7 @@ export function AuthNavbar() {
             <div className="bg-white border border-gray-200 shadow-sm rounded-lg px-4 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex flex-wrap items-center gap-2">
-                        <Link href={homeLink} className="flex items-center gap-2 font-semibold text-gray-900 px-2 py-1 rounded-md hover:bg-gray-100">
+                        <Link href={homeLink} className="flex items-center gap-2 font-semibold text-gray-900 px-2 py-1 rounded-md hover:bg-blue-100 auth-navbar-pressable">
                             <span
                                 style={{
                                     width: "24px",
@@ -85,7 +85,7 @@ export function AuthNavbar() {
                                 pathname.startsWith(`${link.href}/`);
                             const linkClasses = isActive
                                 ? "px-3 py-1.5 rounded-md text-sm bg-blue-600 text-white"
-                                : "px-3 py-1.5 rounded-md text-sm bg-gray-100 text-gray-700 hover:bg-gray-200";
+                                : "px-3 py-1.5 rounded-md text-sm bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-gray-900 auth-navbar-pressable";
 
                             return (
                                 <Link key={link.href} href={link.href} className={linkClasses}>
@@ -97,7 +97,7 @@ export function AuthNavbar() {
 
                     <div className="flex flex-wrap items-center justify-end gap-3">
                         <span className="text-sm text-gray-500">{session.user.email}</span>
-                        <Button onClick={handleLogout} disabled={isPending} className="bg-gray-100 text-gray-800 hover:bg-gray-200">
+                        <Button onClick={handleLogout} disabled={isPending} className="bg-gray-100 text-gray-800 hover:bg-blue-100 auth-navbar-pressable">
                             {isPending ? "Signing out..." : "Log out"}
                         </Button>
                     </div>
