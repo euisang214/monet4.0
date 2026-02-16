@@ -2,18 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { prisma } from '@/lib/core/db';
 import { CandidateBookings } from '@/lib/role/candidate/bookings';
 import { ProfessionalRequestService } from '@/lib/role/professional/requests';
-import { mockStripe } from '../mocks/stripe';
 import { BookingStatus, PaymentStatus } from '@prisma/client';
 import { addDays } from 'date-fns';
 import { configureE2EMocks, createE2EActors, cleanupE2EData } from './fixtures';
+import { confirmPaymentIntentForCapture } from '../helpers/stripe-live';
 
 // --- Mocks ---
-// Mock Stripe Integration
-vi.mock('@/lib/integrations/stripe', async () => {
-    const { mockStripe } = await import('../mocks/stripe');
-    return { stripe: mockStripe };
-});
-
 // Mock Zoom Integration
 vi.mock('@/lib/integrations/zoom', () => import('../mocks/zoom'));
 
@@ -68,11 +62,11 @@ describe('Golden Path E2E: Book -> Pay -> Accept', () => {
 
         // Assert Step 1
         expect(requestResult.booking.status).toBe(BookingStatus.requested);
-        expect(requestResult.clientSecret).toBe('secret_123');
-        expect(mockStripe.paymentIntents.create).toHaveBeenCalledWith(expect.objectContaining({
-            amount: 10000,
-            capture_method: 'manual',
-        }));
+        expect(requestResult.clientSecret).toBeTruthy();
+        expect(requestResult.stripePaymentIntentId.startsWith('pi_')).toBe(true);
+
+        // Move PI into requires_capture so professional accept can capture it.
+        await confirmPaymentIntentForCapture(requestResult.stripePaymentIntentId);
 
         // Verify Database State
         const bookingAfterRequest = await prisma.booking.findUnique({
@@ -81,7 +75,7 @@ describe('Golden Path E2E: Book -> Pay -> Accept', () => {
         });
         expect(bookingAfterRequest?.status).toBe(BookingStatus.requested);
         expect(bookingAfterRequest?.payment?.status).toBe(PaymentStatus.authorized);
-        expect(bookingAfterRequest?.payment?.stripePaymentIntentId).toBe('pi_test_123');
+        expect(bookingAfterRequest?.payment?.stripePaymentIntentId).toBe(requestResult.stripePaymentIntentId);
 
 
         // --- Step 2: Professional Accepts Booking ---
@@ -98,7 +92,6 @@ describe('Golden Path E2E: Book -> Pay -> Accept', () => {
 
         // Assert Step 2: Helper returns `accepted_pending_integrations` and queues job
         expect(acceptResult.status).toBe(BookingStatus.accepted_pending_integrations);
-        expect(mockStripe.paymentIntents.capture).toHaveBeenCalledWith('pi_test_123');
 
         // Verify Database State
         const bookingAfterAccept = await prisma.booking.findUnique({

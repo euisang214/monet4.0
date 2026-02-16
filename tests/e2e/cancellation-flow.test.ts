@@ -6,12 +6,7 @@ import { cancelBooking as transitionCancel, completeIntegrations } from '@/lib/d
 import { BookingStatus, PaymentStatus, Role } from '@prisma/client';
 import { addDays, addMinutes } from 'date-fns';
 import { configureE2EMocks, createE2EActors, cleanupE2EData } from './fixtures';
-import { mockStripe } from '../mocks/stripe';
-
-vi.mock('@/lib/integrations/stripe', async () => {
-    const { mockStripe } = await import('../mocks/stripe');
-    return { stripe: mockStripe };
-});
+import { confirmPaymentIntentForCapture, stripeTest } from '../helpers/stripe-live';
 
 vi.mock('@/lib/integrations/zoom', () => import('../mocks/zoom'));
 
@@ -57,6 +52,7 @@ describe('Cancellation Flow E2E', () => {
             availabilitySlots: [{ start: proposedStart.toISOString(), end: proposedEnd.toISOString() }],
             timezone: 'UTC',
         });
+        await confirmPaymentIntentForCapture(requestResult.stripePaymentIntentId);
 
         const bookingId = requestResult.booking.id;
         const startAt = addDays(new Date(), dayOffset);
@@ -79,11 +75,14 @@ describe('Cancellation Flow E2E', () => {
         expect(acceptedBooking?.status).toBe(BookingStatus.accepted);
         expect(acceptedBooking?.payment?.status).toBe(PaymentStatus.held);
 
-        return bookingId;
+        return {
+            bookingId,
+            paymentIntentId: requestResult.stripePaymentIntentId,
+        };
     }
 
     it('should complete candidate-initiated cancellation flow from accepted booking to refund', async () => {
-        const bookingId = await createAcceptedBooking(3, 'candidate-cancel-flow');
+        const { bookingId, paymentIntentId } = await createAcceptedBooking(3, 'candidate-cancel-flow');
 
         const cancelResult = await CandidateBookings.cancelBooking(candidateId, bookingId, 'Schedule conflict');
         expect(cancelResult.status).toBe(BookingStatus.cancelled);
@@ -98,16 +97,14 @@ describe('Cancellation Flow E2E', () => {
         expect(bookingAfterCancel?.payment?.status).toBe(PaymentStatus.refunded);
         expect(bookingAfterCancel?.payment?.refundedAmountCents).toBe(10000);
         expect(bookingAfterCancel?.payout).toBeNull();
-        expect(mockStripe.refunds.create).toHaveBeenCalledWith(
-            expect.objectContaining({
-                payment_intent: 'pi_test_123',
-                reason: 'requested_by_customer',
-            })
-        );
+
+        const refunds = await stripeTest.refunds.list({ payment_intent: paymentIntentId, limit: 5 });
+        expect(refunds.data.length).toBeGreaterThan(0);
+        expect(refunds.data[0].amount).toBe(10_000);
     });
 
     it('should complete professional-initiated cancellation flow from accepted booking to refund', async () => {
-        const bookingId = await createAcceptedBooking(3, 'professional-cancel-flow');
+        const { bookingId, paymentIntentId } = await createAcceptedBooking(3, 'professional-cancel-flow');
 
         const cancelResult = await transitionCancel(
             bookingId,
@@ -126,11 +123,9 @@ describe('Cancellation Flow E2E', () => {
         expect(bookingAfterCancel?.payment?.status).toBe(PaymentStatus.refunded);
         expect(bookingAfterCancel?.payment?.refundedAmountCents).toBe(10000);
         expect(bookingAfterCancel?.payout).toBeNull();
-        expect(mockStripe.refunds.create).toHaveBeenCalledWith(
-            expect.objectContaining({
-                payment_intent: 'pi_test_123',
-                reason: 'requested_by_customer',
-            })
-        );
+
+        const refunds = await stripeTest.refunds.list({ payment_intent: paymentIntentId, limit: 5 });
+        expect(refunds.data.length).toBeGreaterThan(0);
+        expect(refunds.data[0].amount).toBe(10_000);
     });
 });

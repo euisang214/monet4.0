@@ -3,8 +3,7 @@ import { validateFeedbackRequirements } from '@/lib/shared/qc';
 import { ClaudeService } from '@/lib/integrations/claude';
 import { paymentsQueue, qcQueue, notificationsQueue } from '@/lib/queues';
 import { PayoutStatus, QCStatus, BookingStatus } from '@prisma/client';
-import { stripe, retrieveBalanceTransaction, refundPayment, createTransfer } from '@/lib/integrations/stripe';
-import Stripe from 'stripe';
+import { stripe, refundPayment, createTransfer } from '@/lib/integrations/stripe';
 
 function toTitleCase(value: string) {
     if (!value) return '';
@@ -37,6 +36,10 @@ function formatReviewerName(email: string | null | undefined) {
     if (!firstName || !lastInitial) return 'Anonymous Reviewer';
 
     return `${firstName} ${lastInitial}`;
+}
+
+export function estimateStripeFeeCents(amountGross: number): number {
+    return Math.ceil(amountGross * 0.029 + 30);
 }
 
 export const QCService = {
@@ -228,7 +231,7 @@ export const QCService = {
             rating: review.rating,
             text: review.text,
             submittedAt: review.submittedAt,
-            reviewerName: formatReviewerName(review.booking.candidate.email),
+            reviewerName: formatReviewerName(review.booking?.candidate?.email),
         }));
     },
 
@@ -269,32 +272,45 @@ export const QCService = {
         // Calculate Values
         // 1. Get Fee from Stripe
         let stripeFeeCents = 0;
+        let sourceTransactionId: string | undefined;
         try {
             // We need the Latest Charge or PaymentIntent's latest_charge
             // Payment stores paymentIntentId.
             const pi = await stripe.paymentIntents.retrieve(booking.payment.stripePaymentIntentId, {
                 expand: ['latest_charge.balance_transaction']
             });
-            const charge = pi.latest_charge as Stripe.Charge;
-            const txn = charge?.balance_transaction as Stripe.BalanceTransaction;
 
-            if (txn) {
-                stripeFeeCents = txn.fee;
+            if (pi.latest_charge && typeof pi.latest_charge !== 'string') {
+                sourceTransactionId = pi.latest_charge.id;
+
+                const txn = pi.latest_charge.balance_transaction;
+                if (txn && typeof txn !== 'string') {
+                    stripeFeeCents = txn.fee;
+                } else {
+                    console.warn(`[QC] Could not retrieve balance transaction for PI ${booking.payment.stripePaymentIntentId}. Using estimate (2.9% + 30c).`);
+                    stripeFeeCents = estimateStripeFeeCents(booking.payment.amountGross);
+                }
             } else {
-                console.warn(`[QC] Could not retrieve balance transaction for PI ${booking.payment.stripePaymentIntentId}. Using estimate (2.9% + 30c).`);
-                stripeFeeCents = Math.ceil(booking.payment.amountGross * 0.029 + 30);
+                console.warn(`[QC] Could not retrieve latest charge for PI ${booking.payment.stripePaymentIntentId}. Using estimate (2.9% + 30c).`);
+                stripeFeeCents = estimateStripeFeeCents(booking.payment.amountGross);
             }
         } catch (e) {
             console.error(`[QC] Error fetching Stripe fee`, e);
             // Fallback to safe estimate or 0? 
             // Better to estimate to avoid over-refunding? 
-            stripeFeeCents = Math.ceil(booking.payment.amountGross * 0.029 + 30);
+            stripeFeeCents = estimateStripeFeeCents(booking.payment.amountGross);
         }
 
         const netAmount = booking.payment.amountGross - stripeFeeCents;
         const share = Math.floor(netAmount / 2);
 
         console.log(`[QC] Timeout Calculation: Gross=${booking.payment.amountGross}, Fee=${stripeFeeCents}, Net=${netAmount}, Share=${share}`);
+
+        if (share > 0 && booking.professional.stripeAccountId && !sourceTransactionId) {
+            throw new Error(
+                `Cannot create transfer for booking ${bookingId}: PaymentIntent ${booking.payment.stripePaymentIntentId} has no charge`
+            );
+        }
 
         // Execute Refund (Candidate Share)
         if (share > 0) {
@@ -307,7 +323,8 @@ export const QCService = {
                 share,
                 booking.professional.stripeAccountId,
                 bookingId,
-                { type: 'qc_timeout_partial_payout' }
+                { type: 'qc_timeout_partial_payout' },
+                sourceTransactionId
             );
         }
 

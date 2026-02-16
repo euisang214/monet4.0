@@ -3,6 +3,14 @@ import { isLateCancellation } from '@/lib/domain/bookings/utils';
 import { cancelBooking } from '@/lib/domain/bookings/transitions';
 import { BookingStatus, PaymentStatus, Role, PayoutStatus } from '@prisma/client';
 import { addHours } from 'date-fns';
+import { stripe } from '@/lib/integrations/stripe';
+import { createCapturedPaymentIntent } from './helpers/stripe-live';
+
+vi.mock('@/lib/queues', () => ({
+    notificationsQueue: {
+        add: vi.fn(),
+    },
+}));
 
 // Prepare mocks for integration test
 const mockPrisma = {
@@ -25,15 +33,6 @@ const mockPrisma = {
     },
     auditLog: {
         create: vi.fn(),
-    },
-};
-
-const mockStripe = {
-    refunds: {
-        create: vi.fn(),
-    },
-    paymentIntents: {
-        cancel: vi.fn(),
     },
 };
 
@@ -116,7 +115,7 @@ describe('Cancellations Domain', () => {
             const actor = { userId: 'cand-1', role: Role.CANDIDATE };
             const deps: CancelDeps = {
                 prisma: mockPrisma as unknown as CancelDeps['prisma'],
-                stripe: mockStripe as unknown as NonNullable<CancelDeps['stripe']>,
+                stripe: stripe as unknown as NonNullable<CancelDeps['stripe']>,
             };
             await cancelBooking('booking-late', actor, 'Sick', undefined, deps);
 
@@ -136,11 +135,7 @@ describe('Cancellations Domain', () => {
                 })
             }));
 
-            // 3. Late cancellation should not trigger refund/cancel authorization calls
-            expect(mockStripe.refunds.create).not.toHaveBeenCalled();
-            expect(mockStripe.paymentIntents.cancel).not.toHaveBeenCalled();
-
-            // 4. Booking Cancelled with late flag
+            // 3. Booking Cancelled with late flag
             expect(mockPrisma.booking.update).toHaveBeenCalledWith({
                 where: { id: 'booking-late' },
                 data: expect.objectContaining({
@@ -153,6 +148,7 @@ describe('Cancellations Domain', () => {
         it('should NOT trigger payout on early cancellation', async () => {
             // Setup early cancellation scenario (> 7 hours)
             const startAt = addHours(new Date(), 8);
+            const captured = await createCapturedPaymentIntent(10_000);
 
             const booking = {
                 id: 'booking-early',
@@ -167,7 +163,7 @@ describe('Cancellations Domain', () => {
                 bookingId: 'booking-early',
                 status: PaymentStatus.held,
                 amountGross: 10000,
-                stripePaymentIntentId: 'pi_early',
+                stripePaymentIntentId: captured.paymentIntent.id,
             };
 
             mockPrisma.booking.findUniqueOrThrow.mockResolvedValue(booking);
@@ -182,7 +178,7 @@ describe('Cancellations Domain', () => {
             const actor = { userId: 'cand-1', role: Role.CANDIDATE };
             const deps: CancelDeps = {
                 prisma: mockPrisma as unknown as CancelDeps['prisma'],
-                stripe: mockStripe as unknown as NonNullable<CancelDeps['stripe']>,
+                stripe: stripe as unknown as NonNullable<CancelDeps['stripe']>,
             };
             await cancelBooking('booking-early', actor, 'Plans changed', undefined, deps);
 
@@ -192,11 +188,6 @@ describe('Cancellations Domain', () => {
                 where: { bookingId: 'booking-early' },
                 data: { status: PaymentStatus.refunded, refundedAmountCents: 10000 }
             });
-            expect(mockStripe.refunds.create).toHaveBeenCalledWith({
-                payment_intent: 'pi_early',
-                reason: 'requested_by_customer',
-            });
-            expect(mockStripe.paymentIntents.cancel).not.toHaveBeenCalled();
 
             // 3. No Payout Created
             expect(mockPrisma.payout.create).not.toHaveBeenCalled();

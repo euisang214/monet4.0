@@ -1,7 +1,18 @@
 import { prisma } from '@/lib/core/db';
-import { createTransfer, refundPayment } from '@/lib/integrations/stripe';
+import { createTransfer, refundPayment, stripe } from '@/lib/integrations/stripe';
 import { PayoutStatus, PaymentStatus, BookingStatus } from '@prisma/client';
 import { notificationsQueue } from '@/lib/queues';
+import Stripe from 'stripe';
+
+function getLatestChargeId(paymentIntent: Stripe.PaymentIntent): string | null {
+    if (!paymentIntent.latest_charge) {
+        return null;
+    }
+    if (typeof paymentIntent.latest_charge === 'string') {
+        return paymentIntent.latest_charge;
+    }
+    return paymentIntent.latest_charge.id;
+}
 
 export const PaymentsService = {
     /**
@@ -14,7 +25,11 @@ export const PaymentsService = {
         const payout = await prisma.payout.findUnique({
             where: { bookingId },
             include: {
-                booking: true, // Need booking for transfer group? generic booking data?
+                booking: {
+                    include: {
+                        payment: true,
+                    },
+                },
             },
         });
 
@@ -37,6 +52,21 @@ export const PaymentsService = {
             throw new Error(`Missing Stripe Account ID for payout ${payout.id}`);
         }
 
+        const paymentIntentId = payout.booking?.payment?.stripePaymentIntentId;
+        if (!paymentIntentId) {
+            throw new Error(`Missing Stripe PaymentIntent for payout ${payout.id}`);
+        }
+
+        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, {
+            expand: ['latest_charge'],
+        });
+        const sourceTransactionId = getLatestChargeId(paymentIntent);
+        if (!sourceTransactionId) {
+            throw new Error(
+                `Cannot create transfer for payout ${payout.id}: PaymentIntent ${paymentIntentId} has no charge`
+            );
+        }
+
         // 2. Execute Stripe Transfer
         console.log(`[PAYMENTS] Transferring $${payout.amountNet / 100} to ${payout.proStripeAccountId}...`);
 
@@ -45,7 +75,8 @@ export const PaymentsService = {
             payout.amountNet,
             payout.proStripeAccountId,
             bookingId, // Transfer Group
-            { bookingId } // Metadata
+            { bookingId }, // Metadata
+            sourceTransactionId
         );
 
         // 3. Update Payout Status

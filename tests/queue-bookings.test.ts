@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { BookingStatus, PaymentStatus, AttendanceOutcome } from '@prisma/client';
+import { BookingStatus, AttendanceOutcome } from '@prisma/client';
+import { createManualCapturePaymentIntentConfirmed, stripeTest } from './helpers/stripe-live';
 
 /**
  * Queue Worker Tests - Bookings
@@ -40,11 +41,6 @@ vi.mock('@/lib/integrations/email', () => ({
     sendBookingAcceptedEmail: vi.fn().mockResolvedValue({}),
 }));
 
-vi.mock('@/lib/integrations/stripe', () => ({
-    stripe: {},
-    cancelPaymentIntent: vi.fn(),
-}));
-
 // Mock the transition functions (they're the complex parts with Prisma transactions)
 vi.mock('@/lib/domain/bookings/transitions', () => ({
     expireBooking: vi.fn(),
@@ -57,7 +53,6 @@ vi.mock('@/lib/domain/bookings/transitions', () => ({
 // Import after mocks
 import { prisma } from '@/lib/core/db';
 import { createZoomMeeting, deleteZoomMeeting } from '@/lib/integrations/zoom';
-import { cancelPaymentIntent } from '@/lib/integrations/stripe';
 import { expireBooking, cancelBooking, initiateDispute, completeCall, completeIntegrations } from '@/lib/domain/bookings/transitions';
 import {
     processConfirmBooking,
@@ -182,18 +177,19 @@ describe('Booking Queue Workers', () => {
 
     describe('processExpiryCheck', () => {
         it('should find and expire stale bookings', async () => {
+            const paymentIntent = await createManualCapturePaymentIntentConfirmed(5_000);
             const staleBooking = {
                 id: 'stale_booking',
                 status: BookingStatus.requested,
                 expiresAt: new Date(Date.now() - 1000),
-                payment: { stripePaymentIntentId: 'pi_123' },
+                payment: { stripePaymentIntentId: paymentIntent.id },
             };
 
             vi.mocked(prisma.booking.findMany).mockResolvedValue([staleBooking] as any);
-            vi.mocked(cancelPaymentIntent).mockResolvedValue({ status: 'canceled' } as any);
             vi.mocked(expireBooking).mockResolvedValue({} as any);
 
             const result = await processExpiryCheck();
+            const canceledPaymentIntent = await stripeTest.paymentIntents.retrieve(paymentIntent.id);
 
             expect(prisma.booking.findMany).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -202,7 +198,7 @@ describe('Booking Queue Workers', () => {
                     }),
                 })
             );
-            expect(cancelPaymentIntent).toHaveBeenCalledWith('pi_123');
+            expect(canceledPaymentIntent.status).toBe('canceled');
             expect(expireBooking).toHaveBeenCalledWith('stale_booking');
             expect(result.count).toBe(1);
         });

@@ -7,11 +7,7 @@ import { completeIntegrations } from '@/lib/domain/bookings/transitions';
 import { BookingStatus, PaymentStatus } from '@prisma/client';
 import { addDays, addMinutes } from 'date-fns';
 import { configureE2EMocks, createE2EActors, cleanupE2EData } from './fixtures';
-
-vi.mock('@/lib/integrations/stripe', async () => {
-    const { mockStripe } = await import('../mocks/stripe');
-    return { stripe: mockStripe };
-});
+import { confirmPaymentIntentForCapture } from '../helpers/stripe-live';
 
 vi.mock('@/lib/integrations/zoom', () => import('../mocks/zoom'));
 
@@ -57,6 +53,7 @@ describe('Reschedule Flow E2E', () => {
             availabilitySlots: [{ start: proposedStart.toISOString(), end: proposedEnd.toISOString() }],
             timezone: 'UTC',
         });
+        await confirmPaymentIntentForCapture(requestResult.stripePaymentIntentId);
 
         const bookingId = requestResult.booking.id;
         const startAt = addDays(new Date(), dayOffset);

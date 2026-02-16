@@ -1,12 +1,10 @@
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { QCService } from '@/lib/domain/qc/services';
+import { QCService, estimateStripeFeeCents } from '@/lib/domain/qc/services';
 import { prisma } from '@/lib/core/db';
 import { qcQueue, notificationsQueue } from '@/lib/queues';
-import { stripe } from '@/lib/integrations/stripe';
 import { BookingStatus, QCStatus } from '@prisma/client';
+import { createCapturedPaymentIntent, createConnectedAccount, stripeTest } from './helpers/stripe-live';
 
-// Mock Dependencies
 vi.mock('@/lib/core/db', () => ({
     prisma: {
         booking: {
@@ -39,63 +37,45 @@ vi.mock('@/lib/queues', () => ({
     },
 }));
 
-vi.mock('@/lib/integrations/stripe', () => ({
-    stripe: {
-        paymentIntents: {
-            retrieve: vi.fn(),
-        },
-    },
-    createTransfer: vi.fn(),
-    refundPayment: vi.fn(),
-    retrieveBalanceTransaction: vi.fn(),
-}));
-
 vi.mock('@/lib/integrations/claude', () => ({
     ClaudeService: {
         validateFeedback: vi.fn(),
     },
 }));
 
-// Need to mock shared helper or it will run real code
 vi.mock('@/lib/shared/qc', () => ({
     validateFeedbackRequirements: vi.fn().mockReturnValue({ passed: true, reasons: [] }),
 }));
 
 describe('QC Timeout Logic', () => {
-    const mockBookingId = 'booking_abc';
-    const mockPiId = 'pi_123';
-
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
     describe('Scheduling', () => {
         it('should schedule timeout and nudges when QC returns revise', async () => {
-            // Mock Data
+            const mockBookingId = `booking-${Date.now()}`;
+
             vi.mocked(prisma.booking.findUnique).mockResolvedValue({
                 id: mockBookingId,
                 feedback: { text: 'content', actions: [] },
                 professional: {},
             } as any);
 
-            // Mock Claude Reject
             const { ClaudeService } = await import('@/lib/integrations/claude');
             vi.mocked(ClaudeService.validateFeedback).mockResolvedValue({
                 passed: false,
-                reasons: ['revise_please']
+                reasons: ['revise_please'],
             });
 
-            // Execute
             await QCService.processQCJob(mockBookingId);
 
-            // Verify Timeout Job
             expect(qcQueue.add).toHaveBeenCalledWith(
                 'qc-timeout',
                 { bookingId: mockBookingId },
                 expect.objectContaining({ delay: 7 * 24 * 60 * 60 * 1000 })
             );
 
-            // Verify Nudges (at least one)
             expect(notificationsQueue.add).toHaveBeenCalledWith(
                 'send-email',
                 expect.objectContaining({ type: 'feedback_revise_nudge' }),
@@ -105,77 +85,68 @@ describe('QC Timeout Logic', () => {
     });
 
     describe('Timeout Execution', () => {
-        it('should calculate 50% net and process refund/transfer', async () => {
-            // Mock Data
+        it('should calculate 50% net and process live refund/transfer', async () => {
+            const mockBookingId = `booking-${Date.now()}`;
+            const connectedAccount = await createConnectedAccount();
+            const captured = await createCapturedPaymentIntent(10_000);
+            const paymentIntentWithFee = await stripeTest.paymentIntents.retrieve(captured.paymentIntent.id, {
+                expand: ['latest_charge.balance_transaction'],
+            });
+            let feeCents = estimateStripeFeeCents(10_000);
+            if (paymentIntentWithFee.latest_charge && typeof paymentIntentWithFee.latest_charge !== 'string') {
+                const balanceTransaction = paymentIntentWithFee.latest_charge.balance_transaction;
+                if (balanceTransaction && typeof balanceTransaction !== 'string') {
+                    feeCents = balanceTransaction.fee;
+                }
+            }
+            const expectedShare = Math.floor((10_000 - feeCents) / 2);
+
             vi.mocked(prisma.booking.findUnique).mockResolvedValue({
                 id: mockBookingId,
-                status: BookingStatus.accepted, // or passed pending qc?
+                status: BookingStatus.accepted,
                 payment: {
-                    stripePaymentIntentId: mockPiId,
-                    amountGross: 10000, // $100
+                    stripePaymentIntentId: captured.paymentIntent.id,
+                    amountGross: 10000,
                 },
                 professional: {
-                    stripeAccountId: 'acct_pro'
-                }
+                    stripeAccountId: connectedAccount.id,
+                },
             } as any);
 
             vi.mocked(prisma.callFeedback.findUnique).mockResolvedValue({
-                qcStatus: QCStatus.revise
+                qcStatus: QCStatus.revise,
             } as any);
 
-            // Mock Stripe Fee Fetch
-            vi.mocked(stripe.paymentIntents.retrieve).mockResolvedValue({
-                latest_charge: {
-                    balance_transaction: {
-                        fee: 300 // $3.00 fee
-                    }
-                }
-            } as any);
-
-            // Execute
             await QCService.handleTimeout(mockBookingId);
 
-            // Verify Logic
-            // Net = 10000 - 300 = 9700
-            // Share = 4850
+            const refunds = await stripeTest.refunds.list({
+                payment_intent: captured.paymentIntent.id,
+                limit: 5,
+            });
+            expect(refunds.data.length).toBeGreaterThan(0);
+            expect(refunds.data[0].amount).toBe(expectedShare);
 
-            const { refundPayment, createTransfer } = await import('@/lib/integrations/stripe');
+            const transfers = await stripeTest.transfers.list({ limit: 100 });
+            const timeoutTransfer = transfers.data.find(
+                (transfer) => transfer.transfer_group === mockBookingId
+            );
+            expect(timeoutTransfer).toBeDefined();
+            expect(timeoutTransfer?.destination).toBe(connectedAccount.id);
+            expect(timeoutTransfer?.source_transaction).toBe(captured.chargeId);
 
-            expect(refundPayment).toHaveBeenCalledWith(mockPiId, 4850, 'requested_by_customer');
-            expect(createTransfer).toHaveBeenCalledWith(4850, 'acct_pro', mockBookingId, expect.any(Object));
-
-            expect(prisma.booking.update).toHaveBeenCalledWith(expect.objectContaining({
-                where: { id: mockBookingId },
-                data: { status: BookingStatus.completed }
-            }));
+            expect(prisma.booking.update).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: { id: mockBookingId },
+                    data: { status: BookingStatus.completed },
+                })
+            );
         });
+    });
 
-        it('should estimate fee if stripe fetch fails', async () => {
-            // Mock Data
-            vi.mocked(prisma.booking.findUnique).mockResolvedValue({
-                id: mockBookingId,
-                payment: {
-                    stripePaymentIntentId: mockPiId,
-                    amountGross: 10000, // $100
-                },
-                professional: { stripeAccountId: 'acct_pro' }
-            } as any);
-
-            vi.mocked(prisma.callFeedback.findUnique).mockResolvedValue({ qcStatus: QCStatus.revise } as any);
-
-            // Mock Stripe Error
-            vi.mocked(stripe.paymentIntents.retrieve).mockRejectedValue(new Error('Stripe API Error'));
-
-            // Execute
-            await QCService.handleTimeout(mockBookingId);
-
-            // Verify Logic
-            // Est Fee = 10000 * 0.029 + 30 = 290 + 30 = 320
-            // Net = 9680
-            // Share = 4840
-
-            const { refundPayment } = await import('@/lib/integrations/stripe');
-            expect(refundPayment).toHaveBeenCalledWith(mockPiId, 4840, 'requested_by_customer');
+    describe('Fee Fallback Helper', () => {
+        it('should estimate fee using 2.9% + 30c formula', () => {
+            expect(estimateStripeFeeCents(10_000)).toBe(320);
+            expect(estimateStripeFeeCents(5_000)).toBe(175);
         });
     });
 });

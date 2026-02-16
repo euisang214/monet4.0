@@ -35,6 +35,10 @@ export async function createPaymentIntent(
         customer: customerId,
         metadata,
         setup_future_usage: 'off_session',
+        automatic_payment_methods: {
+            enabled: true,
+            allow_redirects: 'never',
+        },
     });
 }
 
@@ -62,15 +66,22 @@ export async function createTransfer(
     amountCents: number,
     destinationAccountId: string,
     transferGroup: string,
-    metadata?: Record<string, string>
+    metadata?: Record<string, string>,
+    sourceTransactionId?: string
 ) {
-    return stripe.transfers.create({
+    const params: Stripe.TransferCreateParams = {
         amount: amountCents,
         currency: 'usd',
         destination: destinationAccountId,
         transfer_group: transferGroup,
         metadata,
-    });
+    };
+
+    if (sourceTransactionId) {
+        params.source_transaction = sourceTransactionId;
+    }
+
+    return stripe.transfers.create(params);
 }
 
 /**

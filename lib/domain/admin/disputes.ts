@@ -3,13 +3,24 @@ import {
     BookingStatus,
     DisputeStatus,
     PaymentStatus,
-    PayoutStatus,
-    QCStatus
+    PayoutStatus
 } from '@prisma/client';
 import {
     createTransfer,
-    refundPayment
+    refundPayment,
+    stripe,
 } from '@/lib/integrations/stripe';
+import Stripe from 'stripe';
+
+function getLatestChargeId(paymentIntent: Stripe.PaymentIntent): string | null {
+    if (!paymentIntent.latest_charge) {
+        return null;
+    }
+    if (typeof paymentIntent.latest_charge === 'string') {
+        return paymentIntent.latest_charge;
+    }
+    return paymentIntent.latest_charge.id;
+}
 
 /**
  * Resolves a dispute by refunding the candidate or dismissing (paying the professional).
@@ -155,11 +166,22 @@ export async function resolveDispute(
         }
 
         if (payout.status !== PayoutStatus.paid) {
+            const paymentIntent = await stripe.paymentIntents.retrieve(payment.stripePaymentIntentId, {
+                expand: ['latest_charge'],
+            });
+            const sourceTransactionId = getLatestChargeId(paymentIntent);
+            if (!sourceTransactionId) {
+                throw new Error(
+                    `Cannot transfer payout for booking ${booking.id}: PaymentIntent ${payment.stripePaymentIntentId} has no charge`
+                );
+            }
+
             const transfer = await createTransfer(
                 payout.amountNet,
                 payout.proStripeAccountId,
                 booking.id,
-                { bookingId: booking.id }
+                { bookingId: booking.id },
+                sourceTransactionId
             );
 
             await prisma.payout.update({

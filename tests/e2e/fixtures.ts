@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/core/db';
 import { Role } from '@prisma/client';
-import { mockStripe } from '../mocks/stripe';
 import { mockZoom } from '../mocks/zoom';
+import { createConnectedAccount } from '../helpers/stripe-live';
 
 export type E2EActors = {
     candidateId: string;
@@ -9,30 +9,6 @@ export type E2EActors = {
 };
 
 export function configureE2EMocks() {
-    mockStripe.paymentIntents.create.mockResolvedValue({
-        id: 'pi_test_123',
-        client_secret: 'secret_123',
-    });
-
-    mockStripe.paymentIntents.capture.mockResolvedValue({
-        id: 'pi_test_123',
-        status: 'succeeded',
-    });
-
-    mockStripe.paymentIntents.update.mockResolvedValue({
-        id: 'pi_test_123',
-    });
-
-    mockStripe.paymentIntents.cancel.mockResolvedValue({
-        id: 'pi_test_123',
-        status: 'canceled',
-    });
-
-    mockStripe.refunds.create.mockResolvedValue({
-        id: 're_test_123',
-        status: 'succeeded',
-    });
-
     mockZoom.createZoomMeeting.mockResolvedValue({
         id: 123456789,
         join_url: 'https://zoom.us/j/123456789',
@@ -42,6 +18,7 @@ export function configureE2EMocks() {
 
 export async function createE2EActors(): Promise<E2EActors> {
     const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const connectedAccount = await createConnectedAccount();
 
     const candidate = await prisma.user.create({
         data: {
@@ -59,7 +36,7 @@ export async function createE2EActors(): Promise<E2EActors> {
         data: {
             email: `test-pro-${unique}@example.com`,
             role: Role.PROFESSIONAL,
-            stripeAccountId: 'acct_e2e_test',
+            stripeAccountId: connectedAccount.id,
             professionalProfile: {
                 create: {
                     employer: 'Test Corp',

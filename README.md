@@ -5,6 +5,7 @@ A full-stack marketplace platform connecting **Candidates** (job seekers) with *
 ## Table of Contents
 
 - [Local Development Setup](#local-development-setup)
+- [Supabase Setup (Local + Production)](#supabase-setup-local--production)
 - [Production Deployment](#production-deployment)
 - [NPM Scripts Reference](#npm-scripts-reference)
 - [Learn More](#learn-more)
@@ -42,9 +43,14 @@ Edit `.env` with your configuration values. At minimum, you need:
 | `REDIS_URL` | Redis connection string (for BullMQ) | `redis://localhost:6379` |
 | `AUTH_SECRET` | NextAuth secret key | Generate with `openssl rand -base64 32` |
 | `STRIPE_SECRET_KEY` | Stripe secret key | `sk_test_...` |
-| `STRIPE_PUBLISHABLE_KEY` | Stripe publishable key | `pk_test_...` |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key | `pk_test_...` |
+| `STRIPE_TEST_SECRET_KEY` | Stripe key used by Vitest live Stripe calls | `sk_test_...` |
+| `STRIPE_TEST_WEBHOOK_SECRET` | Stripe webhook secret used by Vitest | `whsec_...` |
+| `STRIPE_TEST_DEFAULT_PAYMENT_METHOD` | Test payment method for live Stripe tests | `pm_card_visa` |
 
 See `.env.example` for the full list of available environment variables including Google OAuth, Zoom integration, AWS SES, Supabase Storage, and feature flags.
+
+`npm run test` uses live Stripe test-mode API calls for Stripe-related tests. Ensure the Stripe test variables above are present in your `.env`.
 
 ### Step 3: Start Docker Services (Postgres + Redis)
 
@@ -119,6 +125,70 @@ The queue worker handles background jobs including:
 
 ---
 
+## Supabase Setup (Local + Production)
+
+Use this section if you want Supabase for:
+- PostgreSQL (`DATABASE_URL`)
+- Resume storage (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_RESUME_BUCKET`)
+
+### Local Supabase (No Cloud Usage Costs)
+
+1. Start local Supabase services:
+   ```bash
+   npx supabase init
+   npx supabase start
+   npx supabase status -o env
+   ```
+2. Map CLI output into `.env`:
+   - `API_URL` -> `SUPABASE_URL`
+   - `SERVICE_ROLE_KEY` -> `SUPABASE_SERVICE_ROLE_KEY`
+   - `DB_URL` -> `DATABASE_URL` (if you want Prisma to use local Supabase Postgres)
+3. Set/update `.env`:
+   ```env
+   SUPABASE_URL="http://127.0.0.1:54321"
+   SUPABASE_SERVICE_ROLE_KEY="..."
+   SUPABASE_RESUME_BUCKET="candidate-resumes"
+   DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+   ```
+4. Create the storage bucket in local Supabase Studio:
+   - Open `STUDIO_URL` from `npx supabase status -o env`
+   - Go to **Storage** -> **New bucket**
+   - Name: `candidate-resumes`
+   - Access: **Private**
+5. Apply schema and seed test data:
+   ```bash
+   npx prisma migrate dev
+   npm run seed
+   ```
+
+### Production Supabase (Cloud)
+
+1. In Supabase project dashboard:
+   - Copy Postgres connection string -> use for `DATABASE_URL`
+   - Copy Project URL -> use for `SUPABASE_URL`
+   - Copy `service_role` API key -> use for `SUPABASE_SERVICE_ROLE_KEY`
+   - Create private storage bucket `candidate-resumes` (or set matching `SUPABASE_RESUME_BUCKET`)
+2. In Vercel (or your host), set:
+   ```env
+   DATABASE_URL="postgresql://...supabase..."
+   SUPABASE_URL="https://<project-ref>.supabase.co"
+   SUPABASE_SERVICE_ROLE_KEY="..."
+   SUPABASE_RESUME_BUCKET="candidate-resumes"
+   ```
+3. Run production migrations against production DB:
+   ```bash
+   npx prisma migrate deploy
+   ```
+4. Ensure your separate queue worker uses the same production `DATABASE_URL` and `SUPABASE_*` values.
+
+### Environment Separation (Important)
+
+- Local runtime reads local `.env` / `.env.local`.
+- Production runtime reads host env vars (for example, Vercel Project Settings).
+- Do not reuse production credentials in local `.env` unless intentional.
+
+---
+
 ## Production Deployment
 
 ### Recommended Architecture
@@ -179,7 +249,7 @@ The queue worker handles background jobs including:
    AUTH_SECRET=<generate-secure-secret>
    NEXTAUTH_SECRET=<same-as-AUTH_SECRET>
    STRIPE_SECRET_KEY=sk_live_...
-   STRIPE_PUBLISHABLE_KEY=pk_live_...
+   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
    
    # Integrations
    AUTH_GOOGLE_ID=...
@@ -264,7 +334,7 @@ npm run start
 | `npm run build` | Create production build |
 | `npm run start` | Start production server |
 | `npm run seed` | Seed database with test data |
-| `npm run test` | Run unit tests (Vitest) |
+| `npm run test` | Run tests (Vitest; includes live Stripe test-mode calls) |
 | `npm run lint` | Run ESLint |
 
 ---
