@@ -36,6 +36,7 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "stripe": "^20.2.0",
+    "supabase": "^2.76.9",
     "use-debounce": "^10.1.0",
     "zod": "^4.3.6"
   },
