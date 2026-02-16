@@ -83,7 +83,7 @@ export function CandidateWeeklySlotPicker({
         <section className="space-y-4">
             <header className="space-y-2">
                 <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-lg font-semibold text-gray-900">Select your availability (30-minute slots)</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">Select Your Availability (30-minute slots)</h3>
                     <div className="text-sm text-gray-600">{selectedCount} slots selected</div>
                 </div>
                 <p className="text-sm text-gray-600">
@@ -97,7 +97,7 @@ export function CandidateWeeklySlotPicker({
                     onClick={clearSelection}
                     className="px-3 py-1.5 text-sm border border-gray-200 rounded hover:bg-gray-50"
                 >
-                    Clear all
+                    Clear All
                 </button>
 
                 <WeekRangeNavigator

@@ -95,11 +95,11 @@ export function CandidateBookingRequestForm({
             </div>
 
             <p className="text-sm text-gray-500 mb-4">
-                Selected candidate slots: <span className="font-medium">{selectedSlotCount}</span>
+                Selected Candidate Slots: <span className="font-medium">{selectedSlotCount}</span>
             </p>
 
             <div className="flex justify-between items-center mb-6 pt-4 border-t">
-                <span className="font-semibold">Session price:</span>
+                <span className="font-semibold">Session Price:</span>
                 <span className="text-xl font-bold">
                     {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(priceCents / 100)}
                 </span>
