@@ -3,7 +3,7 @@ import { s3 } from "@/lib/integrations/s3"
 import { z } from "zod"
 
 const schema = z.object({
-    contentType: z.enum(["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]),
+    contentType: z.literal("application/pdf"),
     size: z.number().max(5 * 1024 * 1024), // Max 5MB
 })
 
@@ -22,8 +22,7 @@ export async function POST(request: Request) {
         }
 
         const { contentType } = parsed.data
-        const ext = contentType === "application/pdf" ? "pdf" : "docx"
-        const key = `resumes/${session.user.id}/${Date.now()}.${ext}`
+        const key = `resumes/${session.user.id}/${Date.now()}.pdf`
 
         const { uploadUrl, publicUrl } = await s3.getPresignedUploadUrl(key, contentType)
 

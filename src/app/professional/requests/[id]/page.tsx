@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { requireRole } from "@/lib/core/api-helpers";
 import { prisma } from "@/lib/core/db";
 import { appRoutes } from "@/lib/shared/routes";
 import { Role } from "@prisma/client";
@@ -9,12 +9,8 @@ interface PageProps {
 }
 
 export default async function ProfessionalRequestRouteResolver({ params }: PageProps) {
-    const session = await auth();
     const { id } = await params;
-
-    if (!session?.user || session.user.role !== Role.PROFESSIONAL) {
-        redirect(`/login?callbackUrl=${appRoutes.professional.requestDetails(id)}`);
-    }
+    const user = await requireRole(Role.PROFESSIONAL, appRoutes.professional.requestDetails(id));
 
     const booking = await prisma.booking.findUnique({
         where: { id },
@@ -28,7 +24,7 @@ export default async function ProfessionalRequestRouteResolver({ params }: PageP
         notFound();
     }
 
-    if (booking.professionalId !== session.user.id) {
+    if (booking.professionalId !== user.id) {
         redirect(appRoutes.professional.requests);
     }
 

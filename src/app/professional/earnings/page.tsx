@@ -1,23 +1,14 @@
-import { auth } from '@/auth';
-import { redirect } from 'next/navigation';
+import { requireRole } from '@/lib/core/api-helpers';
 import { Role } from '@prisma/client';
 import { ProfessionalEarningsService } from '@/lib/role/professional/earnings';
 import { EmptyState } from '@/components/ui/composites/EmptyState';
 
 export default async function ProfessionalEarningsPage() {
-    const session = await auth();
-
-    if (!session?.user) {
-        redirect('/login?callbackUrl=/professional/earnings');
-    }
-
-    if (session.user.role !== Role.PROFESSIONAL) {
-        redirect('/');
-    }
+    const user = await requireRole(Role.PROFESSIONAL, '/professional/earnings');
 
     const [earnings, payouts] = await Promise.all([
-        ProfessionalEarningsService.getEarningsSummary(session.user.id),
-        ProfessionalEarningsService.getPayoutHistory(session.user.id, 20),
+        ProfessionalEarningsService.getEarningsSummary(user.id),
+        ProfessionalEarningsService.getPayoutHistory(user.id, 20),
     ]);
 
     const formatCurrency = (amountCents: number) =>

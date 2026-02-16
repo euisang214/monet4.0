@@ -1,25 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/primitives/Button";
+import { useNotification } from "@/components/ui/hooks/useNotification";
+import { NotificationBanner } from "@/components/ui/composites/NotificationBanner";
 
 interface CandidateProfileData {
     resumeUrl?: string | null;
     interests?: string[] | null;
 }
 
-type Notification = {
-    type: "success" | "error";
-    message: string;
-} | null;
-
 export default function CandidateSettingsPage() {
     const [profile, setProfile] = useState<CandidateProfileData | null>(null);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
     const [interests, setInterests] = useState("");
-    const [notification, setNotification] = useState<Notification>(null);
+    const { notification, notify, clear } = useNotification();
 
     useEffect(() => {
         fetch("/api/shared/settings")
@@ -31,7 +28,7 @@ export default function CandidateSettingsPage() {
                 }
             })
             .catch(() => {
-                setNotification({ type: "error", message: "Could not load profile settings." });
+                notify("error", "Could not load profile settings.");
             })
             .finally(() => setLoading(false));
     }, []);
@@ -41,18 +38,24 @@ export default function CandidateSettingsPage() {
         if (!file) return;
 
         if (file.size > 5 * 1024 * 1024) {
-            setNotification({ type: "error", message: "File too large. Max size is 5MB." });
+            notify("error", "File too large. Max size is 5MB.");
+            return;
+        }
+
+        const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+        if (!isPdf) {
+            notify("error", "Resume must be uploaded as a PDF.");
             return;
         }
 
         setUploading(true);
-        setNotification(null);
+        clear();
 
         try {
             const res = await fetch("/api/candidate/upload/resume", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ contentType: file.type }),
+                body: JSON.stringify({ contentType: file.type, size: file.size }),
             });
 
             const payload = await res.json();
@@ -76,10 +79,10 @@ export default function CandidateSettingsPage() {
             });
 
             setProfile((prev) => ({ ...(prev || {}), resumeUrl: publicUrl }));
-            setNotification({ type: "success", message: "Resume uploaded successfully." });
+            notify("success", "Resume uploaded successfully.");
         } catch (error) {
             console.error(error);
-            setNotification({ type: "error", message: "Resume upload failed." });
+            notify("error", "Resume upload failed.");
         } finally {
             setUploading(false);
         }
@@ -87,7 +90,7 @@ export default function CandidateSettingsPage() {
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
-        setNotification(null);
+        clear();
 
         try {
             await fetch("/api/shared/settings", {
@@ -100,10 +103,10 @@ export default function CandidateSettingsPage() {
                         .filter(Boolean),
                 }),
             });
-            setNotification({ type: "success", message: "Settings saved." });
+            notify("success", "Settings saved.");
         } catch (error) {
             console.error(error);
-            setNotification({ type: "error", message: "Failed to save settings." });
+            notify("error", "Failed to save settings.");
         }
     };
 
@@ -128,14 +131,7 @@ export default function CandidateSettingsPage() {
                     </p>
                 </header>
 
-                {notification && (
-                    <div className={`mb-6 rounded-md p-4 text-sm ${notification.type === "success"
-                        ? "bg-green-50 text-green-700"
-                        : "bg-red-50 text-red-700"
-                        }`}>
-                        {notification.message}
-                    </div>
-                )}
+                <NotificationBanner notification={notification} />
 
                 <section className="mb-8 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                     <h2 className="text-xl font-semibold text-gray-900 mb-2">Resume</h2>
@@ -165,15 +161,15 @@ export default function CandidateSettingsPage() {
                         <span className="sr-only">Upload resume</span>
                         <input
                             type="file"
-                            accept=".pdf,.doc,.docx"
+                            accept=".pdf,application/pdf"
                             onChange={handleResumeUpload}
                             disabled={uploading}
                             className="block w-full text-sm text-gray-500
-                                file:mr-4 file:py-2 file:px-4
-                                file:rounded-md file:border-0
-                                file:text-sm file:font-semibold
-                                file:bg-blue-50 file:text-blue-700
-                                hover:file:bg-blue-100"
+                                    file:mr-4 file:py-2 file:px-4
+                                    file:rounded-md file:border-0
+                                    file:text-sm file:font-semibold
+                                    file:bg-blue-50 file:text-blue-700
+                                    hover:file:bg-blue-100"
                         />
                     </label>
                     {uploading && <p className="text-sm text-gray-500 mt-2">Uploading resume...</p>}

@@ -6,6 +6,39 @@ import { PayoutStatus, QCStatus, BookingStatus } from '@prisma/client';
 import { stripe, retrieveBalanceTransaction, refundPayment, createTransfer } from '@/lib/integrations/stripe';
 import Stripe from 'stripe';
 
+function toTitleCase(value: string) {
+    if (!value) return '';
+    return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+}
+
+function formatReviewerName(email: string | null | undefined) {
+    if (!email) return 'Anonymous Reviewer';
+
+    const localPart = email.split('@')[0];
+    if (!localPart) return 'Anonymous Reviewer';
+
+    const normalized = localPart
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/[._-]+/g, ' ')
+        .replace(/\d+/g, ' ')
+        .trim();
+
+    const nameParts = normalized
+        .split(/\s+/)
+        .map((part) => part.replace(/[^a-zA-Z]/g, ''))
+        .filter(Boolean);
+
+    if (nameParts.length === 0) return 'Anonymous Reviewer';
+
+    const firstName = toTitleCase(nameParts[0]);
+    const lastPart = nameParts.length > 1 ? nameParts[nameParts.length - 1] : nameParts[0];
+    const lastInitial = lastPart.charAt(0).toUpperCase();
+
+    if (!firstName || !lastInitial) return 'Anonymous Reviewer';
+
+    return `${firstName} ${lastInitial}`;
+}
+
 export const QCService = {
     /**
      * Processes a QC job for a given booking.
@@ -164,8 +197,7 @@ export const QCService = {
         // Query ProfessionalRating via Booking generic relation? 
         // ProfessionalRating key is bookingId. 
         // We need reviews WHERE booking.professionalId = professionalId.
-
-        return await prisma.professionalRating.findMany({
+        const reviews = await prisma.professionalRating.findMany({
             where: {
                 booking: {
                     professionalId: professionalId
@@ -179,10 +211,25 @@ export const QCService = {
                 rating: true,
                 text: true,
                 submittedAt: true,
-                // We might want to include candidate name if not anonymous?
-                // For now just the review content.
+                booking: {
+                    select: {
+                        candidate: {
+                            select: {
+                                email: true,
+                            },
+                        },
+                    },
+                },
             }
         });
+
+        return reviews.map((review) => ({
+            bookingId: review.bookingId,
+            rating: review.rating,
+            text: review.text,
+            submittedAt: review.submittedAt,
+            reviewerName: formatReviewerName(review.booking.candidate.email),
+        }));
     },
 
     /**

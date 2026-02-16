@@ -1,19 +1,18 @@
 'use client';
 
 import React from 'react';
-import { addDays, format } from 'date-fns';
-import type { SlotCellState, SlotInput, SlotInterval } from '@/components/bookings/calendar/types';
-import { SLOT_MINUTES, SLOTS_PER_DAY, getSlotLabel, slotDateForCell } from '@/components/bookings/calendar/slot-utils';
+import { format } from 'date-fns';
+import type { SlotInput, SlotInterval } from '@/components/bookings/calendar/types';
+import { VISIBLE_END_ROW_EXCLUSIVE, VISIBLE_ROW_COUNT, VISIBLE_START_ROW } from '@/components/bookings/calendar/slot-utils';
+import { WeekRangeNavigator, WeeklySlotGrid } from '@/components/bookings/calendar/WeeklySlotGrid';
+import { baseSlotCellClasses, candidateSlotStateClasses, getProfessionalSlotClass } from '@/components/bookings/calendar/slot-styles';
 import { useCandidateWeeklySlotSelection } from '@/components/bookings/hooks/useCandidateWeeklySlotSelection';
 import { useProfessionalWeeklySlotSelection } from '@/components/bookings/hooks/useProfessionalWeeklySlotSelection';
 
 export type { SlotInterval } from '@/components/bookings/calendar/types';
 
-const baseCellClasses = 'h-5 w-full border border-gray-100 transition-colors';
-const DEFAULT_VIEW_START_HOUR = 9;
-const DEFAULT_VIEW_END_HOUR = 18;
-const DEFAULT_VIEW_START_ROW = (DEFAULT_VIEW_START_HOUR * 60) / SLOT_MINUTES;
-const DEFAULT_VIEW_VISIBLE_ROWS = ((DEFAULT_VIEW_END_HOUR - DEFAULT_VIEW_START_HOUR) * 60) / SLOT_MINUTES;
+const DEFAULT_VIEW_START_ROW = VISIBLE_START_ROW;
+const DEFAULT_VIEW_VISIBLE_ROWS = VISIBLE_ROW_COUNT;
 const MIN_CALENDAR_VIEWPORT_HEIGHT = 320;
 
 function useDefaultBusinessHoursViewport(anchor: Date | null) {
@@ -25,7 +24,7 @@ function useDefaultBusinessHoursViewport(anchor: Date | null) {
         if (!container) return;
 
         const header = container.querySelector('thead');
-        const sampleRow = container.querySelector<HTMLTableRowElement>('tbody tr[data-slot-row="0"]');
+        const sampleRow = container.querySelector<HTMLTableRowElement>(`tbody tr[data-slot-row="${VISIBLE_START_ROW}"]`);
         const startRow = container.querySelector<HTMLTableRowElement>(`tbody tr[data-slot-row="${DEFAULT_VIEW_START_ROW}"]`);
 
         if (!header || !sampleRow || !startRow) return;
@@ -44,20 +43,19 @@ function useDefaultBusinessHoursViewport(anchor: Date | null) {
     };
 }
 
-const candidateStateClasses: Record<SlotCellState, string> = {
-    available: 'bg-green-300 hover:bg-green-400',
-    blocked: 'bg-gray-50 hover:bg-gray-100',
-    'google-busy': 'bg-red-100 text-red-600 hover:bg-red-200',
-    'google-busy-overridden': 'bg-orange-300 hover:bg-orange-400',
-    disabled: 'bg-gray-100 cursor-not-allowed opacity-70',
-};
-
 interface CandidateWeeklySlotPickerProps {
     googleBusyIntervals: SlotInterval[];
     onChange: (payload: { availabilitySlots: SlotInterval[]; selectedCount: number }) => void;
+    calendarTimezone?: string;
+    professionalTimezone?: string | null;
 }
 
-export function CandidateWeeklySlotPicker({ googleBusyIntervals, onChange }: CandidateWeeklySlotPickerProps) {
+export function CandidateWeeklySlotPicker({
+    googleBusyIntervals,
+    onChange,
+    calendarTimezone,
+    professionalTimezone,
+}: CandidateWeeklySlotPickerProps) {
     const {
         weekStart,
         canGoPrev,
@@ -74,6 +72,12 @@ export function CandidateWeeklySlotPicker({ googleBusyIntervals, onChange }: Can
         onChange,
     });
     const { scrollRef, viewportHeight } = useDefaultBusinessHoursViewport(weekStart);
+    const resolvedCalendarTimezone = React.useMemo(
+        () => calendarTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        [calendarTimezone]
+    );
+    const showProfessionalTimezoneAxis =
+        !!professionalTimezone && professionalTimezone !== resolvedCalendarTimezone;
 
     return (
         <section className="space-y-4">
@@ -96,109 +100,67 @@ export function CandidateWeeklySlotPicker({ googleBusyIntervals, onChange }: Can
                     Clear All
                 </button>
 
-                <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={goToPreviousWeek}
-                        disabled={!canGoPrev}
-                        className="px-3 py-1.5 text-sm border border-gray-200 rounded disabled:opacity-40"
-                    >
-                        Previous Week
-                    </button>
-                    <span className="text-sm text-gray-700 min-w-[180px] text-center">
-                        {format(weekStart, 'MMM d')} - {format(addDays(weekStart, 6), 'MMM d')}
-                    </span>
-                    <button
-                        type="button"
-                        onClick={goToNextWeek}
-                        disabled={!canGoNext}
-                        className="px-3 py-1.5 text-sm border border-gray-200 rounded disabled:opacity-40"
-                    >
-                        Next Week
-                    </button>
-                </div>
+                <WeekRangeNavigator
+                    weekStart={weekStart}
+                    canGoPrev={canGoPrev}
+                    canGoNext={canGoNext}
+                    onPrev={goToPreviousWeek}
+                    onNext={goToNextWeek}
+                    rangeLabelMinWidthClassName="min-w-[180px]"
+                    calendarTimezone={resolvedCalendarTimezone}
+                />
             </div>
 
-            <div
-                ref={scrollRef}
-                className="overflow-y-auto border border-gray-200 rounded-lg bg-white"
-                style={{ height: `${viewportHeight}px` }}
-            >
-                <table className="w-full border-collapse table-fixed select-none">
-                    <thead>
-                        <tr>
-                            <th
-                                className="w-20 border-b border-gray-200 bg-gray-50 sticky left-0"
-                                style={{ top: 0, zIndex: 30, backgroundColor: "#ffffff" }}
+            <WeeklySlotGrid
+                weekStart={weekStart}
+                scrollRef={scrollRef}
+                viewportHeight={viewportHeight}
+                tableClassName="select-none"
+                visibleRowStart={VISIBLE_START_ROW}
+                visibleRowEndExclusive={VISIBLE_END_ROW_EXCLUSIVE}
+                calendarTimezone={resolvedCalendarTimezone}
+                professionalTimezone={professionalTimezone}
+                showProfessionalTimezoneAxis={showProfessionalTimezoneAxis}
+                renderCell={({ slotStart }) => {
+                    const cell = getCellMeta(slotStart);
+
+                    return (
+                        <td className="calendar-slot-grid-cell">
+                            <button
+                                type="button"
+                                onPointerDown={(event) => {
+                                    if (!cell.canInteract) return;
+                                    event.preventDefault();
+                                    handleSlotPointerDown(slotStart);
+                                }}
+                                onPointerEnter={() => {
+                                    if (!cell.canInteract) return;
+                                    handleSlotPointerEnter(slotStart);
+                                }}
+                                className={`${baseSlotCellClasses} ${candidateSlotStateClasses[cell.state]} ${cell.canInteract ? 'cursor-pointer' : ''}`}
+                                disabled={!cell.canInteract}
+                                title={format(slotStart, 'PPpp')}
                             />
-                            {Array.from({ length: 7 }).map((_, dayOffset) => {
-                                const day = addDays(weekStart, dayOffset);
-                                return (
-                                    <th
-                                        key={day.toISOString()}
-                                        className="border-b border-gray-200 py-2 text-xs font-semibold text-gray-700 sticky"
-                                        style={{ top: 0, zIndex: 20, backgroundColor: "#ffffff" }}
-                                    >
-                                        {format(day, 'EEE MMM d')}
-                                    </th>
-                                );
-                            })}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {Array.from({ length: SLOTS_PER_DAY }).map((_, row) => (
-                            <tr key={row} data-slot-row={row}>
-                                <td
-                                    className="sticky left-0 border-r border-gray-200 bg-gray-50 pr-2 align-top text-right text-xs text-gray-500 pr-3"
-                                    style={{ zIndex: 10, backgroundColor: "#ffffff" }}
-                                >
-                                    {getSlotLabel(row)}
-                                </td>
-                                {Array.from({ length: 7 }).map((__, dayOffset) => {
-                                    const slotStart = slotDateForCell(weekStart, dayOffset, row);
-                                    const cell = getCellMeta(slotStart);
-
-                                    return (
-                                        <td key={`${dayOffset}-${row}`} className="p-0">
-                                            <button
-                                                type="button"
-                                                onPointerDown={(event) => {
-                                                    if (!cell.canInteract) return;
-                                                    event.preventDefault();
-                                                    handleSlotPointerDown(slotStart);
-                                                }}
-                                                onPointerEnter={() => {
-                                                    if (!cell.canInteract) return;
-                                                    handleSlotPointerEnter(slotStart);
-                                                }}
-                                                className={`${baseCellClasses} ${candidateStateClasses[cell.state]}`}
-                                                disabled={!cell.canInteract}
-                                                title={format(slotStart, 'PPpp')}
-                                            />
-                                        </td>
-                                    );
-                                })}
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+                        </td>
+                    );
+                }}
+            />
 
             <div className="flex flex-wrap gap-4 text-xs text-gray-600">
                 <span className="inline-flex items-center gap-2">
-                    <span className="h-3 w-3 rounded-sm bg-green-300 border border-green-400" />
+                    <span className="calendar-slot-legend-swatch calendar-slot-state-candidate-available" />
                     Available
                 </span>
                 <span className="inline-flex items-center gap-2">
-                    <span className="h-3 w-3 rounded-sm bg-red-100 border border-red-200" />
+                    <span className="calendar-slot-legend-swatch calendar-slot-state-candidate-google-busy" />
                     Busy on Google Calendar (click to override)
                 </span>
                 <span className="inline-flex items-center gap-2">
-                    <span className="h-3 w-3 rounded-sm bg-orange-300 border border-orange-400" />
+                    <span className="calendar-slot-legend-swatch calendar-slot-state-candidate-google-busy-overridden" />
                     Busy but overridden
                 </span>
                 <span className="inline-flex items-center gap-2">
-                    <span className="h-3 w-3 rounded-sm bg-gray-50 border border-gray-200" />
+                    <span className="calendar-slot-legend-swatch calendar-slot-state-candidate-blocked" />
                     Unselected
                 </span>
             </div>
@@ -211,9 +173,18 @@ interface ProfessionalWeeklySlotPickerProps {
     selectedSlot: string | null;
     onSelect?: (slotStartIso: string) => void;
     readOnly?: boolean;
+    calendarTimezone?: string;
+    professionalTimezone?: string | null;
 }
 
-export function ProfessionalWeeklySlotPicker({ slots, selectedSlot, onSelect, readOnly = false }: ProfessionalWeeklySlotPickerProps) {
+export function ProfessionalWeeklySlotPicker({
+    slots,
+    selectedSlot,
+    onSelect,
+    readOnly = false,
+    calendarTimezone,
+    professionalTimezone,
+}: ProfessionalWeeklySlotPickerProps) {
     const {
         weekStart,
         hasSlots,
@@ -227,6 +198,12 @@ export function ProfessionalWeeklySlotPicker({ slots, selectedSlot, onSelect, re
         selectedSlot,
     });
     const { scrollRef, viewportHeight } = useDefaultBusinessHoursViewport(weekStart);
+    const resolvedCalendarTimezone = React.useMemo(
+        () => calendarTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        [calendarTimezone]
+    );
+    const showProfessionalTimezoneAxis =
+        !!professionalTimezone && professionalTimezone !== resolvedCalendarTimezone;
 
     if (!hasSlots || !weekStart) {
         return (
@@ -244,105 +221,69 @@ export function ProfessionalWeeklySlotPicker({ slots, selectedSlot, onSelect, re
                 <h3 className="text-lg font-medium text-gray-900">
                     {readOnly ? 'Your availability calendar' : 'Choose from candidate-submitted times'}
                 </h3>
-                <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={goToPreviousWeek}
-                        disabled={!canGoPrev}
-                        className="px-3 py-1.5 text-sm border border-gray-200 rounded disabled:opacity-40"
-                    >
-                        Previous week
-                    </button>
-                    <span className="text-sm text-gray-700 min-w-[170px] text-center">
-                        {format(weekStart, 'MMM d')} - {format(addDays(weekStart, 6), 'MMM d')}
-                    </span>
-                    <button
-                        type="button"
-                        onClick={goToNextWeek}
-                        disabled={!canGoNext}
-                        className="px-3 py-1.5 text-sm border border-gray-200 rounded disabled:opacity-40"
-                    >
-                        Next week
-                    </button>
-                </div>
+                <WeekRangeNavigator
+                    weekStart={weekStart}
+                    canGoPrev={canGoPrev}
+                    canGoNext={canGoNext}
+                    onPrev={goToPreviousWeek}
+                    onNext={goToNextWeek}
+                    calendarTimezone={resolvedCalendarTimezone}
+                />
             </div>
 
-            <div
-                ref={scrollRef}
-                className="overflow-y-auto border border-gray-200 rounded-lg bg-white"
-                style={{ height: `${viewportHeight}px` }}
-            >
-                <table className="w-full border-collapse table-fixed">
-                    <thead>
-                        <tr>
-                            <th
-                                className="w-20 border-b border-gray-200 bg-gray-50 sticky left-0"
-                                style={{ top: 0, zIndex: 30, backgroundColor: "#ffffff" }}
+            <WeeklySlotGrid
+                weekStart={weekStart}
+                scrollRef={scrollRef}
+                viewportHeight={viewportHeight}
+                visibleRowStart={VISIBLE_START_ROW}
+                visibleRowEndExclusive={VISIBLE_END_ROW_EXCLUSIVE}
+                calendarTimezone={resolvedCalendarTimezone}
+                professionalTimezone={professionalTimezone}
+                showProfessionalTimezoneAxis={showProfessionalTimezoneAxis}
+                renderCell={({ slotStart }) => {
+                    const cell = getCellMeta(slotStart);
+                    const canSelect = cell.isSelectable && !readOnly && !!onSelect;
+                    const cellClass = getProfessionalSlotClass({
+                        isSelected: cell.isSelected,
+                        isSelectable: cell.isSelectable,
+                        canSelect,
+                        readOnly,
+                    });
+
+                    return (
+                        <td className="calendar-slot-grid-cell">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (canSelect && onSelect) onSelect(cell.key);
+                                }}
+                                className={`${baseSlotCellClasses} ${cellClass} ${canSelect ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                                title={format(slotStart, 'PPpp')}
                             />
-                            {Array.from({ length: 7 }).map((_, dayOffset) => {
-                                const day = addDays(weekStart, dayOffset);
-                                return (
-                                    <th
-                                        key={day.toISOString()}
-                                        className="border-b border-gray-200 py-2 text-xs font-semibold text-gray-700 sticky"
-                                        style={{ top: 0, zIndex: 20, backgroundColor: "#ffffff" }}
-                                    >
-                                        {format(day, 'EEE MMM d')}
-                                    </th>
-                                );
-                            })}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {Array.from({ length: SLOTS_PER_DAY }).map((_, row) => (
-                            <tr key={row} data-slot-row={row}>
-                                <td
-                                    className="sticky left-0 border-r border-gray-200 bg-gray-50 pr-2 align-top text-right text-[11px] text-gray-500"
-                                    style={{ zIndex: 10, backgroundColor: "#ffffff" }}
-                                >
-                                    {getSlotLabel(row)}
-                                </td>
-                                {Array.from({ length: 7 }).map((__, dayOffset) => {
-                                    const slotStart = slotDateForCell(weekStart, dayOffset, row);
-                                    const cell = getCellMeta(slotStart);
-                                    const canSelect = cell.isSelectable && !readOnly && !!onSelect;
-
-                                    const cellClass = cell.isSelected
-                                        ? 'bg-blue-500 text-white border-blue-600'
-                                        : cell.isSelectable
-                                            ? canSelect
-                                                ? 'bg-green-100 hover:bg-green-200 border-green-200'
-                                                : 'bg-green-100 border-green-200'
-                                            : 'bg-gray-50 border-gray-100';
-
-                                    return (
-                                        <td key={`${dayOffset}-${row}`} className="p-0">
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    if (canSelect && onSelect) onSelect(cell.key);
-                                                }}
-                                                className={`h-5 w-full border transition-colors ${cellClass} ${!canSelect ? 'cursor-default' : ''}`}
-                                                title={format(slotStart, 'PPpp')}
-                                            />
-                                        </td>
-                                    );
-                                })}
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+                        </td>
+                    );
+                }}
+            />
 
             <div className="flex items-center gap-4 text-xs text-gray-600">
                 <span className="inline-flex items-center gap-2">
-                    <span className="h-3 w-3 rounded-sm bg-green-100 border border-green-200" />
-                    {readOnly ? 'Available' : 'Candidate available'}
+                    <span
+                        className={`calendar-slot-legend-swatch ${
+                            readOnly ? 'calendar-slot-state-professional-readonly' : 'calendar-slot-state-professional-selectable'
+                        }`}
+                    />
+                    {readOnly ? 'Available' : 'Can choose'}
                 </span>
                 {!readOnly && (
                     <span className="inline-flex items-center gap-2">
-                        <span className="h-3 w-3 rounded-sm bg-blue-500 border border-blue-600" />
+                        <span className="calendar-slot-legend-swatch calendar-slot-state-professional-selected" />
                         Selected slot
+                    </span>
+                )}
+                {!readOnly && (
+                    <span className="inline-flex items-center gap-2">
+                        <span className="calendar-slot-legend-swatch calendar-slot-state-professional-unavailable" />
+                        Unavailable
                     </span>
                 )}
             </div>

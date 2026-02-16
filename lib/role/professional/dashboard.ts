@@ -1,13 +1,11 @@
 import { prisma } from '@/lib/core/db';
 import { BookingStatus } from '@prisma/client';
-import { ProfessionalEarningsService } from './earnings';
 import { ProfessionalFeedbackService } from './feedback';
+import { ReviewsService } from '@/lib/domain/reviews/service';
 
 export const ProfessionalDashboardService = {
     async getDashboardStats(professionalId: string) {
-        // Parallel fetch for performace
-        const [earnings, pendingFeedback, bookingsCount] = await Promise.all([
-            ProfessionalEarningsService.getEarningsSummary(professionalId),
+        const [pendingFeedback, bookingsCount] = await Promise.all([
             ProfessionalFeedbackService.getPendingFeedback(professionalId),
             prisma.booking.groupBy({
                 by: ['status'],
@@ -21,8 +19,6 @@ export const ProfessionalDashboardService = {
         ]);
 
         const stats = {
-            totalEarningsCents: earnings.totalEarningsCents,
-            pendingPayoutsCents: earnings.pendingPayoutsCents,
             pendingFeedbackCount: pendingFeedback.length,
             totalBookings: bookingsCount.reduce((acc, curr) => acc + curr._count._all, 0),
             upcomingBookingsCount: bookingsCount.find(b => b.status === BookingStatus.accepted)?._count._all || 0,
@@ -33,11 +29,7 @@ export const ProfessionalDashboardService = {
     },
 
     async getDashboardBookings(professionalId: string) {
-        // We need 2 lists:
-        // 1. Action Required (Requested)
-        // 2. Upcoming (Accepted / Reschedule Pending)
-
-        const [actionRequired, upcoming] = await Promise.all([
+        const [actionRequired, upcoming, pendingFeedback, recentFeedbackData] = await Promise.all([
             prisma.booking.findMany({
                 where: {
                     professionalId,
@@ -59,28 +51,33 @@ export const ProfessionalDashboardService = {
             prisma.booking.findMany({
                 where: {
                     professionalId,
-                    status: {
-                        in: [
-                            BookingStatus.accepted,
-                            BookingStatus.accepted_pending_integrations,
-                        ]
-                    }
+                    status: BookingStatus.accepted
                 },
-                include: {
-                    candidate: true
+                select: {
+                    id: true,
+                    startAt: true,
+                    timezone: true,
+                    zoomJoinUrl: true,
+                    candidate: {
+                        select: {
+                            email: true
+                        }
+                    }
                 },
                 orderBy: {
                     startAt: 'asc' // Soonest first
                 }
-            })
+            }),
+            ProfessionalFeedbackService.getPendingFeedback(professionalId),
+            ReviewsService.getProfessionalReviews(professionalId, { take: 5 }),
         ]);
-
-        const pendingFeedback = await ProfessionalFeedbackService.getPendingFeedback(professionalId);
 
         return {
             actionRequired,
             pendingFeedback,
-            upcoming
+            upcoming,
+            recentFeedback: recentFeedbackData.reviews,
+            reviewStats: recentFeedbackData.stats,
         };
     }
 };

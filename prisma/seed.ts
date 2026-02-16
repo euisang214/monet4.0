@@ -72,6 +72,35 @@ const SCHOOLS = [
 
 const CANDIDATE_TIMEZONES = ['America/New_York', 'America/Los_Angeles', 'America/Chicago', 'Europe/London', 'Asia/Tokyo']
 const PROFESSIONAL_TIMEZONES = ['America/New_York', 'America/Los_Angeles', 'America/Chicago', 'Europe/London', 'Asia/Singapore']
+const ALL_BOOKING_STATUSES: BookingStatus[] = [
+    BookingStatus.draft,
+    BookingStatus.requested,
+    BookingStatus.declined,
+    BookingStatus.expired,
+    BookingStatus.accepted,
+    BookingStatus.accepted_pending_integrations,
+    BookingStatus.reschedule_pending,
+    BookingStatus.dispute_pending,
+    BookingStatus.cancelled,
+    BookingStatus.completed,
+    BookingStatus.completed_pending_feedback,
+    BookingStatus.refunded,
+]
+
+const STATUS_DAY_OFFSETS: Record<BookingStatus, number> = {
+    [BookingStatus.draft]: 14,
+    [BookingStatus.requested]: 7,
+    [BookingStatus.declined]: 9,
+    [BookingStatus.expired]: 8,
+    [BookingStatus.accepted]: 3,
+    [BookingStatus.accepted_pending_integrations]: 4,
+    [BookingStatus.reschedule_pending]: 5,
+    [BookingStatus.dispute_pending]: -2,
+    [BookingStatus.cancelled]: 2,
+    [BookingStatus.completed]: -12,
+    [BookingStatus.completed_pending_feedback]: -3,
+    [BookingStatus.refunded]: -9,
+}
 
 async function main() {
     console.log('Start seeding ...')
@@ -366,6 +395,8 @@ async function main() {
     let bookingIndex = 0
     const baseDate = new Date()
     const candidateAvailabilitySeeded = new Set<string>()
+    let statusMatrixBookingCount = 0
+    let statusMatrixStripeIndex = 2000
 
     const createCandidateRequestAvailability = async (
         candidate: { id: string; timezone: string },
@@ -398,6 +429,358 @@ async function main() {
                     end: busyEnd,
                     busy: true,
                     timezone: candidate.timezone,
+                },
+            })
+        }
+    }
+
+    const createStatusMatrixBooking = async (
+        candidate: { id: string; timezone: string },
+        professional: { id: string; stripeAccountId: string; timezone: string },
+        status: BookingStatus,
+        pairIndex: number,
+        statusIndex: number
+    ) => {
+        const startAt = new Date(baseDate)
+        startAt.setDate(startAt.getDate() + STATUS_DAY_OFFSETS[status] + (pairIndex % 5))
+        startAt.setHours(8 + (statusIndex % 10), (pairIndex * 7) % 60, 0, 0)
+
+        const endAt = new Date(startAt.getTime() + 60 * 60 * 1000)
+        const priceCents = 10000 + ((pairIndex + statusIndex) % 8) * 1250
+        const paymentIndex = statusMatrixStripeIndex++
+
+        if (status === BookingStatus.draft) {
+            await prisma.booking.create({
+                data: {
+                    candidateId: candidate.id,
+                    professionalId: professional.id,
+                    status,
+                    priceCents,
+                    timezone: candidate.timezone,
+                },
+            })
+            return
+        }
+
+        if (status === BookingStatus.requested) {
+            await prisma.booking.create({
+                data: {
+                    candidateId: candidate.id,
+                    professionalId: professional.id,
+                    status,
+                    priceCents,
+                    startAt,
+                    endAt,
+                    expiresAt: new Date(startAt.getTime() + 2 * 24 * 60 * 60 * 1000),
+                    timezone: candidate.timezone,
+                    payment: {
+                        create: {
+                            amountGross: priceCents,
+                            platformFee: Math.floor(priceCents * 0.15),
+                            stripePaymentIntentId: generateStripeId('pi', paymentIndex),
+                            status: PaymentStatus.authorized,
+                        },
+                    },
+                },
+            })
+            return
+        }
+
+        if (status === BookingStatus.declined) {
+            await prisma.booking.create({
+                data: {
+                    candidateId: candidate.id,
+                    professionalId: professional.id,
+                    status,
+                    priceCents,
+                    startAt,
+                    endAt,
+                    declineReason: 'Sample matrix decline for status coverage.',
+                    timezone: candidate.timezone,
+                    payment: {
+                        create: {
+                            amountGross: priceCents,
+                            platformFee: Math.floor(priceCents * 0.15),
+                            stripePaymentIntentId: generateStripeId('pi', paymentIndex),
+                            status: PaymentStatus.cancelled,
+                        },
+                    },
+                },
+            })
+            return
+        }
+
+        if (status === BookingStatus.expired) {
+            await prisma.booking.create({
+                data: {
+                    candidateId: candidate.id,
+                    professionalId: professional.id,
+                    status,
+                    priceCents,
+                    startAt,
+                    endAt,
+                    expiresAt: new Date(baseDate.getTime() - 60 * 60 * 1000),
+                    timezone: candidate.timezone,
+                    payment: {
+                        create: {
+                            amountGross: priceCents,
+                            platformFee: Math.floor(priceCents * 0.15),
+                            stripePaymentIntentId: generateStripeId('pi', paymentIndex),
+                            status: PaymentStatus.cancelled,
+                        },
+                    },
+                },
+            })
+            return
+        }
+
+        if (status === BookingStatus.accepted) {
+            await prisma.booking.create({
+                data: {
+                    candidateId: candidate.id,
+                    professionalId: professional.id,
+                    status,
+                    priceCents,
+                    startAt,
+                    endAt,
+                    timezone: candidate.timezone,
+                    zoomMeetingId: `zoom_matrix_accepted_${pairIndex}_${statusIndex}`,
+                    zoomJoinUrl: `https://zoom.us/j/matrixaccepted${pairIndex}${statusIndex}`,
+                    payment: {
+                        create: {
+                            amountGross: priceCents,
+                            platformFee: Math.floor(priceCents * 0.15),
+                            stripePaymentIntentId: generateStripeId('pi', paymentIndex),
+                            status: PaymentStatus.held,
+                        },
+                    },
+                },
+            })
+            return
+        }
+
+        if (status === BookingStatus.accepted_pending_integrations) {
+            await prisma.booking.create({
+                data: {
+                    candidateId: candidate.id,
+                    professionalId: professional.id,
+                    status,
+                    priceCents,
+                    startAt,
+                    endAt,
+                    timezone: candidate.timezone,
+                    payment: {
+                        create: {
+                            amountGross: priceCents,
+                            platformFee: Math.floor(priceCents * 0.15),
+                            stripePaymentIntentId: generateStripeId('pi', paymentIndex),
+                            status: PaymentStatus.held,
+                        },
+                    },
+                },
+            })
+            return
+        }
+
+        if (status === BookingStatus.reschedule_pending) {
+            await prisma.booking.create({
+                data: {
+                    candidateId: candidate.id,
+                    professionalId: professional.id,
+                    status,
+                    priceCents,
+                    startAt,
+                    endAt,
+                    timezone: candidate.timezone,
+                    zoomMeetingId: `zoom_matrix_reschedule_${pairIndex}_${statusIndex}`,
+                    zoomJoinUrl: `https://zoom.us/j/matrixreschedule${pairIndex}${statusIndex}`,
+                    payment: {
+                        create: {
+                            amountGross: priceCents,
+                            platformFee: Math.floor(priceCents * 0.15),
+                            stripePaymentIntentId: generateStripeId('pi', paymentIndex),
+                            status: PaymentStatus.held,
+                        },
+                    },
+                },
+            })
+            return
+        }
+
+        if (status === BookingStatus.dispute_pending) {
+            await prisma.booking.create({
+                data: {
+                    candidateId: candidate.id,
+                    professionalId: professional.id,
+                    status,
+                    priceCents,
+                    startAt,
+                    endAt,
+                    timezone: candidate.timezone,
+                    zoomMeetingId: `zoom_matrix_dispute_${pairIndex}_${statusIndex}`,
+                    zoomJoinUrl: `https://zoom.us/j/matrixdispute${pairIndex}${statusIndex}`,
+                    candidateJoinedAt: startAt,
+                    professionalJoinedAt: null,
+                    attendanceOutcome: AttendanceOutcome.professional_no_show,
+                    payment: {
+                        create: {
+                            amountGross: priceCents,
+                            platformFee: Math.floor(priceCents * 0.15),
+                            stripePaymentIntentId: generateStripeId('pi', paymentIndex),
+                            status: PaymentStatus.held,
+                        },
+                    },
+                    payout: {
+                        create: {
+                            proStripeAccountId: professional.stripeAccountId,
+                            amountNet: priceCents - Math.floor(priceCents * 0.15),
+                            status: PayoutStatus.blocked,
+                            reason: 'Status matrix dispute hold',
+                        },
+                    },
+                    dispute: {
+                        create: {
+                            initiatorId: candidate.id,
+                            reason: DisputeReason.no_show,
+                            description: 'Status matrix seed: professional no-show dispute.',
+                            status: DisputeStatus.open,
+                        },
+                    },
+                },
+            })
+            return
+        }
+
+        if (status === BookingStatus.cancelled) {
+            await prisma.booking.create({
+                data: {
+                    candidateId: candidate.id,
+                    professionalId: professional.id,
+                    status,
+                    priceCents,
+                    startAt,
+                    endAt,
+                    timezone: candidate.timezone,
+                    refundCreatedAt: new Date(baseDate.getTime() - 2 * 60 * 60 * 1000),
+                    payment: {
+                        create: {
+                            amountGross: priceCents,
+                            platformFee: Math.floor(priceCents * 0.15),
+                            refundedAmountCents: priceCents,
+                            stripePaymentIntentId: generateStripeId('pi', paymentIndex),
+                            stripeRefundId: generateStripeId('re', paymentIndex),
+                            status: PaymentStatus.refunded,
+                        },
+                    },
+                },
+            })
+            return
+        }
+
+        if (status === BookingStatus.completed) {
+            await prisma.booking.create({
+                data: {
+                    candidateId: candidate.id,
+                    professionalId: professional.id,
+                    status,
+                    priceCents,
+                    startAt,
+                    endAt,
+                    timezone: candidate.timezone,
+                    zoomMeetingId: `zoom_matrix_completed_${pairIndex}_${statusIndex}`,
+                    zoomJoinUrl: `https://zoom.us/j/matrixcompleted${pairIndex}${statusIndex}`,
+                    candidateJoinedAt: startAt,
+                    professionalJoinedAt: new Date(startAt.getTime() + 2 * 60 * 1000),
+                    attendanceOutcome: AttendanceOutcome.both_joined,
+                    payoutReleasedAt: new Date(startAt.getTime() + 2 * 24 * 60 * 60 * 1000),
+                    payment: {
+                        create: {
+                            amountGross: priceCents,
+                            platformFee: Math.floor(priceCents * 0.15),
+                            stripePaymentIntentId: generateStripeId('pi', paymentIndex),
+                            status: PaymentStatus.released,
+                        },
+                    },
+                    payout: {
+                        create: {
+                            proStripeAccountId: professional.stripeAccountId,
+                            amountNet: priceCents - Math.floor(priceCents * 0.15),
+                            status: PayoutStatus.paid,
+                            stripeTransferId: generateStripeId('tr', paymentIndex),
+                            paidAt: new Date(startAt.getTime() + 2 * 24 * 60 * 60 * 1000),
+                        },
+                    },
+                },
+            })
+            return
+        }
+
+        if (status === BookingStatus.completed_pending_feedback) {
+            await prisma.booking.create({
+                data: {
+                    candidateId: candidate.id,
+                    professionalId: professional.id,
+                    status,
+                    priceCents,
+                    startAt,
+                    endAt,
+                    timezone: candidate.timezone,
+                    zoomMeetingId: `zoom_matrix_pending_feedback_${pairIndex}_${statusIndex}`,
+                    zoomJoinUrl: `https://zoom.us/j/matrixpendingfeedback${pairIndex}${statusIndex}`,
+                    candidateJoinedAt: startAt,
+                    professionalJoinedAt: new Date(startAt.getTime() + 1 * 60 * 1000),
+                    attendanceOutcome: AttendanceOutcome.both_joined,
+                    lastNudgeSentAt: new Date(baseDate.getTime() - 24 * 60 * 60 * 1000),
+                    payment: {
+                        create: {
+                            amountGross: priceCents,
+                            platformFee: Math.floor(priceCents * 0.15),
+                            stripePaymentIntentId: generateStripeId('pi', paymentIndex),
+                            status: PaymentStatus.held,
+                        },
+                    },
+                },
+            })
+            return
+        }
+
+        if (status === BookingStatus.refunded) {
+            await prisma.booking.create({
+                data: {
+                    candidateId: candidate.id,
+                    professionalId: professional.id,
+                    status,
+                    priceCents,
+                    startAt,
+                    endAt,
+                    timezone: candidate.timezone,
+                    zoomMeetingId: `zoom_matrix_refunded_${pairIndex}_${statusIndex}`,
+                    zoomJoinUrl: `https://zoom.us/j/matrixrefunded${pairIndex}${statusIndex}`,
+                    candidateJoinedAt: startAt,
+                    professionalJoinedAt: new Date(startAt.getTime() + 2 * 60 * 1000),
+                    attendanceOutcome: AttendanceOutcome.both_joined,
+                    refundCreatedAt: new Date(startAt.getTime() + 24 * 60 * 60 * 1000),
+                    payment: {
+                        create: {
+                            amountGross: priceCents,
+                            platformFee: Math.floor(priceCents * 0.15),
+                            refundedAmountCents: priceCents,
+                            stripePaymentIntentId: generateStripeId('pi', paymentIndex),
+                            stripeRefundId: generateStripeId('re', paymentIndex),
+                            status: PaymentStatus.refunded,
+                        },
+                    },
+                    dispute: {
+                        create: {
+                            initiatorId: candidate.id,
+                            reason: DisputeReason.quality,
+                            description: 'Status matrix seed: refund after quality dispute.',
+                            status: DisputeStatus.resolved,
+                            resolution: 'Full refund issued in status matrix seed.',
+                            resolvedAt: new Date(startAt.getTime() + 24 * 60 * 60 * 1000),
+                            resolvedById: admin.id,
+                        },
+                    },
                 },
             })
         }
@@ -907,6 +1290,24 @@ async function main() {
     await createCandidateRequestAvailability(candidates[0], new Date(baseDate.getTime() + 3 * 24 * 60 * 60 * 1000), false)
     console.log(`✅ Created professional-requested reschedule pending booking`)
 
+    console.log('')
+    console.log('Creating exhaustive booking status matrix for all candidate/professional pairs...')
+    for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex++) {
+        const candidate = candidates[candidateIndex]
+        for (let professionalIndex = 0; professionalIndex < professionals.length; professionalIndex++) {
+            const professional = professionals[professionalIndex]
+            const pairIndex = candidateIndex * professionals.length + professionalIndex
+
+            for (let statusIndex = 0; statusIndex < ALL_BOOKING_STATUSES.length; statusIndex++) {
+                const status = ALL_BOOKING_STATUSES[statusIndex]
+                await createStatusMatrixBooking(candidate, professional, status, pairIndex, statusIndex)
+                statusMatrixBookingCount++
+            }
+        }
+        console.log(`📚 Created ${ALL_BOOKING_STATUSES.length * professionals.length} status-matrix bookings for ${candidate.email}`)
+    }
+    console.log(`✅ Created ${statusMatrixBookingCount} exhaustive status-matrix bookings`)
+
     // Create some audit log entries
     console.log('')
     console.log('Creating audit logs...')
@@ -997,7 +1398,12 @@ async function main() {
     console.log('    - 1 candidate-requested reschedule pending')
     console.log('    - 1 professional-requested reschedule pending')
     console.log('')
-    console.log(`  Total bookings created: ${bookingIndex + 11}`)
+    console.log('  Exhaustive Status Matrix:')
+    console.log(`    - ${candidates.length * professionals.length} candidate/professional pairs`)
+    console.log(`    - ${ALL_BOOKING_STATUSES.length} statuses per pair`)
+    console.log(`    - ${statusMatrixBookingCount} additional bookings`)
+    console.log('')
+    console.log(`  Total bookings created: ${bookingIndex + 11 + statusMatrixBookingCount}`)
     console.log('  Availability slots: 14 days for each candidate + request/reschedule candidate slots')
     console.log('  Audit log entries: 6')
     console.log('='.repeat(70))

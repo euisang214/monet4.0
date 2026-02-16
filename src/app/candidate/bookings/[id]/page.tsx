@@ -1,7 +1,7 @@
 import React from 'react';
-import { auth } from '@/auth';
+import { requireRole } from '@/lib/core/api-helpers';
 import { getCandidateBookingDetails } from '@/lib/role/candidate/chats';
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { BookingActions } from './BookingActions';
 import { Role } from '@prisma/client';
 import { format } from 'date-fns';
@@ -18,16 +18,9 @@ export default async function BookingDetailsPage(props: {
     params: Promise<{ id: string }>;
 }) {
     const params = await props.params;
-    const session = await auth();
-    if (!session?.user) {
-        redirect(`/login?callbackUrl=/candidate/bookings/${params.id}`);
-    }
+    const user = await requireRole(Role.CANDIDATE, `/candidate/bookings/${params.id}`);
 
-    if (session.user.role !== Role.CANDIDATE) {
-        redirect('/');
-    }
-
-    const booking = await getCandidateBookingDetails(params.id, session.user.id);
+    const booking = await getCandidateBookingDetails(params.id, user.id);
 
     if (!booking) {
         notFound();

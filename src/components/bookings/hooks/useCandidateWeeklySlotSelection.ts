@@ -9,8 +9,8 @@ import {
     WEEK_STARTS_ON,
     mergeConsecutiveSlots,
     normalizeInterval,
-    overlaps,
     roundUpToNextSlot,
+    startOfSlot,
 } from '@/components/bookings/calendar/slot-utils';
 
 type SelectionChangePayload = {
@@ -57,6 +57,19 @@ export function useCandidateWeeklySlotSelection({
         () => googleBusyIntervals.map((interval) => normalizeInterval(interval)),
         [googleBusyIntervals]
     );
+    const busySlotKeys = useMemo(() => {
+        const keys = new Set<string>();
+
+        for (const busy of normalizedGoogleBusy) {
+            let cursor = startOfSlot(busy.start);
+            while (cursor < busy.end) {
+                keys.add(cursor.toISOString());
+                cursor = addMinutes(cursor, SLOT_MINUTES);
+            }
+        }
+
+        return keys;
+    }, [normalizedGoogleBusy]);
 
     const availabilitySlots = useMemo(() => mergeConsecutiveSlots(selectedSlotKeys), [selectedSlotKeys]);
 
@@ -80,11 +93,8 @@ export function useCandidateWeeklySlotSelection({
     );
 
     const isGoogleBusy = useCallback(
-        (slotStart: Date) => {
-            const slotEnd = addMinutes(slotStart, SLOT_MINUTES);
-            return normalizedGoogleBusy.some((busy) => overlaps(slotStart, slotEnd, busy));
-        },
-        [normalizedGoogleBusy]
+        (slotStart: Date) => busySlotKeys.has(slotStart.toISOString()),
+        [busySlotKeys]
     );
 
     const setSlotSelection = useCallback(
@@ -94,19 +104,29 @@ export function useCandidateWeeklySlotSelection({
             const key = slotStart.toISOString();
             setSelectedSlotKeys((previous) => {
                 const next = new Set(previous);
+                let didChange = false;
 
                 if (shouldSelect === undefined) {
                     if (next.has(key)) {
                         next.delete(key);
+                        didChange = true;
                     } else {
                         next.add(key);
+                        didChange = true;
                     }
                 } else if (shouldSelect) {
-                    next.add(key);
+                    if (!next.has(key)) {
+                        next.add(key);
+                        didChange = true;
+                    }
                 } else {
-                    next.delete(key);
+                    if (next.has(key)) {
+                        next.delete(key);
+                        didChange = true;
+                    }
                 }
 
+                if (!didChange) return previous;
                 return Array.from(next);
             });
         },

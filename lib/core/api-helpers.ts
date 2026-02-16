@@ -8,26 +8,26 @@ export async function currentUser() {
     return session?.user
 }
 
-export async function requireAuth() {
+export async function requireAuth(callbackUrl?: string) {
     const user = await currentUser()
     if (!user) {
-        redirect("/api/auth/signin")
+        redirect(callbackUrl ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/login")
     }
     return user
 }
 
-export async function requireRole(role: Role) {
-    const user = await requireAuth()
+export async function requireRole(role: Role, callbackUrl?: string) {
+    const user = await requireAuth(callbackUrl)
     if (user.role !== role) {
         redirect("/")
     }
     return user
 }
 
-type ApiHandler = (req: Request, ...args: any[]) => Promise<Response> | Response
+type ApiHandler = (req: Request, ...args: unknown[]) => Promise<Response> | Response
 
 export function withRole(role: Role, handler: ApiHandler) {
-    return async (req: Request, ...args: any[]) => {
+    return async (req: Request, ...args: unknown[]) => {
         const session = await auth()
         const user = session?.user
 
@@ -35,6 +35,20 @@ export function withRole(role: Role, handler: ApiHandler) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 })
         }
 
-        return handler(req, ...args)
+        const normalizedArgs = await Promise.all(
+            args.map(async (arg) => {
+                if (!arg || typeof arg !== "object" || !("params" in arg)) {
+                    return arg
+                }
+
+                const context = arg as { params?: unknown }
+                return {
+                    ...context,
+                    params: await Promise.resolve(context.params),
+                }
+            })
+        )
+
+        return handler(req, ...normalizedArgs)
     }
 }

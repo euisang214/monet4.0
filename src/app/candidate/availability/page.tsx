@@ -1,26 +1,18 @@
-import { auth } from '@/auth';
-import { redirect } from 'next/navigation';
+import { requireRole } from '@/lib/core/api-helpers';
 import { CandidateSettings } from '@/lib/role/candidate/settings';
 import { Role } from '@prisma/client';
 import { EmptyState } from '@/components/ui/composites/EmptyState';
 import { ProfessionalWeeklySlotPicker } from '@/components/bookings/WeeklySlotCalendar';
 
 export default async function CandidateAvailabilityPage() {
-    const session = await auth();
+    const user = await requireRole(Role.CANDIDATE, '/candidate/availability');
 
-    if (!session?.user) {
-        redirect('/login');
-    }
-
-    if (session.user.role !== Role.CANDIDATE) {
-        redirect('/');
-    }
-
-    const availability = await CandidateSettings.getAvailability(session.user.id);
+    const availability = await CandidateSettings.getAvailability(user.id);
     const availableSlots = availability
         .filter((slot) => !slot.busy)
         .map((slot) => ({ start: slot.start, end: slot.end }));
     const blockedSlotsCount = availability.length - availableSlots.length;
+    const calendarTimezone = availability.find((slot) => !slot.busy)?.timezone || 'UTC';
 
     return (
         <main className="container py-8">
@@ -49,6 +41,7 @@ export default async function CandidateAvailabilityPage() {
                         slots={availableSlots}
                         selectedSlot={null}
                         readOnly
+                        calendarTimezone={calendarTimezone}
                     />
                     {blockedSlotsCount > 0 && (
                         <p className="mt-4 text-sm text-gray-600">

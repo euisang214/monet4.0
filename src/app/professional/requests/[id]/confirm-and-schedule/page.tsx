@@ -1,6 +1,6 @@
 import React from "react";
-import { auth } from "@/auth";
-import { redirect, notFound } from "next/navigation";
+import { requireRole } from "@/lib/core/api-helpers";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/core/db";
 import { ProfessionalRequestService } from "@/lib/role/professional/requests";
 import { ConfirmBookingForm } from "@/components/bookings/ConfirmBookingForm";
@@ -13,28 +13,24 @@ interface PageProps {
 }
 
 export default async function ConfirmAndSchedulePage({ params }: PageProps) {
-    const session = await auth();
     const { id } = await params;
-
-    if (!session || session.user.role !== Role.PROFESSIONAL) {
-        redirect(`/login?callbackUrl=${appRoutes.professional.requestConfirmAndSchedule(id)}`);
-    }
+    const user = await requireRole(Role.PROFESSIONAL, appRoutes.professional.requestConfirmAndSchedule(id));
 
     const booking = await prisma.booking.findUnique({
         where: { id },
-        include: { candidate: true }
+        include: { candidate: true, professional: true }
     });
 
     if (!booking) notFound();
-    if (booking.professionalId !== session.user.id) redirect(appRoutes.professional.requests);
+    if (booking.professionalId !== user.id) redirect(appRoutes.professional.requests);
     if (booking.status !== "requested") {
         redirect(appRoutes.professional.requests);
     }
 
-    const slots = await ProfessionalRequestService.getBookingCandidateAvailability(id, session.user.id);
+    const slots = await ProfessionalRequestService.getBookingCandidateAvailability(id, user.id);
 
     return (
-        <main className="max-w-2xl mx-auto px-4 py-8">
+        <main className="container py-8">
             <Link href={appRoutes.professional.requests} className="text-sm text-gray-500 hover:text-gray-900 mb-4 inline-block">
                 &larr; Back to requests
             </Link>
@@ -47,7 +43,12 @@ export default async function ConfirmAndSchedulePage({ params }: PageProps) {
             </header>
 
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                <ConfirmBookingForm bookingId={id} slots={slots} />
+                <ConfirmBookingForm
+                    bookingId={id}
+                    slots={slots}
+                    calendarTimezone={booking.candidate.timezone}
+                    professionalTimezone={booking.professional.timezone}
+                />
             </div>
         </main>
     );

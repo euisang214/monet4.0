@@ -102,7 +102,7 @@ export default async function ProfessionalProfilePage(props: {
                                     {profile.employer}
                                 </p>
                             </div>
-                            <div className="text-2xl font-bold text-green-700 bg-green-50 px-4 py-2 rounded-lg">
+                            <div className="text-xl font-bold text-green-700 bg-green-50 px-4 py-2 rounded-lg">
                                 {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((profile.priceCents || 0) / 100)}
                             </div>
                         </div>
@@ -184,15 +184,20 @@ export default async function ProfessionalProfilePage(props: {
                                 <div className="space-y-6">
                                     {reviews.map((review) => (
                                         <article key={review.bookingId} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                                            <div className="flex items-center gap-2 mb-2">
+                                            <div className="flex items-start justify-between gap-4 mb-2">
+                                                <div>
+                                                    <p className="text-sm font-semibold text-gray-900">
+                                                        {review.reviewerName || 'Anonymous Reviewer'}
+                                                    </p>
+                                                    <p className="text-gray-500 text-sm">
+                                                        {new Date(review.submittedAt).toLocaleDateString()}
+                                                    </p>
+                                                </div>
                                                 <div className="flex text-yellow-400">
                                                     {[...Array(5)].map((_, i) => (
                                                         <span key={i}>{i < review.rating ? '★' : '☆'}</span>
                                                     ))}
                                                 </div>
-                                                <span className="text-gray-500 text-sm">
-                                                    {new Date(review.submittedAt).toLocaleDateString()}
-                                                </span>
                                             </div>
                                             <p className="text-gray-700">{review.text}</p>
                                         </article>

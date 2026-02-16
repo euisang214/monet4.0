@@ -1,23 +1,14 @@
-import { auth } from '@/auth';
-import { redirect } from 'next/navigation';
-import { BookingStatus, Role } from '@prisma/client';
+import { requireRole } from '@/lib/core/api-helpers';
+import { Role } from '@prisma/client';
 import { getPendingRequests } from '@/lib/shared/bookings/upcoming';
-import Link from 'next/link';
 import { EmptyState } from '@/components/ui/composites/EmptyState';
 import { appRoutes } from '@/lib/shared/routes';
+import { ProfessionalRequestListItem } from '@/components/bookings/ProfessionalRequestListItem';
 
 export default async function ProfessionalRequestsPage() {
-    const session = await auth();
+    const user = await requireRole(Role.PROFESSIONAL, appRoutes.professional.requests);
 
-    if (!session?.user) {
-        redirect(`/login?callbackUrl=${appRoutes.professional.requests}`);
-    }
-
-    if (session.user.role !== Role.PROFESSIONAL) {
-        redirect('/');
-    }
-
-    const requests = await getPendingRequests(session.user.id, 'PROFESSIONAL');
+    const requests = await getPendingRequests(user.id, 'PROFESSIONAL');
 
     return (
         <main className="container py-8">
@@ -37,50 +28,9 @@ export default async function ProfessionalRequestsPage() {
                 />
             ) : (
                 <ul className="space-y-4">
-                    {requests.map((request) => {
-                        const isReschedule = request.status === BookingStatus.reschedule_pending;
-                        const badgeText = isReschedule ? 'Reschedule' : 'Pending';
-                        const badgeClass = isReschedule ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700';
-                        const href = isReschedule
-                            ? appRoutes.professional.requestReschedule(request.id)
-                            : appRoutes.professional.requestConfirmAndSchedule(request.id);
-                        const buttonText = isReschedule ? 'Review reschedule' : 'Review & schedule';
-
-                        return (
-                        <li key={request.id} className="p-5 bg-white border border-gray-200 rounded-xl shadow-sm">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <p className="font-semibold text-gray-900 mb-1">
-                                        {request.candidate.email}
-                                    </p>
-                                    <p className="text-sm text-gray-600">
-                                        ${((request.priceCents || 0) / 100).toFixed(2)}
-                                    </p>
-                                </div>
-                                <div className="text-right">
-                                    <span className={`px-2 py-1 text-xs rounded-full font-semibold ${badgeClass}`}>
-                                        {badgeText}
-                                    </span>
-                                    {isReschedule ? (
-                                        <p className="text-xs text-gray-500 mt-1">Awaiting time selection</p>
-                                    ) : (
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            Expires: {request.expiresAt?.toLocaleDateString()}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="mt-4 flex gap-2">
-                                <Link
-                                    href={href}
-                                    className="btn bg-blue-600 text-white hover:bg-blue-700 text-sm"
-                                >
-                                    {buttonText}
-                                </Link>
-                            </div>
-                        </li>
-                        );
-                    })}
+                    {requests.map((request) => (
+                        <ProfessionalRequestListItem key={request.id} booking={request} />
+                    ))}
                 </ul>
             )}
         </main>
