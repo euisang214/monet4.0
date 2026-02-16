@@ -120,6 +120,17 @@
   flex-wrap: wrap;
 }
 
+.professionalCta {
+  background: var(--tone-2);
+  color: var(--tone-10);
+  border-color: rgba(24, 78, 119, 0.16);
+}
+
+.professionalCta:hover {
+  background: var(--tone-3);
+  color: var(--tone-10);
+}
+
 .statStrip {
   margin-top: 2rem;
   display: grid;

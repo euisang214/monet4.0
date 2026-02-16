@@ -15,7 +15,7 @@ export default function LandingPage() {
                     <Link href="/signup?role=candidate" className="btn bg-blue-600 text-white hover:bg-blue-700">
                         Browse Professionals
                     </Link>
-                    <Link href="/signup?role=professional" className="btn bg-gray-100 text-gray-800 hover:bg-gray-200">
+                    <Link href="/signup?role=professional" className={`btn ${styles.professionalCta}`}>
                         Become a Professional
                     </Link>
                 </div>
