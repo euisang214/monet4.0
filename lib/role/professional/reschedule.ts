@@ -61,7 +61,7 @@ export const ProfessionalRescheduleService = {
             bookingId,
             oldZoomMeetingId
         }, {
-            jobId: `reschedule:${bookingId}:${Date.now()}` // Unique per reschedule attempt
+            jobId: `reschedule-${bookingId}-${Date.now()}` // Unique per reschedule attempt
         });
 
         return updatedBooking;

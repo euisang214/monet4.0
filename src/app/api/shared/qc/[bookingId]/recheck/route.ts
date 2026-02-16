@@ -20,7 +20,7 @@ export async function POST(
 
     // Add job to QC queue
     await qcQueue.add('process-qc', { bookingId }, {
-        jobId: `recheck:${bookingId}:${Date.now()}`,
+        jobId: `recheck-${bookingId}-${Date.now()}`,
     });
 
     return Response.json({

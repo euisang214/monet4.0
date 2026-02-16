@@ -107,7 +107,7 @@ export const QCService = {
                 // 1. Timeout Job (7 days)
                 await qcQueue.add('qc-timeout', { bookingId }, {
                     delay: 7 * 24 * 60 * 60 * 1000,
-                    jobId: `qc-timeout:${bookingId}` // Idempotent
+                    jobId: `qc-timeout-${bookingId}` // Idempotent
                 });
 
                 // 2. Nudge 1 (24h)
@@ -117,7 +117,7 @@ export const QCService = {
                     hoursRemaining: 144 // 6 days
                 }, {
                     delay: 24 * 60 * 60 * 1000,
-                    jobId: `qc-nudge-1:${bookingId}`
+                    jobId: `qc-nudge-1-${bookingId}`
                 });
 
                 // 3. Nudge 2 (48h)
@@ -127,7 +127,7 @@ export const QCService = {
                     hoursRemaining: 120 // 5 days
                 }, {
                     delay: 48 * 60 * 60 * 1000,
-                    jobId: `qc-nudge-2:${bookingId}`
+                    jobId: `qc-nudge-2-${bookingId}`
                 });
             }
         } catch (error) {

@@ -156,7 +156,7 @@ export const ProfessionalRequestService = {
 
         // 5. Trigger Background Job for Integrations (Zoom, Calendar)
         await bookingsQueue.add('confirm-booking', { bookingId }, {
-            jobId: `confirm:${bookingId}` // Idempotency key
+            jobId: `confirm-${bookingId}` // Idempotency key
         });
 
         return updatedBooking;
