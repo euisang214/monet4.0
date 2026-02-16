@@ -23,6 +23,16 @@ export function configureE2EMocks() {
         id: 'pi_test_123',
     });
 
+    mockStripe.paymentIntents.cancel.mockResolvedValue({
+        id: 'pi_test_123',
+        status: 'canceled',
+    });
+
+    mockStripe.refunds.create.mockResolvedValue({
+        id: 're_test_123',
+        status: 'succeeded',
+    });
+
     mockZoom.createZoomMeeting.mockResolvedValue({
         id: 123456789,
         join_url: 'https://zoom.us/j/123456789',

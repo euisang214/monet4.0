@@ -23,6 +23,10 @@ type Dependencies = {
     prisma: PrismaClient | Prisma.TransactionClient;
 };
 
+type StripeDependencies = {
+    stripe?: Pick<typeof stripe, 'refunds' | 'paymentIntents'>;
+};
+
 /**
  * Validates State Invariants (CLAUDE.md #942)
  */
@@ -535,7 +539,7 @@ export async function cancelBooking(
     actor: { userId: string; role: Role } | 'system',
     reason?: string,
     options?: { attendanceOutcome?: AttendanceOutcome },
-    deps: Dependencies = { prisma: defaultPrisma }
+    deps: Dependencies & StripeDependencies = { prisma: defaultPrisma, stripe }
 ) {
     const actorInfo = actor === 'system' ? 'system' : actor;
 
@@ -605,26 +609,21 @@ export async function cancelBooking(
             const payment = await tx.payment.findUnique({ where: { bookingId } });
             if (payment) {
                 if (payment.status === PaymentStatus.held) {
+                    if (deps.stripe && payment.stripePaymentIntentId) {
+                        // Keep Stripe and DB states in lockstep: refund first, then persist refunded status.
+                        await deps.stripe.refunds.create({
+                            payment_intent: payment.stripePaymentIntentId,
+                            reason: 'requested_by_customer'
+                        });
+                    }
                     await tx.payment.update({
                         where: { bookingId },
                         data: { status: PaymentStatus.refunded, refundedAmountCents: payment.amountGross }
                     });
-                    // Trigger async refund via Stripe? 
-                    // Usually we do this in the job or here?
-                    // To imply "refunded", we usually assume logic elsewhere handles it or we call Stripe here.
-                    // BUT: transitions functions in this file seem to only update DB (except `createBookingRequest` calling Stripe).
-                    // Wait, `createBookingRequest` DOES call Stripe. `resolveDispute` DOES NOT.
-                    // `declineBooking` updates `status: cancelled`.
-                    // The actual Stripe refund should ideally happen.
-                    // If we assume "separate charges", held funds need explicit refund.
-                    // For now, I will stick to DB updates, and assume a "Payment Sweeper" or explicit call is needed?
-                    // OR: I should call Stripe here.
-                    // However, avoiding side-effects in transaction if possible?
-                    // But `createBookingRequest` did it.
-                    // Given `transitions.ts` structure, it seems to mix side-effects.
-                    // I will leave it as DB update for consistency with `resolveDispute` and `declineBooking` which didn't verify Stripe calls in snippet.
-                    // Actually, `declineBooking` (lines 270-305) just updates DB.
                 } else if (payment.status === PaymentStatus.authorized) {
+                    if (deps.stripe && payment.stripePaymentIntentId) {
+                        await deps.stripe.paymentIntents.cancel(payment.stripePaymentIntentId);
+                    }
                     await tx.payment.update({
                         where: { bookingId },
                         data: { status: PaymentStatus.cancelled }

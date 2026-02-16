@@ -8,6 +8,7 @@ export const mockStripe = {
     paymentIntents: {
         create: vi.fn(),
         capture: vi.fn(),
+        cancel: vi.fn(),
         update: vi.fn(),
     },
     transfers: {

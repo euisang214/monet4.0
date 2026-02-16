@@ -6,6 +6,7 @@ import { cancelBooking as transitionCancel, completeIntegrations } from '@/lib/d
 import { BookingStatus, PaymentStatus, Role } from '@prisma/client';
 import { addDays, addMinutes } from 'date-fns';
 import { configureE2EMocks, createE2EActors, cleanupE2EData } from './fixtures';
+import { mockStripe } from '../mocks/stripe';
 
 vi.mock('@/lib/integrations/stripe', async () => {
     const { mockStripe } = await import('../mocks/stripe');
@@ -97,6 +98,12 @@ describe('Cancellation Flow E2E', () => {
         expect(bookingAfterCancel?.payment?.status).toBe(PaymentStatus.refunded);
         expect(bookingAfterCancel?.payment?.refundedAmountCents).toBe(10000);
         expect(bookingAfterCancel?.payout).toBeNull();
+        expect(mockStripe.refunds.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                payment_intent: 'pi_test_123',
+                reason: 'requested_by_customer',
+            })
+        );
     });
 
     it('should complete professional-initiated cancellation flow from accepted booking to refund', async () => {
@@ -119,5 +126,11 @@ describe('Cancellation Flow E2E', () => {
         expect(bookingAfterCancel?.payment?.status).toBe(PaymentStatus.refunded);
         expect(bookingAfterCancel?.payment?.refundedAmountCents).toBe(10000);
         expect(bookingAfterCancel?.payout).toBeNull();
+        expect(mockStripe.refunds.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                payment_intent: 'pi_test_123',
+                reason: 'requested_by_customer',
+            })
+        );
     });
 });

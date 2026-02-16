@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { isLateCancellation } from '@/lib/domain/bookings/utils';
 import { cancelBooking } from '@/lib/domain/bookings/transitions';
 import { BookingStatus, PaymentStatus, Role, PayoutStatus } from '@prisma/client';
-import { addHours, subHours } from 'date-fns';
+import { addHours } from 'date-fns';
 
 // Prepare mocks for integration test
 const mockPrisma = {
@@ -28,11 +28,20 @@ const mockPrisma = {
     },
 };
 
+const mockStripe = {
+    refunds: {
+        create: vi.fn(),
+    },
+    paymentIntents: {
+        cancel: vi.fn(),
+    },
+};
+
+type CancelDeps = NonNullable<Parameters<typeof cancelBooking>[4]>;
+
 describe('Cancellations Domain', () => {
     describe('isLateCancellation', () => {
         it('should return true if cancelled within 6 hours of start', () => {
-            const startAt = new Date();
-            const cancelledAt = subHours(startAt, 5); // 5 hours before
             // Note: utils uses differenceInHours(startAt, cancelledAt)
             // if cancelledAt is 5 hours BEFORE startAt, diff is 5. 5 < 6 is true.
 
@@ -83,6 +92,7 @@ describe('Cancellations Domain', () => {
                 status: PaymentStatus.held,
                 amountGross: 10000,
                 platformFee: 2000,
+                stripePaymentIntentId: 'pi_late',
             };
 
             const professional = {
@@ -104,7 +114,11 @@ describe('Cancellations Domain', () => {
 
             // Execute
             const actor = { userId: 'cand-1', role: Role.CANDIDATE };
-            await cancelBooking('booking-late', actor, 'Sick', undefined, { prisma: mockPrisma as any });
+            const deps: CancelDeps = {
+                prisma: mockPrisma as unknown as CancelDeps['prisma'],
+                stripe: mockStripe as unknown as NonNullable<CancelDeps['stripe']>,
+            };
+            await cancelBooking('booking-late', actor, 'Sick', undefined, deps);
 
             // Assert
             // 1. Payment Released
@@ -122,7 +136,11 @@ describe('Cancellations Domain', () => {
                 })
             }));
 
-            // 3. Booking Cancelled with late flag
+            // 3. Late cancellation should not trigger refund/cancel authorization calls
+            expect(mockStripe.refunds.create).not.toHaveBeenCalled();
+            expect(mockStripe.paymentIntents.cancel).not.toHaveBeenCalled();
+
+            // 4. Booking Cancelled with late flag
             expect(mockPrisma.booking.update).toHaveBeenCalledWith({
                 where: { id: 'booking-late' },
                 data: expect.objectContaining({
@@ -149,6 +167,7 @@ describe('Cancellations Domain', () => {
                 bookingId: 'booking-early',
                 status: PaymentStatus.held,
                 amountGross: 10000,
+                stripePaymentIntentId: 'pi_early',
             };
 
             mockPrisma.booking.findUniqueOrThrow.mockResolvedValue(booking);
@@ -161,7 +180,11 @@ describe('Cancellations Domain', () => {
 
             // Execute
             const actor = { userId: 'cand-1', role: Role.CANDIDATE };
-            await cancelBooking('booking-early', actor, 'Plans changed', undefined, { prisma: mockPrisma as any });
+            const deps: CancelDeps = {
+                prisma: mockPrisma as unknown as CancelDeps['prisma'],
+                stripe: mockStripe as unknown as NonNullable<CancelDeps['stripe']>,
+            };
+            await cancelBooking('booking-early', actor, 'Plans changed', undefined, deps);
 
             // Assert
             // 1. Payment Refunded
@@ -169,11 +192,16 @@ describe('Cancellations Domain', () => {
                 where: { bookingId: 'booking-early' },
                 data: { status: PaymentStatus.refunded, refundedAmountCents: 10000 }
             });
+            expect(mockStripe.refunds.create).toHaveBeenCalledWith({
+                payment_intent: 'pi_early',
+                reason: 'requested_by_customer',
+            });
+            expect(mockStripe.paymentIntents.cancel).not.toHaveBeenCalled();
 
-            // 2. No Payout Created
+            // 3. No Payout Created
             expect(mockPrisma.payout.create).not.toHaveBeenCalled();
 
-            // 3. Booking Cancelled without late flag
+            // 4. Booking Cancelled without late flag
             expect(mockPrisma.booking.update).toHaveBeenCalledWith({
                 where: { id: 'booking-early' },
                 data: expect.objectContaining({
