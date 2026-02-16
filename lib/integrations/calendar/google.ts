@@ -2,12 +2,12 @@ import { google } from 'googleapis';
 import { prisma } from '@/lib/core/db';
 import { OAuth2Client } from 'google-auth-library';
 
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const GOOGLE_CLIENT_ID = process.env.AUTH_GOOGLE_ID?.trim() || process.env.GOOGLE_CLIENT_ID?.trim();
+const GOOGLE_CLIENT_SECRET = process.env.AUTH_GOOGLE_SECRET?.trim() || process.env.GOOGLE_CLIENT_SECRET?.trim();
 
 if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
     // We don't throw error at top level to avoid crashing build if env vars missing in some contexts
-    console.warn('Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET');
+    console.warn('Missing AUTH_GOOGLE_ID/AUTH_GOOGLE_SECRET (or GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET)');
 }
 
 /**

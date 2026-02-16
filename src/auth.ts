@@ -8,6 +8,13 @@ import bcrypt from "bcryptjs"
 import { Role } from "@prisma/client"
 
 const authSecret = process.env.AUTH_SECRET?.trim() || process.env.NEXTAUTH_SECRET?.trim()
+const googleClientId = process.env.AUTH_GOOGLE_ID?.trim() || process.env.GOOGLE_CLIENT_ID?.trim()
+const googleClientSecret =
+    process.env.AUTH_GOOGLE_SECRET?.trim() || process.env.GOOGLE_CLIENT_SECRET?.trim()
+const linkedInClientId =
+    process.env.AUTH_LINKEDIN_ID?.trim() || process.env.LINKEDIN_CLIENT_ID?.trim()
+const linkedInClientSecret =
+    process.env.AUTH_LINKEDIN_SECRET?.trim() || process.env.LINKEDIN_CLIENT_SECRET?.trim()
 
 if (!authSecret) {
     throw new Error("Missing AUTH_SECRET or NEXTAUTH_SECRET in environment.")
@@ -17,6 +24,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     secret: authSecret,
     providers: [
         Google({
+            clientId: googleClientId,
+            clientSecret: googleClientSecret,
             authorization: {
                 params: {
                     scope: "openid email profile https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events",
@@ -25,7 +34,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 },
             },
         }),
-        LinkedIn,
+        LinkedIn({
+            clientId: linkedInClientId,
+            clientSecret: linkedInClientSecret,
+        }),
         Credentials({
             name: "credentials",
             credentials: {
