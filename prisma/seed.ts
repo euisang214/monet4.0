@@ -102,8 +102,32 @@ const STATUS_DAY_OFFSETS: Record<BookingStatus, number> = {
     [BookingStatus.refunded]: -9,
 }
 
+const escapeIdentifier = (value: string) => value.replace(/"/g, '""')
+
+async function clearDatabase() {
+    const tables = await prisma.$queryRaw<Array<{ tablename: string }>>`
+        SELECT tablename
+        FROM pg_tables
+        WHERE schemaname = 'public'
+          AND tablename <> '_prisma_migrations'
+    `
+
+    if (tables.length === 0) {
+        console.log('ℹ️  No tables found to clear')
+        return
+    }
+
+    const quotedTables = tables
+        .map(({ tablename }) => `"public"."${escapeIdentifier(tablename)}"`)
+        .join(', ')
+
+    await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${quotedTables} RESTART IDENTITY CASCADE;`)
+    console.log(`🧹 Cleared ${tables.length} tables`)
+}
+
 async function main() {
     console.log('Start seeding ...')
+    await clearDatabase()
     console.log('')
 
     // Hash passwords once
