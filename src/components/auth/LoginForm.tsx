@@ -125,9 +125,9 @@ export function LoginForm() {
                 </div>
             </div>
 
-            <form className="space-y-5" onSubmit={handleSubmit}>
+            <form className="space-y-6" onSubmit={handleSubmit}>
                 {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-                <div className="-space-y-px rounded-md shadow-sm">
+                <div className="space-y-3">
                     <div>
                         <label htmlFor="email-address" className="sr-only">Email address</label>
                         <input
@@ -136,7 +136,7 @@ export function LoginForm() {
                             type="email"
                             autoComplete="email"
                             required
-                            className="relative block w-full appearance-none rounded-none rounded-t-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-black focus:outline-none focus:ring-black sm:text-sm"
+                            className="relative block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-black focus:outline-none focus:ring-black sm:text-sm"
                             placeholder="Email address"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
@@ -150,7 +150,7 @@ export function LoginForm() {
                             type="password"
                             autoComplete="current-password"
                             required
-                            className="relative block w-full appearance-none rounded-none rounded-b-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-black focus:outline-none focus:ring-black sm:text-sm"
+                            className="relative block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-black focus:outline-none focus:ring-black sm:text-sm"
                             placeholder="Password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}

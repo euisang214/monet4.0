@@ -153,10 +153,10 @@ export function SignupForm() {
                 </button>
             </div>
 
-            <form className="space-y-5" onSubmit={handleSubmit}>
+            <form className="space-y-6" onSubmit={handleSubmit}>
                 {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
-                <div className="-space-y-px rounded-md shadow-sm">
+                <div className="space-y-3">
                     <div>
                         <label htmlFor="name" className="sr-only">Full Name</label>
                         <input
@@ -164,7 +164,7 @@ export function SignupForm() {
                             name="name"
                             type="text"
                             required
-                            className="relative block w-full appearance-none rounded-none rounded-t-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-black focus:outline-none focus:ring-black sm:text-sm"
+                            className="relative block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-black focus:outline-none focus:ring-black sm:text-sm"
                             placeholder="Full name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
@@ -178,7 +178,7 @@ export function SignupForm() {
                             type="email"
                             autoComplete="email"
                             required
-                            className="relative block w-full appearance-none border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-black focus:outline-none focus:ring-black sm:text-sm"
+                            className="relative block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-black focus:outline-none focus:ring-black sm:text-sm"
                             placeholder="Email address"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
@@ -192,7 +192,7 @@ export function SignupForm() {
                             type="password"
                             autoComplete="new-password"
                             required
-                            className="relative block w-full appearance-none rounded-none rounded-b-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-black focus:outline-none focus:ring-black sm:text-sm"
+                            className="relative block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-black focus:outline-none focus:ring-black sm:text-sm"
                             placeholder="Password (min 6 chars)"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
