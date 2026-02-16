@@ -10,11 +10,22 @@ import {
     AttendanceOutcome
 } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
+import { uploadResume, RESUME_CONTENT_TYPE } from '../lib/integrations/resume-storage'
 
 const prisma = new PrismaClient()
+const CANDIDATE_COUNT = 7
+const PROFESSIONAL_COUNT = 7
+const SAMPLE_RESUME_RELATIVE_PATH = 'src/app/PDF_sample.pdf'
 
 // Helper to generate unique IDs for Stripe mocks
 const generateStripeId = (prefix: string, index: number) => `${prefix}_test_${index.toString().padStart(3, '0')}`
+const toArrayBuffer = (buffer: Buffer): ArrayBuffer => {
+    const arrayBuffer = new ArrayBuffer(buffer.byteLength)
+    new Uint8Array(arrayBuffer).set(buffer)
+    return arrayBuffer
+}
 
 // Array of sample companies and titles for professionals
 const COMPANIES = [
@@ -104,6 +115,27 @@ const STATUS_DAY_OFFSETS: Record<BookingStatus, number> = {
 
 const escapeIdentifier = (value: string) => value.replace(/"/g, '""')
 
+function assertResumeUploadEnv() {
+    const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']
+    const missing = requiredEnvVars.filter((envVar) => !process.env[envVar]?.trim())
+
+    if (missing.length > 0) {
+        throw new Error(`Missing required environment variable(s) for resume uploads: ${missing.join(', ')}`)
+    }
+}
+
+async function loadSampleResumePdf() {
+    const resumePath = path.resolve(process.cwd(), SAMPLE_RESUME_RELATIVE_PATH)
+
+    try {
+        const sampleResumePdf = await readFile(resumePath)
+        console.log(`📄 Loaded sample resume from ${SAMPLE_RESUME_RELATIVE_PATH}`)
+        return sampleResumePdf
+    } catch (error) {
+        throw new Error(`Unable to read sample resume at ${resumePath}: ${(error as Error).message}`)
+    }
+}
+
 async function clearDatabase() {
     const tables = await prisma.$queryRaw<Array<{ tablename: string }>>`
         SELECT tablename
@@ -127,6 +159,8 @@ async function clearDatabase() {
 
 async function main() {
     console.log('Start seeding ...')
+    assertResumeUploadEnv()
+    const sampleResumePdf = await loadSampleResumePdf()
     await clearDatabase()
     console.log('')
 
@@ -148,13 +182,18 @@ async function main() {
     })
     console.log(`✅ Created admin: ${admin.email}`)
 
-    // Create 10 Candidates with varied profiles
+    // Create 7 Candidates with varied profiles
     const candidates: { id: string; email: string; timezone: string }[] = []
-    for (let i = 1; i <= 10; i++) {
+    for (let i = 1; i <= CANDIDATE_COUNT; i++) {
         const email = `cand${i}@monet.local`
         const school = SCHOOLS[(i - 1) % SCHOOLS.length]
         const schoolSecondary = SCHOOLS[(i + 2) % SCHOOLS.length]
         const timezone = CANDIDATE_TIMEZONES[(i - 1) % CANDIDATE_TIMEZONES.length]
+        const { storageUrl: seededResumeUrl } = await uploadResume(
+            'signup',
+            toArrayBuffer(sampleResumePdf),
+            RESUME_CONTENT_TYPE
+        )
 
         const candidate = await prisma.user.upsert({
             where: { email },
@@ -168,7 +207,7 @@ async function main() {
                 candidateProfile: {
                     create: {
                         interests: [...new Set([...INTERESTS[(i - 1) % INTERESTS.length], i % 2 === 0 ? 'Interview Prep' : 'Networking'])],
-                        resumeUrl: i <= 8 ? `https://storage.monet.local/resumes/candidate_${i}.pdf` : null,
+                        resumeUrl: seededResumeUrl,
                         education: {
                             create: [
                                 {
@@ -247,9 +286,9 @@ async function main() {
         console.log(`✅ Created candidate: ${candidate.email}`)
     }
 
-    // Create 10 Professionals with Stripe account IDs and varied profiles
+    // Create 7 Professionals with Stripe account IDs and varied profiles
     const professionals: { id: string; email: string; stripeAccountId: string; timezone: string }[] = []
-    for (let i = 1; i <= 10; i++) {
+    for (let i = 1; i <= PROFESSIONAL_COUNT; i++) {
         const email = `pro${i}@monet.local`
         const stripeAccountId = generateStripeId('acct', i)
         const company = COMPANIES[(i - 1) % COMPANIES.length]
@@ -936,6 +975,8 @@ async function main() {
     // ============================================
     console.log('')
     console.log('Creating edge case bookings...')
+    const candidateAt = (idx: number) => candidates[idx % candidates.length]
+    const professionalAt = (idx: number) => professionals[idx % professionals.length]
 
     // 1. Completed booking with feedback and payout (QC passed)
     const completedBooking = await prisma.booking.create({
@@ -1189,8 +1230,8 @@ async function main() {
     // 8. Candidate no-show booking
     await prisma.booking.create({
         data: {
-            candidateId: candidates[7].id,
-            professionalId: professionals[7].id,
+            candidateId: candidateAt(7).id,
+            professionalId: professionalAt(7).id,
             status: BookingStatus.completed,
             priceCents: 15000,
             startAt: new Date(baseDate.getTime() - 5 * 24 * 60 * 60 * 1000),
@@ -1212,7 +1253,7 @@ async function main() {
             },
             payout: {
                 create: {
-                    proStripeAccountId: professionals[7].stripeAccountId,
+                    proStripeAccountId: professionalAt(7).stripeAccountId,
                     amountNet: 12750,
                     status: PayoutStatus.paid,
                     stripeTransferId: generateStripeId('tr', 991),
@@ -1226,8 +1267,8 @@ async function main() {
     // 9. Resolved dispute (refunded)
     const resolvedDispute = await prisma.booking.create({
         data: {
-            candidateId: candidates[8].id,
-            professionalId: professionals[8].id,
+            candidateId: candidateAt(8).id,
+            professionalId: professionalAt(8).id,
             status: BookingStatus.refunded,
             priceCents: 17500,
             startAt: new Date(baseDate.getTime() - 10 * 24 * 60 * 60 * 1000),
@@ -1251,7 +1292,7 @@ async function main() {
             },
             dispute: {
                 create: {
-                    initiatorId: candidates[8].id,
+                    initiatorId: candidateAt(8).id,
                     reason: DisputeReason.quality,
                     description: 'The professional was unprepared and the call quality was very poor.',
                     status: DisputeStatus.resolved,
@@ -1267,8 +1308,8 @@ async function main() {
     // 10. Reschedule pending booking (candidate-requested)
     const candidateRequestedRescheduleBooking = await prisma.booking.create({
         data: {
-            candidateId: candidates[9].id,
-            professionalId: professionals[9].id,
+            candidateId: candidateAt(9).id,
+            professionalId: professionalAt(9).id,
             status: BookingStatus.reschedule_pending,
             priceCents: 22500,
             startAt: new Date(baseDate.getTime() + 1 * 24 * 60 * 60 * 1000), // Original time tomorrow
@@ -1286,7 +1327,7 @@ async function main() {
             },
         },
     })
-    await createCandidateRequestAvailability(candidates[9], new Date(baseDate.getTime() + 2 * 24 * 60 * 60 * 1000), true)
+    await createCandidateRequestAvailability(candidateAt(9), new Date(baseDate.getTime() + 2 * 24 * 60 * 60 * 1000), true)
     console.log(`✅ Created candidate-requested reschedule pending booking`)
 
     // 11. Reschedule pending booking (professional-requested)
@@ -1366,7 +1407,7 @@ async function main() {
                 metadata: JSON.stringify({ reason: 'no_show' }),
             },
             {
-                actorUserId: candidates[9].id,
+                actorUserId: candidateAt(9).id,
                 entity: 'Booking',
                 entityId: candidateRequestedRescheduleBooking.id,
                 action: 'booking_reschedule_requested',
@@ -1401,8 +1442,8 @@ async function main() {
     console.log('📊 Summary:')
     console.log('  Users:')
     console.log(`    - 1 Admin: admin@monet.local (password: admin123!)`)
-    console.log(`    - 10 Candidates: cand1-10@monet.local (password: cand123!)`)
-    console.log(`    - 10 Professionals: pro1-10@monet.local (password: pro123!)`)
+    console.log(`    - ${CANDIDATE_COUNT} Candidates: cand1-${CANDIDATE_COUNT}@monet.local (password: cand123!)`)
+    console.log(`    - ${PROFESSIONAL_COUNT} Professionals: pro1-${PROFESSIONAL_COUNT}@monet.local (password: pro123!)`)
     console.log('')
     console.log('  Per Professional (regular bookings):')
     console.log('    - 2 pending requests (status: requested)')
