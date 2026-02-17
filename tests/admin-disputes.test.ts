@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { resolveDispute } from '@/lib/domain/admin/disputes';
 import { prisma } from '@/lib/core/db';
 import { createCapturedPaymentIntent, createConnectedAccount, stripeTest } from './helpers/stripe-live';
+import { TransitionConflictError } from '@/lib/domain/bookings/errors';
 
 vi.mock('@/lib/core/db', () => ({
     prisma: {
@@ -156,5 +157,62 @@ describe('Admin Dispute Resolution (Live Stripe)', () => {
         await expect(resolveDispute(mockDisputeId, 'bad', 'partial_refund', mockAdminId)).rejects.toThrow(
             'Partial refund requires a positive amount'
         );
+    });
+
+    it('should no-op when dispute is already resolved with matching outcome', async () => {
+        vi.mocked(prisma.dispute.findUnique).mockResolvedValue({
+            id: mockDisputeId,
+            status: 'resolved',
+            booking: {
+                id: mockBookingId,
+                status: 'refunded',
+                payment: {
+                    id: mockPaymentId,
+                    status: 'refunded',
+                    amountGross: 10000,
+                    platformFee: 2000,
+                    refundedAmountCents: 10000,
+                    stripePaymentIntentId: 'pi_test',
+                },
+                payout: null,
+                professional: {
+                    stripeAccountId: 'acct_test',
+                },
+            },
+        } as any);
+
+        const result = await resolveDispute(mockDisputeId, 'Retry', 'full_refund', mockAdminId);
+
+        expect(result).toEqual({ success: true, alreadyResolved: true });
+    });
+
+    it('should throw TransitionConflictError when dispute is already resolved with different outcome', async () => {
+        vi.mocked(prisma.dispute.findUnique).mockResolvedValue({
+            id: mockDisputeId,
+            status: 'resolved',
+            booking: {
+                id: mockBookingId,
+                status: 'completed',
+                payment: {
+                    id: mockPaymentId,
+                    status: 'released',
+                    amountGross: 10000,
+                    platformFee: 2000,
+                    refundedAmountCents: 0,
+                    stripePaymentIntentId: 'pi_test',
+                },
+                payout: {
+                    id: 'payout_1',
+                    status: 'paid',
+                },
+                professional: {
+                    stripeAccountId: 'acct_test',
+                },
+            },
+        } as any);
+
+        await expect(
+            resolveDispute(mockDisputeId, 'Retry mismatch', 'full_refund', mockAdminId)
+        ).rejects.toThrow(TransitionConflictError);
     });
 });

@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { CandidateBookings } from '@/lib/role/candidate/bookings';
+import { getErrorMessage, getErrorStatus } from '@/lib/core/api-helpers';
 import { Role } from '@prisma/client';
 import { z } from 'zod';
 
@@ -44,9 +45,8 @@ export async function POST(
         return Response.json({ success: true });
     } catch (error: unknown) {
         console.error('Reschedule error:', error);
-        if (error instanceof Error) {
-            return Response.json({ error: error.message || 'internal_error' }, { status: 500 });
-        }
-        return Response.json({ error: 'internal_error' }, { status: 500 });
+        const status = getErrorStatus(error, 400);
+        const message = getErrorMessage(error, 'internal_error');
+        return Response.json({ error: message }, { status });
     }
 }

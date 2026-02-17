@@ -7,7 +7,8 @@ import {
     declineBooking
 } from '@/lib/domain/bookings/transitions';
 import { bookingsQueue } from '@/lib/queues';
-import { addMinutes, startOfDay, endOfDay, isBefore, isAfter, areIntervalsOverlapping } from 'date-fns';
+import { addMinutes, isBefore, isAfter, areIntervalsOverlapping } from 'date-fns';
+import { TransitionConflictError, TransitionError } from '@/lib/domain/bookings/errors';
 
 export const ProfessionalRequestService = {
     /**
@@ -25,8 +26,6 @@ export const ProfessionalRequestService = {
         if (booking.professionalId !== professionalId) throw new Error('Unauthorized');
 
         const candidateId = booking.candidateId;
-        const timezone = booking.candidate.timezone || 'UTC'; // Fallback
-
         // Define search window (e.g., next 30 days)
         const startWindow = new Date();
         const endWindow = new Date();
@@ -115,8 +114,20 @@ export const ProfessionalRequestService = {
         });
 
         if (!booking) throw new Error('Booking not found');
-        if (booking.professionalId !== professionalId) throw new Error('Unauthorized');
-        if (booking.status !== 'requested') throw new Error('Booking not in requested state');
+        if (booking.professionalId !== professionalId) throw new TransitionError('Unauthorized');
+
+        const expectedEndAt = addMinutes(startAt, 30);
+        const sameRequestedWindow = booking.startAt?.getTime() === startAt.getTime()
+            && booking.endAt?.getTime() === expectedEndAt.getTime();
+
+        if (booking.status === 'accepted_pending_integrations' || booking.status === 'accepted') {
+            if (sameRequestedWindow) {
+                return booking;
+            }
+            throw new TransitionConflictError('Booking has already been scheduled with a different time');
+        }
+
+        if (booking.status !== 'requested') throw new TransitionError('Booking not in requested state');
 
         if (!booking.payment?.stripePaymentIntentId) {
             throw new Error('No payment intent found for booking');
@@ -125,16 +136,17 @@ export const ProfessionalRequestService = {
         // 2. Capture Payment (Fail Fast)
         try {
             await stripe.paymentIntents.capture(booking.payment.stripePaymentIntentId);
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Stripe capture failed:', error);
             // We rethrow as a 400-friendly error or let the specific Stripe error bubble
             // If the error is "PaymentIntent cannot be captured because it has a status of canceled", handle gracefully?
-            throw new Error(`Payment capture failed: ${error.message}`);
+            const message = error instanceof Error ? error.message : 'Unknown Stripe capture error';
+            throw new Error(`Payment capture failed: ${message}`);
         }
 
         // 3. Transition State (DB Update)
         // This sets status to 'accepted_pending_integrations' and payment to 'held'
-        const updatedBooking = await acceptBookingWithIntegrations(
+        await acceptBookingWithIntegrations(
             bookingId,
             { userId: professionalId, role: Role.PROFESSIONAL }
         );
@@ -146,11 +158,11 @@ export const ProfessionalRequestService = {
         // Given we are outside the transaction of the transition, there's a tiny gap, 
         // but arguably 'accepted_pending_integrations' implies we are setting it up.
         // Let's update the time.
-        await prisma.booking.update({
+        const scheduledBooking = await prisma.booking.update({
             where: { id: bookingId },
             data: {
                 startAt: startAt,
-                endAt: addMinutes(startAt, 30) // Hardcoded 30 mins per CLAUDE.md
+                endAt: expectedEndAt // Hardcoded 30 mins per CLAUDE.md
             }
         });
 
@@ -159,7 +171,7 @@ export const ProfessionalRequestService = {
             jobId: `confirm-${bookingId}` // Idempotency key
         });
 
-        return updatedBooking;
+        return scheduledBooking;
     },
 
     /**

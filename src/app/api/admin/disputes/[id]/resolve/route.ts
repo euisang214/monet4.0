@@ -1,8 +1,7 @@
 import { resolveDispute } from '@/lib/domain/admin/disputes';
-import { withRole } from '@/lib/core/api-helpers';
+import { getErrorMessage, getErrorStatus, withRole } from '@/lib/core/api-helpers';
 import { Role } from '@prisma/client';
 import { z } from 'zod';
-import { NextRequest } from 'next/server';
 
 const resolveSchema = z.object({
     resolution: z.string().min(1, 'Resolution notes required'),
@@ -58,8 +57,10 @@ export const PUT = withRole(Role.ADMIN, async (req: Request, { params }: { param
         await resolveDispute(id, resolution, action, adminUserId, refundAmountCents);
 
         return Response.json({ success: true });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Error resolving dispute:', error);
-        return Response.json({ error: error.message || 'internal_error' }, { status: 500 });
+        const status = getErrorStatus(error, 500);
+        const message = getErrorMessage(error, 'internal_error');
+        return Response.json({ error: message }, { status });
     }
 });

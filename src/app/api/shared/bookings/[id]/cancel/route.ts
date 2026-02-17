@@ -4,6 +4,7 @@ import { CandidateBookings } from '@/lib/role/candidate/bookings';
 import { Role } from '@prisma/client';
 import { z } from 'zod';
 import { cancelBooking as transitionCancel } from '@/lib/domain/bookings/transitions';
+import { getErrorMessage, getErrorStatus } from '@/lib/core/api-helpers';
 
 const CancelSchema = z.object({
     reason: z.string().optional()
@@ -36,8 +37,10 @@ export async function POST(
         }
 
         return Response.json({ success: true });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Cancel error:', error);
-        return Response.json({ error: error.message || 'internal_error' }, { status: 500 });
+        const status = getErrorStatus(error, 400);
+        const message = getErrorMessage(error, 'internal_error');
+        return Response.json({ error: message }, { status });
     }
 }

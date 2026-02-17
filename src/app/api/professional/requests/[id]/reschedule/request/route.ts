@@ -1,5 +1,5 @@
 import { auth } from '@/auth';
-import { withRole } from '@/lib/core/api-helpers';
+import { getErrorMessage, getErrorStatus, withRole } from '@/lib/core/api-helpers';
 import { z } from 'zod';
 import { ProfessionalRescheduleService } from '@/lib/role/professional/reschedule';
 import { Role } from '@prisma/client';
@@ -28,7 +28,8 @@ export const POST = withRole(Role.PROFESSIONAL, async (req: Request, { params }:
         if (error instanceof z.ZodError) {
             return Response.json({ error: 'Validation Error', details: error.issues }, { status: 400 });
         }
-        const message = error instanceof Error ? error.message : 'Internal Error';
-        return Response.json({ error: message }, { status: 400 });
+        const status = getErrorStatus(error, 400);
+        const message = getErrorMessage(error, 'Internal Error');
+        return Response.json({ error: message }, { status });
     }
 });

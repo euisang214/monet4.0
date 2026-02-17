@@ -11,6 +11,7 @@ import {
     stripe,
 } from '@/lib/integrations/stripe';
 import Stripe from 'stripe';
+import { TransitionConflictError } from '@/lib/domain/bookings/errors';
 
 function getLatestChargeId(paymentIntent: Stripe.PaymentIntent): string | null {
     if (!paymentIntent.latest_charge) {
@@ -56,10 +57,6 @@ export async function resolveDispute(
         throw new Error('Dispute not found');
     }
 
-    if (dispute.status === DisputeStatus.resolved) {
-        throw new Error('Dispute is already resolved');
-    }
-
     const { booking } = dispute;
     if (!booking) {
         throw new Error('Dispute has no associated booking'); // Should not happen by schema
@@ -71,6 +68,36 @@ export async function resolveDispute(
         // If payment was never captured, we can't refund OR transfer (technically).
         // But usually disputes happen post-capture.
         throw new Error('Booking has no payment record');
+    }
+
+    if (dispute.status === DisputeStatus.resolved) {
+        const matchingResolvedOutcome = (() => {
+            if (action === 'dismiss') {
+                return payment.status === PaymentStatus.released
+                    && booking.status === BookingStatus.completed
+                    && (!booking.payout || booking.payout.status === PayoutStatus.paid);
+            }
+
+            if (action === 'full_refund') {
+                return payment.status === PaymentStatus.refunded
+                    && payment.refundedAmountCents === payment.amountGross
+                    && booking.status === BookingStatus.refunded;
+            }
+
+            if (!refundAmountCents || refundAmountCents <= 0) {
+                return false;
+            }
+
+            return (payment.status === PaymentStatus.partially_refunded || payment.status === PaymentStatus.refunded)
+                && payment.refundedAmountCents === refundAmountCents
+                && (booking.status === BookingStatus.completed || booking.status === BookingStatus.refunded);
+        })();
+
+        if (matchingResolvedOutcome) {
+            return { success: true, alreadyResolved: true };
+        }
+
+        throw new TransitionConflictError('Dispute is already resolved with a different outcome');
     }
 
     // 2. Perform Action Logic

@@ -2,6 +2,7 @@ import { auth } from "@/auth"
 import { Role } from "@prisma/client"
 import { redirect } from "next/navigation"
 import { NextResponse } from "next/server"
+import { TransitionConflictError, TransitionError } from "@/lib/domain/bookings/errors"
 
 export async function currentUser() {
     const session = await auth()
@@ -51,4 +52,20 @@ export function withRole(role: Role, handler: ApiHandler) {
 
         return handler(req, ...normalizedArgs)
     }
+}
+
+export function getErrorStatus(error: unknown, fallbackStatus: number) {
+    if (error instanceof TransitionConflictError) {
+        return 409
+    }
+
+    if (error instanceof TransitionError) {
+        return 400
+    }
+
+    return fallbackStatus
+}
+
+export function getErrorMessage(error: unknown, fallbackMessage: string) {
+    return error instanceof Error ? error.message : fallbackMessage
 }

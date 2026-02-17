@@ -64,10 +64,23 @@ describe('Post-Booking Domain Logic', () => {
         });
 
         it('initiateDispute should create dispute record', async () => {
+            const acceptedBooking = {
+                id: 'b1',
+                candidateId: 'c1',
+                professionalId: 'p1',
+                status: BookingStatus.accepted,
+                startAt: new Date('2026-02-01T10:00:00Z'),
+                endAt: new Date('2026-02-01T10:30:00Z'),
+            };
+
             // @ts-ignore
-            prisma.booking.findUnique.mockResolvedValue({ id: 'b1' });
+            prisma.booking.findUnique
+                .mockResolvedValueOnce(acceptedBooking)
+                .mockResolvedValueOnce({ ...acceptedBooking, status: BookingStatus.dispute_pending });
             // @ts-ignore
-            prisma.booking.findUniqueOrThrow.mockResolvedValue({ id: 'b1' });
+            prisma.booking.findUniqueOrThrow.mockResolvedValue(acceptedBooking);
+            // @ts-ignore
+            prisma.booking.update.mockResolvedValue({ ...acceptedBooking, status: BookingStatus.dispute_pending });
 
             await initiateDispute('b1', { userId: 'c1', role: Role.CANDIDATE }, 'no_show', 'He did not show up');
 

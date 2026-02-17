@@ -8,6 +8,7 @@ import {
 import { bookingsQueue } from '@/lib/queues';
 import { ProfessionalRequestService } from './requests';
 import { addMinutes } from 'date-fns';
+import { TransitionConflictError } from '@/lib/domain/bookings/errors';
 
 export const ProfessionalRescheduleService = {
     /**
@@ -44,11 +45,21 @@ export const ProfessionalRescheduleService = {
         });
 
         if (!booking) throw new Error('Booking not found');
+
+        const endAt = addMinutes(startAt, 30); // 30 min duration
+        const sameRequestedWindow = booking.startAt?.getTime() === startAt.getTime()
+            && booking.endAt?.getTime() === endAt.getTime();
+
+        if (booking.status === BookingStatus.accepted) {
+            if (sameRequestedWindow) {
+                return booking;
+            }
+            throw new TransitionConflictError('Booking was already confirmed with a different time');
+        }
+
         const oldZoomMeetingId = booking.zoomMeetingId;
 
         // 2. Transition State (Updates Status -> Accepted, Updates startAt/endAt)
-        const endAt = addMinutes(startAt, 30); // 30 min duration
-
         const updatedBooking = await confirmReschedule(
             bookingId,
             { userId: professionalId, role: Role.PROFESSIONAL },
@@ -61,7 +72,7 @@ export const ProfessionalRescheduleService = {
             bookingId,
             oldZoomMeetingId
         }, {
-            jobId: `reschedule-${bookingId}-${Date.now()}` // Unique per reschedule attempt
+            jobId: `reschedule-${bookingId}-${startAt.toISOString()}` // Deterministic key for duplicate retries
         });
 
         return updatedBooking;

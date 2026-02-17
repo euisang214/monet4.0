@@ -1,7 +1,7 @@
-import { Prisma, BookingStatus, PaymentStatus, QCStatus, PayoutStatus, DisputeStatus, Role, PrismaClient, AttendanceOutcome } from '@prisma/client';
+import { Prisma, BookingStatus, PaymentStatus, QCStatus, PayoutStatus, DisputeReason, DisputeStatus, Role, PrismaClient, AttendanceOutcome } from '@prisma/client';
 import { prisma as defaultPrisma } from '@/lib/core/db';
-import { differenceInHours, addHours } from 'date-fns';
-import { StateInvariantError, TransitionError } from './errors';
+import { addHours } from 'date-fns';
+import { StateInvariantError, TransitionConflictError, TransitionError } from './errors';
 import { stripe } from '@/lib/integrations/stripe';
 import { notificationsQueue } from '@/lib/queues';
 import { calculatePlatformFee } from '@/lib/domain/payments/utils';
@@ -15,7 +15,7 @@ type TransitionContext = {
         role: Role;
     } | 'system';
     reason?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
     skipInvariantCheck?: boolean; // For admin overrides (dispute resolution, QC timeout)
 };
 
@@ -26,6 +26,11 @@ type Dependencies = {
 type StripeDependencies = {
     stripe?: Pick<typeof stripe, 'refunds' | 'paymentIntents'>;
 };
+
+function sameInstant(left: Date | null | undefined, right: Date | null | undefined) {
+    if (!left || !right) return false;
+    return left.getTime() === right.getTime();
+}
 
 /**
  * Validates State Invariants (CLAUDE.md #942)
@@ -310,16 +315,27 @@ export async function declineBooking(
         throw new TransitionError('Only professionals can decline bookings');
     }
 
+    let transitioned = false;
+
     const result = await transitionBooking(bookingId, BookingStatus.declined, { actor, reason }, deps, async (tx) => {
         const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
-        if (booking.status !== BookingStatus.requested) {
-            throw new TransitionError(`Cannot decline booking in state ${booking.status}`);
-        }
 
         if (booking.professionalId !== actor.userId) {
             throw new TransitionError('Not authorized to decline this booking');
         }
 
+        if (booking.status === BookingStatus.declined) {
+            if (booking.declineReason && booking.declineReason !== reason) {
+                throw new TransitionConflictError('Booking already declined with a different reason');
+            }
+            return booking;
+        }
+
+        if (booking.status !== BookingStatus.requested) {
+            throw new TransitionError(`Cannot decline booking in state ${booking.status}`);
+        }
+
+        transitioned = true;
         const updated = await tx.booking.update({
             where: { id: bookingId },
             data: {
@@ -336,10 +352,12 @@ export async function declineBooking(
         return updated;
     });
 
-    await notificationsQueue.add('notifications', {
-        type: 'booking_declined',
-        bookingId: bookingId,
-    });
+    if (transitioned) {
+        await notificationsQueue.add('notifications', {
+            type: 'booking_declined',
+            bookingId: bookingId,
+        });
+    }
     return result;
 }
 
@@ -379,15 +397,23 @@ export async function acceptBooking(
         throw new TransitionError('Only professionals can accept bookings');
     }
 
+    let transitioned = false;
+
     const result = await transitionBooking(bookingId, BookingStatus.accepted, { actor }, deps, async (tx) => {
         const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
-        if (booking.status !== BookingStatus.requested) {
-            throw new TransitionError(`Cannot accept booking in state ${booking.status}`);
-        }
         if (booking.professionalId !== actor.userId) {
             throw new TransitionError('Not authorized');
         }
 
+        if (booking.status === BookingStatus.accepted) {
+            return booking;
+        }
+
+        if (booking.status !== BookingStatus.requested) {
+            throw new TransitionError(`Cannot accept booking in state ${booking.status}`);
+        }
+
+        transitioned = true;
         const updated = await tx.booking.update({
             where: { id: bookingId },
             data: { status: BookingStatus.accepted },
@@ -401,10 +427,12 @@ export async function acceptBooking(
         return updated;
     });
 
-    await notificationsQueue.add('notifications', {
-        type: 'booking_accepted',
-        bookingId: bookingId,
-    });
+    if (transitioned) {
+        await notificationsQueue.add('notifications', {
+            type: 'booking_accepted',
+            bookingId: bookingId,
+        });
+    }
     return result;
 }
 
@@ -415,6 +443,9 @@ export async function startIntegrations(
 ) {
     return transitionBooking(bookingId, BookingStatus.accepted_pending_integrations, { actor: 'system' }, deps, async (tx) => {
         const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
+        if (booking.status === BookingStatus.accepted_pending_integrations) {
+            return booking;
+        }
         if (booking.status !== BookingStatus.accepted) {
             throw new TransitionError(`Cannot start integrations from ${booking.status}`);
         }
@@ -433,13 +464,21 @@ export async function acceptBookingWithIntegrations(
 ) {
     if (actor.role !== Role.PROFESSIONAL) throw new TransitionError('Not authorized');
 
+    let transitioned = false;
+
     const result = await transitionBooking(bookingId, BookingStatus.accepted_pending_integrations, { actor }, deps, async (tx) => {
         const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
+        if (booking.professionalId !== actor.userId) throw new TransitionError('Not authorized');
+
+        if (booking.status === BookingStatus.accepted_pending_integrations) {
+            return booking;
+        }
+
         if (booking.status !== BookingStatus.requested) {
             throw new TransitionError(`Invalid status: ${booking.status}`);
         }
-        if (booking.professionalId !== actor.userId) throw new TransitionError('Not authorized');
 
+        transitioned = true;
         const updated = await tx.booking.update({
             where: { id: bookingId },
             data: { status: BookingStatus.accepted_pending_integrations },
@@ -453,10 +492,12 @@ export async function acceptBookingWithIntegrations(
         return updated;
     });
 
-    await notificationsQueue.add('notifications', {
-        type: 'booking_accepted',
-        bookingId: bookingId,
-    });
+    if (transitioned) {
+        await notificationsQueue.add('notifications', {
+            type: 'booking_accepted',
+            bookingId: bookingId,
+        });
+    }
     return result;
 }
 
@@ -468,6 +509,14 @@ export async function completeIntegrations(
 ) {
     return transitionBooking(bookingId, BookingStatus.accepted, { actor: 'system' }, deps, async (tx) => {
         const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
+
+        if (booking.status === BookingStatus.accepted) {
+            if (booking.zoomJoinUrl === zoomData.joinUrl && booking.zoomMeetingId === zoomData.meetingId) {
+                return booking;
+            }
+            throw new TransitionConflictError('Booking integrations already completed with different Zoom data');
+        }
+
         if (booking.status !== BookingStatus.accepted_pending_integrations) {
             throw new TransitionError(`Invalid status: ${booking.status}`);
         }
@@ -492,11 +541,17 @@ export async function requestReschedule(
 ) {
     return transitionBooking(bookingId, BookingStatus.reschedule_pending, { actor, reason, metadata: { slots } }, deps, async (tx) => {
         const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
-        if (booking.status !== BookingStatus.accepted) {
-            throw new TransitionError(`Cannot request reschedule from ${booking.status}`);
-        }
+
         if (booking.candidateId !== actor.userId && booking.professionalId !== actor.userId) {
             throw new TransitionError('Not authorized');
+        }
+
+        if (booking.status === BookingStatus.reschedule_pending) {
+            return booking;
+        }
+
+        if (booking.status !== BookingStatus.accepted) {
+            throw new TransitionError(`Cannot request reschedule from ${booking.status}`);
         }
 
         return tx.booking.update({
@@ -516,12 +571,20 @@ export async function confirmReschedule(
 ) {
     return transitionBooking(bookingId, BookingStatus.accepted, { actor }, deps, async (tx) => {
         const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
-        if (booking.status !== BookingStatus.reschedule_pending) {
-            throw new TransitionError(`Cannot confirm reschedule from ${booking.status}`);
-        }
 
         if (booking.candidateId !== actor.userId && booking.professionalId !== actor.userId) {
             throw new TransitionError('Not authorized');
+        }
+
+        if (booking.status === BookingStatus.accepted) {
+            if (sameInstant(booking.startAt, newStartAt) && sameInstant(booking.endAt, newEndAt)) {
+                return booking;
+            }
+            throw new TransitionConflictError('Booking is already accepted with a different schedule');
+        }
+
+        if (booking.status !== BookingStatus.reschedule_pending) {
+            throw new TransitionError(`Cannot confirm reschedule from ${booking.status}`);
         }
 
         return tx.booking.update({
@@ -549,16 +612,31 @@ export async function cancelBooking(
     return transitionBooking(bookingId, BookingStatus.cancelled, { actor: actorInfo, reason, metadata: { attendanceOutcome: options?.attendanceOutcome } }, deps, async (tx) => {
         const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
 
-        const validOrigins: BookingStatus[] = [BookingStatus.accepted, BookingStatus.reschedule_pending];
-        if (!validOrigins.includes(booking.status)) {
-            throw new TransitionError(`Cannot cancel from ${booking.status}`);
-        }
-
         // Authorization check: if not system, must be candidate or professional
         if (actor !== 'system') {
             if (booking.candidateId !== actor.userId && booking.professionalId !== actor.userId) {
                 throw new TransitionError('Not authorized');
             }
+        }
+
+        if (booking.status === BookingStatus.cancelled) {
+            const requestedOutcome = options?.attendanceOutcome;
+            const existingOutcome = booking.attendanceOutcome ?? null;
+
+            if (requestedOutcome && existingOutcome && existingOutcome !== requestedOutcome) {
+                throw new TransitionConflictError('Booking is already cancelled with a different attendance outcome');
+            }
+
+            if (requestedOutcome === AttendanceOutcome.candidate_no_show && !booking.candidateLateCancellation) {
+                throw new TransitionConflictError('Booking is already cancelled with a different payout/refund outcome');
+            }
+
+            return booking;
+        }
+
+        const validOrigins: BookingStatus[] = [BookingStatus.accepted, BookingStatus.reschedule_pending];
+        if (!validOrigins.includes(booking.status)) {
+            throw new TransitionError(`Cannot cancel from ${booking.status}`);
         }
 
         let isLate = false;
@@ -658,11 +736,34 @@ export async function initiateDispute(
     return transitionBooking(bookingId, BookingStatus.dispute_pending, { actor, reason }, deps, async (tx) => {
         const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
 
-        // Create Dispute
-        // Validate enum reason? We assume string passed is valid or cast it.
-        // Prisma Client generates `DisputeReason` enum.
-        // We cast it.
-        const disputeReason = reason as any; // simplified for now
+        const isParticipant = booking.candidateId === actor.userId || booking.professionalId === actor.userId;
+        if (!isParticipant && actor.role !== Role.ADMIN) {
+            throw new TransitionError('Not authorized');
+        }
+
+        if (booking.status === BookingStatus.dispute_pending) {
+            const existingDispute = await tx.dispute.findUnique({ where: { bookingId } });
+            if (!existingDispute) {
+                throw new TransitionConflictError('Booking is already dispute_pending');
+            }
+
+            if (
+                existingDispute.initiatorId !== actor.userId
+                || existingDispute.reason !== reason
+                || existingDispute.description !== description
+            ) {
+                throw new TransitionConflictError('Dispute already exists with different details');
+            }
+
+            return booking;
+        }
+
+        const validOrigins: BookingStatus[] = [BookingStatus.accepted, BookingStatus.completed];
+        if (!validOrigins.includes(booking.status)) {
+            throw new TransitionError(`Cannot initiate dispute from ${booking.status}`);
+        }
+
+        const disputeReason = reason as DisputeReason;
 
         await tx.dispute.create({
             data: {
@@ -703,8 +804,43 @@ export async function resolveDispute(
     }
 
     return transitionBooking(bookingId, targetStatus, { actor, reason: options?.resolutionNotes, skipInvariantCheck: true }, deps, async (tx) => {
-        const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
+        const booking = await tx.booking.findUniqueOrThrow({
+            where: { id: bookingId },
+            include: { payment: true }
+        });
+
         if (booking.status !== BookingStatus.dispute_pending) {
+            if (booking.status === targetStatus) {
+                if (resolution === 'dismiss') {
+                    if (booking.payment?.status === PaymentStatus.released) {
+                        return booking;
+                    }
+                    throw new TransitionConflictError('Dispute is already resolved with a different payout outcome');
+                }
+
+                if (resolution === 'refund') {
+                    if (booking.payment?.status === PaymentStatus.refunded) {
+                        return booking;
+                    }
+                    throw new TransitionConflictError('Dispute is already resolved with a different refund outcome');
+                }
+
+                const refundAmount = options?.refundAmountCents;
+                if (!refundAmount || refundAmount <= 0) {
+                    throw new TransitionError('Partial refund requires valid refundAmountCents');
+                }
+
+                if (
+                    booking.payment
+                    && (booking.payment.status === PaymentStatus.partially_refunded || booking.payment.status === PaymentStatus.refunded)
+                    && booking.payment.refundedAmountCents === refundAmount
+                ) {
+                    return booking;
+                }
+
+                throw new TransitionConflictError('Dispute is already resolved with a different refund amount');
+            }
+
             throw new TransitionError('Booking not in dispute');
         }
 
@@ -760,6 +896,23 @@ export async function completeCall(
     deps: Dependencies = { prisma: defaultPrisma }
 ) {
     return transitionBooking(bookingId, BookingStatus.completed_pending_feedback, { actor: 'system' }, deps, async (tx) => {
+        const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
+
+        if (booking.status === BookingStatus.completed_pending_feedback) {
+            const requestedOutcome = options?.attendanceOutcome;
+            const existingOutcome = booking.attendanceOutcome ?? null;
+
+            if (requestedOutcome && existingOutcome && existingOutcome !== requestedOutcome) {
+                throw new TransitionConflictError('Call is already completed with a different attendance outcome');
+            }
+
+            return booking;
+        }
+
+        if (booking.status !== BookingStatus.accepted) {
+            throw new TransitionError(`Cannot complete call from ${booking.status}`);
+        }
+
         return tx.booking.update({
             where: { id: bookingId },
             data: {
@@ -777,6 +930,15 @@ export async function completeBooking(
 ) {
     return transitionBooking(bookingId, BookingStatus.completed, { actor: 'system' }, deps, async (tx) => {
         const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId }, include: { feedback: true } });
+
+        if (booking.status === BookingStatus.completed) {
+            return booking;
+        }
+
+        if (booking.status !== BookingStatus.completed_pending_feedback) {
+            throw new TransitionError(`Cannot complete booking from ${booking.status}`);
+        }
+
         return tx.booking.update({
             where: { id: bookingId },
             data: { status: BookingStatus.completed }
@@ -792,12 +954,16 @@ export async function rejectReschedule(
     return transitionBooking(bookingId, BookingStatus.cancelled, { actor, reason: 'Reschedule rejected' }, deps, async (tx) => {
         const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
 
-        if (booking.status !== BookingStatus.reschedule_pending) {
-            throw new TransitionError(`Cannot reject reschedule from ${booking.status}`);
-        }
-
         if (booking.candidateId !== actor.userId && booking.professionalId !== actor.userId) {
             throw new TransitionError('Not authorized');
+        }
+
+        if (booking.status === BookingStatus.cancelled) {
+            return booking;
+        }
+
+        if (booking.status !== BookingStatus.reschedule_pending) {
+            throw new TransitionError(`Cannot reject reschedule from ${booking.status}`);
         }
 
         // Logic here mirrors cancelBooking but forced.
@@ -893,7 +1059,7 @@ export async function updateZoomDetails(
 
     // Create audit log
     await createAuditLog(
-        deps.prisma as any,
+        deps.prisma as Prisma.TransactionClient,
         'Booking',
         bookingId,
         'admin:zoom_link_updated',

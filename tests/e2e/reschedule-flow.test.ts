@@ -133,6 +133,13 @@ describe('Reschedule Flow E2E', () => {
         );
         expect(professionalRequestResult.status).toBe(BookingStatus.reschedule_pending);
 
+        const duplicateProfessionalRequest = await ProfessionalRescheduleService.requestReschedule(
+            bookingId,
+            professionalId,
+            'Retry click'
+        );
+        expect(duplicateProfessionalRequest.status).toBe(BookingStatus.reschedule_pending);
+
         const bookingAfterProRequest = await prisma.booking.findUnique({
             where: { id: bookingId },
         });

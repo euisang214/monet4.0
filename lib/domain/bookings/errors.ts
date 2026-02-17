@@ -11,3 +11,10 @@ export class TransitionError extends Error {
         this.name = 'TransitionError';
     }
 }
+
+export class TransitionConflictError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'TransitionConflictError';
+    }
+}
