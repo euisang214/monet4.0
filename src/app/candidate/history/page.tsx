@@ -27,27 +27,27 @@ const SECTION_META: Array<{ key: ChatSectionKey; title: string; description: str
     {
         key: 'upcoming',
         title: 'Upcoming',
-        description: 'Accepted conversations that have a scheduled or near-term session window.',
+        description: 'Accepted conversations coming up in the following weeks',
     },
     {
         key: 'pending',
         title: 'Pending',
-        description: 'Requests still in progress and waiting for acceptance, rescheduling, or dispute handling.',
+        description: 'Requests that have been submitted and are in progress',
     },
     {
         key: 'expired',
         title: 'Expired',
-        description: 'Requests that timed out before the booking could be finalized.',
+        description: 'Requests that timed out before the booking could be finalized',
     },
     {
         key: 'past',
         title: 'Past',
-        description: 'Closed conversations including completed, cancelled, declined, and refunded bookings.',
+        description: 'Completed, cancelled, declined, and refunded bookings',
     },
     {
         key: 'other',
         title: 'Other',
-        description: 'Any booking statuses outside the standard workflow buckets.',
+        description: 'Any booking statuses outside the standard workflow',
     },
 ];
 
@@ -177,10 +177,10 @@ export default async function CandidateChatsPage() {
     return (
         <main className="container py-8">
             <header className="mb-8">
-                <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Candidate Chats</p>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">All conversation threads by booking status</h1>
+                <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Your Chats</p>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">All conversations sorted by status</h1>
                 <p className="text-gray-600">
-                    Track upcoming, pending, expired, and past conversations in a single unified view.
+                    Track upcoming, pending, expired, and past conversations all in one spot.
                 </p>
             </header>
 
@@ -198,7 +198,7 @@ export default async function CandidateChatsPage() {
                         <section key={section.key}>
                             <div className="mb-4 flex items-start justify-between gap-4">
                                 <div>
-                                    <h2 className="text-xl font-semibold text-gray-900">{section.title}</h2>
+                                    <h2 className="text-xl font-semibold text-gray-900 mt-4">{section.title}</h2>
                                     <p className="text-sm text-gray-600 mt-1">{section.description}</p>
                                 </div>
                                 <span className="px-2 py-1 text-xs rounded-full font-semibold bg-gray-100 text-gray-700">
@@ -251,7 +251,7 @@ export default async function CandidateChatsPage() {
                                                     href={appRoutes.candidate.bookingDetails(booking.id)}
                                                     className="text-sm font-semibold text-blue-600 hover:text-blue-700"
                                                 >
-                                                    Open chat
+                                                    Open Chat
                                                 </Link>
                                             </div>
                                         </li>
