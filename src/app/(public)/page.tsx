@@ -6,10 +6,10 @@ export default function LandingPage() {
         <div>
             <section className={styles.hero}>
                 <h1 className={styles.heroTitle}>
-                    Career Advice That <br></br>Actually Moves the Needle
+                    Structured recruiting prep. <br></br>Real professionals.
                 </h1>
                 <p className={styles.heroSubtitle}>
-                    Book 1:1 calls with seasoned professionals in finance and consulting. <br></br>Prepare for your next career move with confidence. 
+                    Connect with verified analysts and associates in finance and consulting. <br></br>Clear feedback. Actionable next steps. No cold DMs.
                 </p>
                 <div className={styles.heroButtons}>
                     <Link href="/signup?role=candidate" className="btn bg-blue-600 text-white hover:bg-blue-700">
