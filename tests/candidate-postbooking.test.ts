@@ -6,7 +6,7 @@ vi.mock('@/lib/core/db', () => {
     const mockPrisma = {
         booking: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn() },
         professionalRating: { findUnique: vi.fn(), create: vi.fn() },
-        dispute: { create: vi.fn() },
+        dispute: { create: vi.fn(), findUnique: vi.fn() },
         auditLog: { create: vi.fn() },
         $transaction: vi.fn((callback) => callback(mockPrisma)),
     };
@@ -15,6 +15,7 @@ vi.mock('@/lib/core/db', () => {
 
 import { ReviewsService } from '@/lib/domain/reviews/service';
 import { requestReschedule, initiateDispute } from '@/lib/domain/bookings/transitions';
+import { StateInvariantError } from '@/lib/domain/bookings/errors';
 import { prisma } from '@/lib/core/db';
 
 describe('Post-Booking Domain Logic', () => {
@@ -93,6 +94,28 @@ describe('Post-Booking Domain Logic', () => {
             expect(prisma.booking.update).toHaveBeenCalledWith(expect.objectContaining({
                 data: { status: BookingStatus.dispute_pending }
             }));
+        });
+
+        it('initiateDispute should throw StateInvariantError when dispute_pending but no dispute record', async () => {
+            const corruptBooking = {
+                id: 'b2',
+                candidateId: 'c1',
+                professionalId: 'p1',
+                status: BookingStatus.dispute_pending,
+                startAt: new Date('2026-02-01T10:00:00Z'),
+                endAt: new Date('2026-02-01T10:30:00Z'),
+            };
+
+            // @ts-ignore
+            prisma.booking.findUnique.mockResolvedValue(corruptBooking);
+            // @ts-ignore
+            prisma.booking.findUniqueOrThrow.mockResolvedValue(corruptBooking);
+            // @ts-ignore - No dispute record exists despite status being dispute_pending
+            prisma.dispute.findUnique.mockResolvedValue(null);
+
+            await expect(
+                initiateDispute('b2', { userId: 'c1', role: Role.CANDIDATE }, 'no_show', 'Description')
+            ).rejects.toThrow(StateInvariantError);
         });
     });
 });

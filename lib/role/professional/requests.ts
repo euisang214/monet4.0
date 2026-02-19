@@ -137,11 +137,18 @@ export const ProfessionalRequestService = {
         try {
             await stripe.paymentIntents.capture(booking.payment.stripePaymentIntentId);
         } catch (error: unknown) {
-            console.error('Stripe capture failed:', error);
-            // We rethrow as a 400-friendly error or let the specific Stripe error bubble
-            // If the error is "PaymentIntent cannot be captured because it has a status of canceled", handle gracefully?
-            const message = error instanceof Error ? error.message : 'Unknown Stripe capture error';
-            throw new Error(`Payment capture failed: ${message}`);
+            // Stripe throws when the PI was already captured (retry scenario).
+            // Treat as idempotent success and proceed with the DB transition.
+            const isAlreadyCaptured =
+                typeof error === 'object' && error !== null
+                && 'code' in error && (error as { code: string }).code === 'payment_intent_unexpected_state'
+                && error instanceof Error && error.message.includes('status of succeeded');
+
+            if (!isAlreadyCaptured) {
+                console.error('Stripe capture failed:', error);
+                const message = error instanceof Error ? error.message : 'Unknown Stripe capture error';
+                throw new Error(`Payment capture failed: ${message}`);
+            }
         }
 
         // 3. Transition State (DB Update)

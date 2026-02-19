@@ -50,6 +50,9 @@ export const ProfessionalRescheduleService = {
         const sameRequestedWindow = booking.startAt?.getTime() === startAt.getTime()
             && booking.endAt?.getTime() === endAt.getTime();
 
+        // Early idempotency check at the service layer to avoid unnecessary
+        // DB transactions and queue jobs. The domain layer (confirmReschedule)
+        // performs the same check inside the transaction for safety.
         if (booking.status === BookingStatus.accepted) {
             if (sameRequestedWindow) {
                 return booking;

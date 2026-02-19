@@ -140,7 +140,14 @@ async function transitionBooking<T>(
         // 2. Execute Update
         const result = await updateFn(tx);
 
-        // 3. Create Audit Log
+        // 3. If the booking was already in the target state, this was an idempotent
+        //    no-op. Skip audit logging and invariant re-validation to avoid noisy
+        //    "transition:X->X" entries and wasted DB reads.
+        if (booking.status === targetStatus) {
+            return result;
+        }
+
+        // 4. Create Audit Log
         const actorUserId = context.actor === 'system' ? null : context.actor.userId;
         await createAuditLog(
             tx,
@@ -156,7 +163,7 @@ async function transitionBooking<T>(
             }
         );
 
-        // 4. Fetch updated booking for Invariant Check
+        // 5. Fetch updated booking for Invariant Check
         const updatedBooking = await tx.booking.findUnique({
             where: { id: bookingId },
             include: {
@@ -170,7 +177,7 @@ async function transitionBooking<T>(
             throw new Error('Booking disappeared after update');
         }
 
-        // 5. Validate Invariants (unless explicitly skipped for admin overrides)
+        // 6. Validate Invariants (unless explicitly skipped for admin overrides)
         if (!context.skipInvariantCheck) {
             validateInvariants(updatedBooking);
         }
@@ -744,7 +751,7 @@ export async function initiateDispute(
         if (booking.status === BookingStatus.dispute_pending) {
             const existingDispute = await tx.dispute.findUnique({ where: { bookingId } });
             if (!existingDispute) {
-                throw new TransitionConflictError('Booking is already dispute_pending');
+                throw new StateInvariantError('Booking is dispute_pending but no Dispute record exists');
             }
 
             if (
@@ -959,6 +966,9 @@ export async function rejectReschedule(
         }
 
         if (booking.status === BookingStatus.cancelled) {
+            // Simple no-op: rejectReschedule takes no options or parameters that
+            // differentiate repeated calls, so there's nothing to compare against.
+            // The cancellation reason is audit-logged, not stored on the booking model.
             return booking;
         }
 

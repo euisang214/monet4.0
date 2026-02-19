@@ -75,6 +75,27 @@ describe('Booking State Machine', () => {
         expect(mockPrisma.auditLog.create).toHaveBeenCalled();
     });
 
+    it('should skip audit log and invariant check on idempotent no-op', async () => {
+        // Booking is already accepted — accepting again should no-op
+        const alreadyAccepted = {
+            ...mockBooking,
+            status: BookingStatus.accepted,
+            payment: { status: PaymentStatus.held },
+        };
+
+        mockPrisma.booking.findUnique.mockResolvedValue(alreadyAccepted);
+        mockPrisma.booking.findUniqueOrThrow.mockResolvedValue(alreadyAccepted);
+
+        const actor = { userId: 'user-pro', role: Role.PROFESSIONAL };
+        const result = await acceptBooking('booking-123', actor, { prisma: mockPrisma as any });
+
+        expect(result.status).toBe(BookingStatus.accepted);
+        // No DB mutation should have occurred
+        expect(mockPrisma.booking.update).not.toHaveBeenCalled();
+        // Audit log should NOT be written for a no-op
+        expect(mockPrisma.auditLog.create).not.toHaveBeenCalled();
+    });
+
     it('should fail invariant if completing booking without QC pass', async () => {
         // Setup: completed_pending_feedback -> completed
         const initialBooking = { ...mockBooking, status: BookingStatus.completed_pending_feedback };

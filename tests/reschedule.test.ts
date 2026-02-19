@@ -45,12 +45,12 @@ describe('Rescheduling Domain', () => {
                 priceCents: 10000,
             };
 
-            mockPrisma.booking.findUnique.mockResolvedValue(booking);
+            mockPrisma.booking.findUnique.mockResolvedValueOnce(booking);         // transitionBooking lock + fetch
             mockPrisma.booking.findUniqueOrThrow.mockResolvedValue(booking);
 
             const updatedBooking = { ...booking, status: BookingStatus.reschedule_pending };
             mockPrisma.booking.update.mockResolvedValue(updatedBooking);
-            mockPrisma.booking.findUnique.mockResolvedValue(updatedBooking);
+            mockPrisma.booking.findUnique.mockResolvedValueOnce(updatedBooking); // invariant re-fetch
 
             const actor = { userId: 'cand-1', role: Role.CANDIDATE };
             const result = await requestReschedule(
@@ -80,12 +80,12 @@ describe('Rescheduling Domain', () => {
                 priceCents: 10000,
             };
 
-            mockPrisma.booking.findUnique.mockResolvedValue(booking);
+            mockPrisma.booking.findUnique.mockResolvedValueOnce(booking);         // transitionBooking lock + fetch
             mockPrisma.booking.findUniqueOrThrow.mockResolvedValue(booking);
 
             const updatedBooking = { ...booking, status: BookingStatus.reschedule_pending };
             mockPrisma.booking.update.mockResolvedValue(updatedBooking);
-            mockPrisma.booking.findUnique.mockResolvedValue(updatedBooking);
+            mockPrisma.booking.findUnique.mockResolvedValueOnce(updatedBooking); // invariant re-fetch
 
             const actor = { userId: 'pro-1', role: Role.PROFESSIONAL };
             const result = await requestReschedule(
