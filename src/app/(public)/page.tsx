@@ -44,23 +44,23 @@ export default function LandingPage() {
                 <div className={styles.steps}>
                     <article className={styles.step}>
                         <div className={styles.stepNumber}>1</div>
-                        <h3 className={styles.stepTitle}>Request</h3>
+                        <h3 className={styles.stepTitle}>Browse Professionals</h3>
                         <p className={styles.stepDescription}>
-                            Find someone aligned with your target role and submit a booking request with payment authorization.
+                            Explore individuals aligned with your target role. See experience and background before you book
                         </p>
                     </article>
                     <article className={styles.step}>
                         <div className={styles.stepNumber}>2</div>
-                        <h3 className={styles.stepTitle}>Schedule</h3>
+                        <h3 className={styles.stepTitle}>Request a Call</h3>
                         <p className={styles.stepDescription}>
-                            Once accepted, choose an available slot. Monet handles the calendar and meeting link setup.
+                            Submit your availability. Once accepted, choose an available slot. Monet handles the calendar and meeting link setup.
                         </p>
                     </article>
                     <article className={styles.step}>
                         <div className={styles.stepNumber}>3</div>
-                        <h3 className={styles.stepTitle}>Execute</h3>
+                        <h3 className={styles.stepTitle}>Leave with Action Items</h3>
                         <p className={styles.stepDescription}>
-                            Join the call, get practical feedback, and leave with action items you can apply immediately.
+                            After the call, receive structured feedback and clear next steps. No vague advice and empty promises.
                         </p>
                     </article>
                 </div>
@@ -101,6 +101,24 @@ export default function LandingPage() {
                 </p>
                 <div className={styles.faqList}>
                     <article className={styles.faqItem}>
+                        <h3 className={styles.faqQuestion}>Is this a guarantee of an offer?</h3>
+                        <p className={styles.faqAnswer}>
+                            No. Monet is structured preparation, not a guarantee. The goal is clarity, feedback, and better performance.    
+                        </p>
+                    </article>
+                    <article className={styles.faqItem}>
+                        <h3 className={styles.faqQuestion}>Why is it paid?</h3>
+                        <p className={styles.faqAnswer}>
+                            Payment creates accountability and ensures both sides show up prepared.    
+                        </p>
+                    </article>
+                    <article className={styles.faqItem}>
+                        <h3 className={styles.faqQuestion}>Are professionals anonymous?</h3>
+                        <p className={styles.faqAnswer}>
+                            Profiles are redacted publicly. Identity is revealed after a booking is confirmed.
+                        </p>
+                    </article>
+                    <article className={styles.faqItem}>
                         <h3 className={styles.faqQuestion}>How long is each session?</h3>
                         <p className={styles.faqAnswer}>
                             Most sessions are 30 minutes. Candidates choose what they want to discuss, and Monet provides potential topics and ideas to be creative with.
@@ -118,7 +136,7 @@ export default function LandingPage() {
                             Yes. Monet supports reschedule requests for both candidates and professionals before the scheduled slot.
                         </p>
                     </article>
-                                        <article className={styles.faqItem}>
+                    <article className={styles.faqItem}>
                         <h3 className={styles.faqQuestion}>How does it work for me as a Professional?</h3>
                         <p className={styles.faqAnswer}>
                             You'll have the chance mentor and guide the next generation of talent by monetizing your expertise and time. Set your own rates and schedule, and earn on your terms.
