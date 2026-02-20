@@ -104,6 +104,69 @@
   animation: heroReveal 520ms ease-out both;
 }
 
+.audienceSwitcher {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 1.5rem;
+}
+
+.audienceLabel {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.audienceOptions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.25rem;
+  background: #f6fbff;
+  box-shadow: inset 0 2px 4px rgba(24, 78, 119, 0.08);
+}
+
+.audienceOption {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.audienceOption:hover {
+  transform: none;
+  box-shadow: none;
+  background: rgba(159, 212, 248, 0.28);
+  color: var(--tone-10);
+}
+
+.audienceOption:focus-visible {
+  outline: 2px solid var(--tone-7);
+  outline-offset: 2px;
+}
+
+.audienceOptionActive {
+  background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+  color: var(--button-text);
+  box-shadow: 0 8px 16px rgba(24, 78, 119, 0.15);
+}
+
+.audienceOptionActive:hover {
+  background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+  transform: none;
+}
+
+.roleContentSwap {
+  animation: roleContentSwap 260ms ease-out both;
+}
+
 .heroTitle {
   font-size: clamp(2.2rem, 5.3vw, 4rem);
   line-height: 1.05;
@@ -354,6 +417,16 @@
   .hero {
     padding: 2.4rem 1.1rem;
   }
+
+  .audienceOptions {
+    width: 100%;
+    max-width: 320px;
+  }
+
+  .audienceOption {
+    flex: 1;
+    text-align: center;
+  }
 }
 
 @keyframes heroReveal {
@@ -371,6 +444,17 @@
   from {
     opacity: 0;
     transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes roleContentSwap {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
