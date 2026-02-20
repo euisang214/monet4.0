@@ -78,20 +78,29 @@ This applies all migrations and generates the Prisma client.
 npm run seed
 ```
 
-This populates the database with comprehensive test data for local development.
+`npm run seed` defaults to **lite** mode to reduce free-tier DB/storage usage.
+
+```bash
+npm run seed:lite   # explicit lite mode
+npm run seed:full   # full dataset (all mocked candidates/professionals)
+```
+
+You can also set `SEED_POPULATION_MODE=lite|full` directly.
 
 **Seeded Users:**
 
 | Role | Emails | Password |
 |------|--------|----------|
 | Admin | admin@monet.local | admin123! |
-| Candidates | cand1@monet.local through cand10@monet.local | cand123! |
-| Professionals | pro1@monet.local through pro10@monet.local | pro123! |
+| Candidates (lite default) | cand3@monet.local | cand123! |
+| Professionals (lite default) | pro2@monet.local | pro123! |
+| Candidates (full mode) | cand1@monet.local through cand7@monet.local | cand123! |
+| Professionals (full mode) | pro1@monet.local through pro7@monet.local | pro123! |
 
 **Additional Test Data:**
-- **Availability**: 14 days of availability slots for all professionals
+- **Availability**: 14 days of availability slots for all seeded candidates
 - **Bookings**: 6 bookings per professional in various states (requested, accepted, pending feedback)
-- **Edge Cases**: 10 additional bookings covering declined, expired, cancelled, disputed, refunded, and reschedule scenarios
+- **Edge Cases**: 11 additional bookings covering declined, expired, cancelled, disputed, refunded, and reschedule scenarios
 
 ### Step 6: Start the Development Server
 

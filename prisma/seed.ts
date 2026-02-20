@@ -15,9 +15,14 @@ import path from 'node:path'
 import { uploadResume, RESUME_CONTENT_TYPE } from '../lib/integrations/resume-storage'
 
 const prisma = new PrismaClient()
+type SeedPopulationMode = 'lite' | 'full'
 const CANDIDATE_COUNT = 7
 const PROFESSIONAL_COUNT = 7
 const SAMPLE_RESUME_RELATIVE_PATH = 'src/app/PDF_sample.pdf'
+const FULL_CANDIDATE_NUMBERS = Array.from({ length: CANDIDATE_COUNT }, (_, index) => index + 1)
+const FULL_PROFESSIONAL_NUMBERS = Array.from({ length: PROFESSIONAL_COUNT }, (_, index) => index + 1)
+const LITE_CANDIDATE_NUMBERS = [3]
+const LITE_PROFESSIONAL_NUMBERS = [2]
 
 // Helper to generate unique IDs for Stripe mocks
 const generateStripeId = (prefix: string, index: number) => `${prefix}_test_${index.toString().padStart(3, '0')}`
@@ -115,6 +120,35 @@ const STATUS_DAY_OFFSETS: Record<BookingStatus, number> = {
 
 const escapeIdentifier = (value: string) => value.replace(/"/g, '""')
 
+function parseSeedPopulationMode(): SeedPopulationMode {
+    const rawValue = process.env.SEED_POPULATION_MODE?.trim()
+
+    if (!rawValue) {
+        return 'lite'
+    }
+
+    const normalized = rawValue.toLowerCase()
+    if (normalized === 'lite' || normalized === 'full') {
+        return normalized
+    }
+
+    throw new Error(`Invalid SEED_POPULATION_MODE="${rawValue}". Valid values are: lite, full.`)
+}
+
+function getUserNumbersForMode(mode: SeedPopulationMode) {
+    if (mode === 'full') {
+        return {
+            candidateNumbers: FULL_CANDIDATE_NUMBERS,
+            professionalNumbers: FULL_PROFESSIONAL_NUMBERS,
+        }
+    }
+
+    return {
+        candidateNumbers: LITE_CANDIDATE_NUMBERS,
+        professionalNumbers: LITE_PROFESSIONAL_NUMBERS,
+    }
+}
+
 function assertResumeUploadEnv() {
     const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']
     const missing = requiredEnvVars.filter((envVar) => !process.env[envVar]?.trim())
@@ -158,7 +192,11 @@ async function clearDatabase() {
 }
 
 async function main() {
+    const populationMode = parseSeedPopulationMode()
+    const { candidateNumbers, professionalNumbers } = getUserNumbersForMode(populationMode)
+
     console.log('Start seeding ...')
+    console.log(`Seed population mode: ${populationMode}`)
     assertResumeUploadEnv()
     const sampleResumePdf = await loadSampleResumePdf()
     await clearDatabase()
@@ -182,9 +220,9 @@ async function main() {
     })
     console.log(`✅ Created admin: ${admin.email}`)
 
-    // Create 7 Candidates with varied profiles
+    // Create candidates with varied profiles
     const candidates: { id: string; email: string; timezone: string }[] = []
-    for (let i = 1; i <= CANDIDATE_COUNT; i++) {
+    for (const i of candidateNumbers) {
         const email = `cand${i}@monet.local`
         const school = SCHOOLS[(i - 1) % SCHOOLS.length]
         const schoolSecondary = SCHOOLS[(i + 2) % SCHOOLS.length]
@@ -286,9 +324,9 @@ async function main() {
         console.log(`✅ Created candidate: ${candidate.email}`)
     }
 
-    // Create 7 Professionals with Stripe account IDs and varied profiles
+    // Create professionals with Stripe account IDs and varied profiles
     const professionals: { id: string; email: string; stripeAccountId: string; timezone: string }[] = []
-    for (let i = 1; i <= PROFESSIONAL_COUNT; i++) {
+    for (const i of professionalNumbers) {
         const email = `pro${i}@monet.local`
         const stripeAccountId = generateStripeId('acct', i)
         const company = COMPANIES[(i - 1) % COMPANIES.length]
@@ -412,6 +450,10 @@ async function main() {
         })
         professionals.push({ id: professional.id, email: professional.email, stripeAccountId, timezone })
         console.log(`✅ Created professional: ${professional.email}`)
+    }
+
+    if (candidates.length === 0 || professionals.length === 0) {
+        throw new Error('Seed configuration must include at least one candidate and one professional.')
     }
 
     // Create baseline availability slots for candidates
@@ -975,14 +1017,24 @@ async function main() {
     // ============================================
     console.log('')
     console.log('Creating edge case bookings...')
-    const candidateAt = (idx: number) => candidates[idx % candidates.length]
-    const professionalAt = (idx: number) => professionals[idx % professionals.length]
+    const candidateAt = (idx: number) => {
+        if (candidates.length === 0) {
+            throw new Error('Seed configuration error: no candidates were created.')
+        }
+        return candidates[idx % candidates.length]
+    }
+    const professionalAt = (idx: number) => {
+        if (professionals.length === 0) {
+            throw new Error('Seed configuration error: no professionals were created.')
+        }
+        return professionals[idx % professionals.length]
+    }
 
     // 1. Completed booking with feedback and payout (QC passed)
     const completedBooking = await prisma.booking.create({
         data: {
-            candidateId: candidates[0].id,
-            professionalId: professionals[0].id,
+            candidateId: candidateAt(0).id,
+            professionalId: professionalAt(0).id,
             status: BookingStatus.completed,
             priceCents: 12500,
             startAt: new Date(baseDate.getTime() - 7 * 24 * 60 * 60 * 1000),
@@ -1004,7 +1056,7 @@ async function main() {
             },
             payout: {
                 create: {
-                    proStripeAccountId: professionals[0].stripeAccountId,
+                    proStripeAccountId: professionalAt(0).stripeAccountId,
                     amountNet: 10625, // 12500 - 1875
                     status: PayoutStatus.paid,
                     stripeTransferId: generateStripeId('tr', 998),
@@ -1038,8 +1090,8 @@ async function main() {
     // 2. Declined booking
     await prisma.booking.create({
         data: {
-            candidateId: candidates[1].id,
-            professionalId: professionals[1].id,
+            candidateId: candidateAt(1).id,
+            professionalId: professionalAt(1).id,
             status: BookingStatus.declined,
             priceCents: 12500,
             startAt: new Date(baseDate.getTime() + 5 * 24 * 60 * 60 * 1000),
@@ -1061,8 +1113,8 @@ async function main() {
     // 3. Expired booking (professional didn't respond in time)
     await prisma.booking.create({
         data: {
-            candidateId: candidates[2].id,
-            professionalId: professionals[2].id,
+            candidateId: candidateAt(2).id,
+            professionalId: professionalAt(2).id,
             status: BookingStatus.expired,
             priceCents: 15000,
             startAt: new Date(baseDate.getTime() + 10 * 24 * 60 * 60 * 1000),
@@ -1084,8 +1136,8 @@ async function main() {
     // 4. Cancelled booking (by candidate)
     await prisma.booking.create({
         data: {
-            candidateId: candidates[3].id,
-            professionalId: professionals[3].id,
+            candidateId: candidateAt(3).id,
+            professionalId: professionalAt(3).id,
             status: BookingStatus.cancelled,
             priceCents: 17500,
             startAt: new Date(baseDate.getTime() + 2 * 24 * 60 * 60 * 1000),
@@ -1111,8 +1163,8 @@ async function main() {
     // 5. Late cancellation by candidate (professional should still get paid)
     await prisma.booking.create({
         data: {
-            candidateId: candidates[4].id,
-            professionalId: professionals[4].id,
+            candidateId: candidateAt(4).id,
+            professionalId: professionalAt(4).id,
             status: BookingStatus.cancelled,
             priceCents: 20000,
             startAt: new Date(baseDate.getTime() - 2 * 60 * 60 * 1000), // Was 2 hours ago
@@ -1132,7 +1184,7 @@ async function main() {
             },
             payout: {
                 create: {
-                    proStripeAccountId: professionals[4].stripeAccountId,
+                    proStripeAccountId: professionalAt(4).stripeAccountId,
                     amountNet: 17000,
                     status: PayoutStatus.paid,
                     stripeTransferId: generateStripeId('tr', 994),
@@ -1146,8 +1198,8 @@ async function main() {
     // 6. Booking with open dispute
     const disputedBooking = await prisma.booking.create({
         data: {
-            candidateId: candidates[5].id,
-            professionalId: professionals[5].id,
+            candidateId: candidateAt(5).id,
+            professionalId: professionalAt(5).id,
             status: BookingStatus.dispute_pending,
             priceCents: 15000,
             startAt: new Date(baseDate.getTime() - 3 * 24 * 60 * 60 * 1000),
@@ -1168,7 +1220,7 @@ async function main() {
             },
             payout: {
                 create: {
-                    proStripeAccountId: professionals[5].stripeAccountId,
+                    proStripeAccountId: professionalAt(5).stripeAccountId,
                     amountNet: 12750,
                     status: PayoutStatus.blocked,
                     reason: 'Dispute pending - professional no-show',
@@ -1176,7 +1228,7 @@ async function main() {
             },
             dispute: {
                 create: {
-                    initiatorId: candidates[5].id,
+                    initiatorId: candidateAt(5).id,
                     reason: DisputeReason.no_show,
                     description: 'The professional did not show up for the scheduled call. I waited for 15 minutes but they never joined.',
                     status: DisputeStatus.open,
@@ -1189,8 +1241,8 @@ async function main() {
     // 7. Booking with feedback requiring revision (QC: revise)
     await prisma.booking.create({
         data: {
-            candidateId: candidates[6].id,
-            professionalId: professionals[6].id,
+            candidateId: candidateAt(6).id,
+            professionalId: professionalAt(6).id,
             status: BookingStatus.completed_pending_feedback,
             priceCents: 12500,
             startAt: new Date(baseDate.getTime() - 4 * 24 * 60 * 60 * 1000),
@@ -1333,13 +1385,13 @@ async function main() {
     // 11. Reschedule pending booking (professional-requested)
     const professionalRequestedRescheduleBooking = await prisma.booking.create({
         data: {
-            candidateId: candidates[0].id,
-            professionalId: professionals[2].id,
+            candidateId: candidateAt(0).id,
+            professionalId: professionalAt(2).id,
             status: BookingStatus.reschedule_pending,
             priceCents: 15000,
             startAt: new Date(baseDate.getTime() + 2 * 24 * 60 * 60 * 1000), // Original accepted time
             endAt: new Date(baseDate.getTime() + 2 * 24 * 60 * 60 * 1000 + 60 * 60 * 1000),
-            timezone: candidates[0].timezone,
+            timezone: candidateAt(0).timezone,
             zoomMeetingId: `zoom_reschedule_2`,
             zoomJoinUrl: `https://zoom.us/j/reschedule2`,
             payment: {
@@ -1352,7 +1404,7 @@ async function main() {
             },
         },
     })
-    await createCandidateRequestAvailability(candidates[0], new Date(baseDate.getTime() + 3 * 24 * 60 * 60 * 1000), false)
+    await createCandidateRequestAvailability(candidateAt(0), new Date(baseDate.getTime() + 3 * 24 * 60 * 60 * 1000), false)
     console.log(`✅ Created professional-requested reschedule pending booking`)
 
     console.log('')
@@ -1386,21 +1438,21 @@ async function main() {
                 metadata: JSON.stringify({ resolution: 'refund', amount: 17500 }),
             },
             {
-                actorUserId: professionals[0].id,
+                actorUserId: professionalAt(0).id,
                 entity: 'Booking',
                 entityId: completedBooking.id,
                 action: 'feedback_submitted',
                 metadata: JSON.stringify({ wordCount: 112, qcStatus: 'passed' }),
             },
             {
-                actorUserId: candidates[0].id,
+                actorUserId: candidateAt(0).id,
                 entity: 'Booking',
                 entityId: completedBooking.id,
                 action: 'rating_submitted',
                 metadata: JSON.stringify({ rating: 5 }),
             },
             {
-                actorUserId: candidates[5].id,
+                actorUserId: candidateAt(5).id,
                 entity: 'Dispute',
                 entityId: disputedBooking.id,
                 action: 'dispute_opened',
@@ -1419,7 +1471,7 @@ async function main() {
                 }),
             },
             {
-                actorUserId: professionals[2].id,
+                actorUserId: professionalAt(2).id,
                 entity: 'Booking',
                 entityId: professionalRequestedRescheduleBooking.id,
                 action: 'booking_reschedule_requested',
@@ -1435,15 +1487,19 @@ async function main() {
     console.log(`✅ Created audit log entries`)
 
     // Summary
+    const seededCandidateEmails = candidates.map((candidate) => candidate.email).join(', ')
+    const seededProfessionalEmails = professionals.map((professional) => professional.email).join(', ')
+
     console.log('')
     console.log('='.repeat(70))
     console.log('🎉 Seeding finished!')
     console.log('')
     console.log('📊 Summary:')
+    console.log(`  Seed Mode: ${populationMode}`)
     console.log('  Users:')
     console.log(`    - 1 Admin: admin@monet.local (password: admin123!)`)
-    console.log(`    - ${CANDIDATE_COUNT} Candidates: cand1-${CANDIDATE_COUNT}@monet.local (password: cand123!)`)
-    console.log(`    - ${PROFESSIONAL_COUNT} Professionals: pro1-${PROFESSIONAL_COUNT}@monet.local (password: pro123!)`)
+    console.log(`    - ${candidates.length} Candidates: ${seededCandidateEmails} (password: cand123!)`)
+    console.log(`    - ${professionals.length} Professionals: ${seededProfessionalEmails} (password: pro123!)`)
     console.log('')
     console.log('  Per Professional (regular bookings):')
     console.log('    - 2 pending requests (status: requested)')

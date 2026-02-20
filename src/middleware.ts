@@ -1,42 +1,37 @@
-import { auth } from "@/auth"
-import { NextResponse } from "next/server"
-import { Role } from "@prisma/client"
+import { getToken } from "next-auth/jwt"
+import { NextRequest, NextResponse } from "next/server"
 
-export default auth((req) => {
-    const isLoggedIn = !!req.auth
-    const user = req.auth?.user
-    const nextUrl = req.nextUrl
-    const pathname = nextUrl.pathname
+type AppRole = "CANDIDATE" | "PROFESSIONAL" | "ADMIN"
 
-    if (pathname.startsWith("/candidate")) {
-        if (!isLoggedIn) {
-            return NextResponse.redirect(new URL("/api/auth/signin", nextUrl))
-        }
-        if (user?.role !== "CANDIDATE") {
-            return NextResponse.redirect(new URL("/", nextUrl))
-        }
+const protectedRolePrefixes: Array<{ prefix: string; role: AppRole }> = [
+    { prefix: "/candidate", role: "CANDIDATE" },
+    { prefix: "/professional", role: "PROFESSIONAL" },
+    { prefix: "/admin", role: "ADMIN" },
+]
+
+export async function middleware(req: NextRequest) {
+    const pathname = req.nextUrl.pathname
+    const protectedRoute = protectedRolePrefixes.find(({ prefix }) => pathname.startsWith(prefix))
+
+    if (!protectedRoute) {
+        return NextResponse.next()
     }
 
-    if (pathname.startsWith("/professional")) {
-        if (!isLoggedIn) {
-            return NextResponse.redirect(new URL("/api/auth/signin", nextUrl))
-        }
-        if (user?.role !== "PROFESSIONAL") {
-            return NextResponse.redirect(new URL("/", nextUrl))
-        }
+    const token = await getToken({
+        req,
+        secret: process.env.AUTH_SECRET?.trim() || process.env.NEXTAUTH_SECRET?.trim(),
+    })
+
+    if (!token) {
+        return NextResponse.redirect(new URL("/api/auth/signin", req.nextUrl))
     }
 
-    if (pathname.startsWith("/admin")) {
-        if (!isLoggedIn) {
-            return NextResponse.redirect(new URL("/api/auth/signin", nextUrl))
-        }
-        if (user?.role !== "ADMIN") {
-            return NextResponse.redirect(new URL("/", nextUrl))
-        }
+    if (token.role !== protectedRoute.role) {
+        return NextResponse.redirect(new URL("/", req.nextUrl))
     }
 
     return NextResponse.next()
-})
+}
 
 export const config = {
     matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],

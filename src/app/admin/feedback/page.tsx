@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { AdminDataTable, type Column } from '@/components/ui/composites/AdminDataTable';
 import { StatusBadge } from '@/components/ui/composites/StatusBadge';
 
+export const dynamic = 'force-dynamic';
+
 type FeedbackRow = Awaited<ReturnType<typeof AdminFeedbackService.listFeedback>>[number];
 
 function qcStatusVariant(status: string) {

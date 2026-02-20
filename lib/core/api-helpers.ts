@@ -25,10 +25,10 @@ export async function requireRole(role: Role, callbackUrl?: string) {
     return user
 }
 
-type ApiHandler = (req: Request, ...args: unknown[]) => Promise<Response> | Response
+type ApiHandler<TArgs extends unknown[] = unknown[]> = (req: Request, ...args: TArgs) => Promise<Response> | Response
 
-export function withRole(role: Role, handler: ApiHandler) {
-    return async (req: Request, ...args: unknown[]) => {
+export function withRole<TArgs extends unknown[]>(role: Role, handler: ApiHandler<TArgs>) {
+    return async (req: Request, ...args: TArgs): Promise<Response> => {
         const session = await auth()
         const user = session?.user
 
@@ -48,7 +48,7 @@ export function withRole(role: Role, handler: ApiHandler) {
                     params: await Promise.resolve(context.params),
                 }
             })
-        )
+        ) as TArgs
 
         return handler(req, ...normalizedArgs)
     }

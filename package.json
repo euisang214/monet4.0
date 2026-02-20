@@ -12,7 +12,9 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "vitest run tests/e2e/",
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts",
+    "seed:lite": "SEED_POPULATION_MODE=lite tsx prisma/seed.ts",
+    "seed:full": "SEED_POPULATION_MODE=full tsx prisma/seed.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",

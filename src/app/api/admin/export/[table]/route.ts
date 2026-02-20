@@ -6,9 +6,9 @@ import { NextResponse } from 'next/server';
 
 export const GET = withRole(Role.ADMIN, async (
     _req: Request,
-    context: { params: { table: string } },
+    context: { params: Promise<{ table: string }> },
 ) => {
-    const { table } = context.params;
+    const { table } = await context.params;
     const config = EXPORT_TABLE_CONFIG[table];
 
     if (!config) {

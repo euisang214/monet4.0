@@ -8,16 +8,17 @@ const confirmSchema = z.object({
     startAt: z.string().datetime()
 });
 
-export const POST = withRole(Role.PROFESSIONAL, async (req: Request, { params }: { params: { id: string } }) => {
+export const POST = withRole(Role.PROFESSIONAL, async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
     try {
         const session = await auth();
         if (!session?.user?.id) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+        const { id } = await params;
 
         const body = await req.json();
         const { startAt } = confirmSchema.parse(body);
 
         const booking = await ProfessionalRescheduleService.confirmReschedule(
-            params.id,
+            id,
             session.user.id,
             new Date(startAt)
         );

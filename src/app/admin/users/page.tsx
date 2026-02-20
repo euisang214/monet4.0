@@ -2,6 +2,8 @@ import { AdminUserService } from '@/lib/role/admin/users';
 import { AdminDataTable, type Column } from '@/components/ui/composites/AdminDataTable';
 import { StatusBadge } from '@/components/ui/composites/StatusBadge';
 
+export const dynamic = 'force-dynamic';
+
 type UserRow = Awaited<ReturnType<typeof AdminUserService.listUsers>>[number];
 
 function roleBadgeVariant(role: string) {

@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { AdminDataTable, type Column } from '@/components/ui/composites/AdminDataTable';
 import { StatusBadge } from '@/components/ui/composites/StatusBadge';
 
+export const dynamic = 'force-dynamic';
+
 type PaymentRow = Awaited<ReturnType<typeof AdminPaymentService.listPayments>>[number];
 
 function paymentStatusVariant(status: string) {

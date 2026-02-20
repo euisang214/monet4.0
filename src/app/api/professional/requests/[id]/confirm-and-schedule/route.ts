@@ -5,13 +5,14 @@ import { Role } from '@prisma/client';
 
 import { auth } from '@/auth';
 
-export const GET = withRole(Role.PROFESSIONAL, async (req: Request, { params }: { params: { id: string } }) => {
+export const GET = withRole(Role.PROFESSIONAL, async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
     try {
         const session = await auth();
         if (!session?.user?.id) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+        const { id } = await params;
 
         const slots = await ProfessionalRequestService.getBookingCandidateAvailability(
-            params.id,
+            id,
             session.user.id
         );
         return Response.json({ data: slots });
@@ -26,16 +27,17 @@ const confirmSchema = z.object({
     startAt: z.string().datetime()
 });
 
-export const POST = withRole(Role.PROFESSIONAL, async (req: Request, { params }: { params: { id: string } }) => {
+export const POST = withRole(Role.PROFESSIONAL, async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
     try {
         const session = await auth();
         if (!session?.user?.id) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+        const { id } = await params;
 
         const body = await req.json();
         const { startAt } = confirmSchema.parse(body);
 
         const booking = await ProfessionalRequestService.confirmAndSchedule(
-            params.id,
+            id,
             session.user.id,
             new Date(startAt)
         );
