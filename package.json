@@ -6,7 +6,7 @@
     "dev": "next dev",
     "dev:queue": "tsx scripts/dev-queue.ts",
     "build": "next build",
-    "vercel-build": "prisma generate && prisma migrate deploy && if [ \"$VERCEL_ENV\" = \"preview\" ]; then npm run seed:lite; fi && next build",
+    "vercel-build": "bash scripts/vercel-build.sh",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
