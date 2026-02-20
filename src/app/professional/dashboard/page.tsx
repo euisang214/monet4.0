@@ -60,13 +60,19 @@ function sectionUrl(view: ProfessionalDashboardView, cursor?: string) {
 export default async function ProfessionalDashboardPage({
     searchParams,
 }: {
-    searchParams?: {
-        view?: string;
-        cursor?: string;
-    };
+    searchParams?:
+        | {
+              view?: string;
+              cursor?: string;
+          }
+        | Promise<{
+              view?: string;
+              cursor?: string;
+          }>;
 }) {
     const user = await requireRole(Role.PROFESSIONAL, appRoutes.professional.dashboard);
-    const activeView = isView(searchParams?.view) ? searchParams.view : DEFAULT_VIEW;
+    const resolvedSearchParams = (await searchParams) ?? {};
+    const activeView = isView(resolvedSearchParams.view) ? resolvedSearchParams.view : DEFAULT_VIEW;
 
     const {
         stats,
@@ -77,7 +83,7 @@ export default async function ProfessionalDashboardPage({
         reviewStats,
     } = await ProfessionalDashboardService.getDashboardData(user.id, {
         view: activeView,
-        cursor: searchParams?.cursor,
+        cursor: resolvedSearchParams.cursor,
     });
 
     const averageRating =
@@ -162,7 +168,7 @@ export default async function ProfessionalDashboardPage({
                 ) : null}
 
                 <div className="flex items-center gap-3">
-                    {searchParams?.cursor ? (
+                    {resolvedSearchParams.cursor ? (
                         <Link
                             href={sectionUrl(activeView)}
                             className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"

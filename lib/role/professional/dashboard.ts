@@ -238,20 +238,7 @@ export const ProfessionalDashboardService = {
                 where: {
                     professionalId,
                 },
-                select: {
-                    id: true,
-                    startAt: true,
-                    timezone: true,
-                    zoomJoinUrl: true,
-                    professionalZoomJoinUrl: true,
-                    candidate: {
-                        select: {
-                            email: true
-                        }
-                    }
-                _count: {
-                    _all: true,
-                },
+                _count: { _all: true },
             }),
             prisma.booking.count({
                 where: pendingFeedbackWhere(professionalId),

@@ -90,27 +90,30 @@ function sectionUrl(view: CandidateChatSection, cursor?: string) {
 export default async function CandidateChatsPage({
     searchParams,
 }: {
-    searchParams?: {
-        view?: string;
-        cursor?: string;
-    };
+    searchParams?:
+        | {
+              view?: string;
+              cursor?: string;
+          }
+        | Promise<{
+              view?: string;
+              cursor?: string;
+          }>;
 }) {
     const user = await requireRole(Role.CANDIDATE, appRoutes.candidate.chats);
-    const activeView = isChatSection(searchParams?.view) ? searchParams.view : DEFAULT_VIEW;
-    const cursor = searchParams?.cursor;
-    const startedAt = performance.now();
+    const resolvedSearchParams = (await searchParams) ?? {};
+    const activeView = isChatSection(resolvedSearchParams.view) ? resolvedSearchParams.view : DEFAULT_VIEW;
+    const cursor = resolvedSearchParams.cursor;
 
     const [sectionCounts, sectionPage] = await Promise.all([
         getCandidateChatSectionCounts(user.id),
         getCandidateChatSectionPage(user.id, activeView, { cursor }),
     ]);
-    const durationMs = Number((performance.now() - startedAt).toFixed(2));
 
     console.info('[perf][candidate-history] pageData', {
         view: activeView,
         hasCursor: Boolean(cursor),
         rows: sectionPage.items.length,
-        durationMs,
     });
 
     const sections = SECTION_META.map((section) => ({
