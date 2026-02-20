@@ -47,7 +47,7 @@ export default async function ProfessionalReschedulePage({ params }: PageProps) 
                 <ConfirmRescheduleForm
                     bookingId={id}
                     slots={slots}
-                    calendarTimezone={booking.candidate.timezone}
+                    calendarTimezone={booking.timezone}
                     professionalTimezone={booking.professional.timezone}
                 />
             </div>

@@ -185,6 +185,10 @@ export function ProfessionalWeeklySlotPicker({
     calendarTimezone,
     professionalTimezone,
 }: ProfessionalWeeklySlotPickerProps) {
+    const resolvedCalendarTimezone = React.useMemo(
+        () => calendarTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        [calendarTimezone]
+    );
     const {
         weekStart,
         hasSlots,
@@ -196,12 +200,9 @@ export function ProfessionalWeeklySlotPicker({
     } = useProfessionalWeeklySlotSelection({
         slots,
         selectedSlot,
+        calendarTimezone: resolvedCalendarTimezone,
     });
     const { scrollRef, viewportHeight } = useDefaultBusinessHoursViewport(weekStart);
-    const resolvedCalendarTimezone = React.useMemo(
-        () => calendarTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-        [calendarTimezone]
-    );
     const showProfessionalTimezoneAxis =
         !!professionalTimezone && professionalTimezone !== resolvedCalendarTimezone;
 

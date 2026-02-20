@@ -30,7 +30,10 @@ export function ReschedulePageClient({
     const { googleBusyIntervals, isLoadingBusy, busyLoadError, lastBusyRefreshAt, refreshGoogleBusy } =
         useCandidateGoogleBusy();
 
-    const { isSubmitting, error, submitRequest } = useCandidateRescheduleRequest(bookingId);
+    const { isSubmitting, error, submitRequest } = useCandidateRescheduleRequest(
+        bookingId,
+        resolvedCalendarTimezone
+    );
 
     const handleSlotSelectionChange = useCallback(
         ({ availabilitySlots: slots, selectedCount }: { availabilitySlots: SlotInterval[]; selectedCount: number }) => {

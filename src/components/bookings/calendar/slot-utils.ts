@@ -1,4 +1,4 @@
-import { addDays, addMinutes, format } from 'date-fns';
+import { addDays, addMinutes, format, startOfWeek } from 'date-fns';
 import { formatInTimeZone, fromZonedTime, toZonedTime } from 'date-fns-tz';
 import type { SlotInput, SlotInterval } from '@/components/bookings/calendar/types';
 
@@ -46,6 +46,23 @@ export function slotDateForCell(weekStart: Date, dayOffset: number, row: number,
     const date = addDays(weekStart, dayOffset);
     date.setHours(0, 0, 0, 0);
     return addMinutes(date, row * SLOT_MINUTES);
+}
+
+export function startOfWeekInTimeZone(
+    date: Date,
+    timeZone: string,
+    weekStartsOn: 0 | 1 | 2 | 3 | 4 | 5 | 6 = WEEK_STARTS_ON
+): Date {
+    const zonedDate = toZonedTime(date, timeZone);
+    const zonedWeekStart = startOfWeek(zonedDate, { weekStartsOn });
+    zonedWeekStart.setHours(0, 0, 0, 0);
+    return fromZonedTime(zonedWeekStart, timeZone);
+}
+
+export function addDaysInTimeZone(date: Date, days: number, timeZone: string): Date {
+    const zonedDate = toZonedTime(date, timeZone);
+    zonedDate.setDate(zonedDate.getDate() + days);
+    return fromZonedTime(zonedDate, timeZone);
 }
 
 export function getSlotLabel(

@@ -15,25 +15,27 @@ interface CandidateBookingRequestFormProps {
     professionalId: string;
     priceCents: number;
     professionalTimezone?: string | null;
+    candidateTimezone?: string;
 }
 
 export function CandidateBookingRequestForm({
     professionalId,
     priceCents,
     professionalTimezone,
+    candidateTimezone,
 }: CandidateBookingRequestFormProps) {
     const [availabilitySlots, setAvailabilitySlots] = useState<SlotInterval[]>([]);
     const [selectedSlotCount, setSelectedSlotCount] = useState(0);
-    const calendarTimezone = React.useMemo(
-        () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-        []
+    const resolvedCandidateTimezone = React.useMemo(
+        () => candidateTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        [candidateTimezone]
     );
 
     const { googleBusyIntervals, isLoadingBusy, busyLoadError, lastBusyRefreshAt, refreshGoogleBusy } =
         useCandidateGoogleBusy();
 
     const { clientSecret, bookingId, isSubmitting, error, submitRequest } =
-        useCandidateBookingRequest(professionalId);
+        useCandidateBookingRequest(professionalId, resolvedCandidateTimezone);
 
     const handleSlotSelectionChange = useCallback(
         ({ availabilitySlots: slots, selectedCount }: { availabilitySlots: SlotInterval[]; selectedCount: number }) => {
@@ -89,7 +91,7 @@ export function CandidateBookingRequestForm({
                 <CandidateWeeklySlotPicker
                     googleBusyIntervals={googleBusyIntervals}
                     onChange={handleSlotSelectionChange}
-                    calendarTimezone={calendarTimezone}
+                    calendarTimezone={resolvedCandidateTimezone}
                     professionalTimezone={professionalTimezone}
                 />
             </div>

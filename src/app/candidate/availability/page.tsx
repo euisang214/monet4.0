@@ -3,16 +3,23 @@ import { CandidateSettings } from '@/lib/role/candidate/settings';
 import { Role } from '@prisma/client';
 import { EmptyState } from '@/components/ui/composites/EmptyState';
 import { ProfessionalWeeklySlotPicker } from '@/components/bookings/WeeklySlotCalendar';
+import { prisma } from '@/lib/core/db';
 
 export default async function CandidateAvailabilityPage() {
     const user = await requireRole(Role.CANDIDATE, '/candidate/availability');
 
-    const availability = await CandidateSettings.getAvailability(user.id);
+    const [availability, candidate] = await Promise.all([
+        CandidateSettings.getAvailability(user.id),
+        prisma.user.findUnique({
+            where: { id: user.id },
+            select: { timezone: true },
+        }),
+    ]);
     const availableSlots = availability
         .filter((slot) => !slot.busy)
         .map((slot) => ({ start: slot.start, end: slot.end }));
     const blockedSlotsCount = availability.length - availableSlots.length;
-    const calendarTimezone = availability.find((slot) => !slot.busy)?.timezone || 'UTC';
+    const calendarTimezone = candidate?.timezone || 'UTC';
 
     return (
         <main className="container py-8">

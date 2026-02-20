@@ -50,13 +50,20 @@ export const AvailabilityService = {
         // Real implementation would be better.
         // For now we just implement the facade support.
 
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { timezone: true },
+        });
+        const canonicalTimezone = user?.timezone || 'UTC';
+
         await prisma.$transaction(
             slots.map(slot => prisma.availability.create({
                 data: {
                     userId,
                     start: slot.start,
                     end: slot.end,
-                    busy: slot.busy
+                    busy: slot.busy,
+                    timezone: canonicalTimezone,
                 }
             }))
         );
@@ -81,14 +88,28 @@ export const AvailabilityService = {
      * Implements delete + create pattern used by /api/candidate/availability POST
      * @param userId - The user to update
      * @param slots - New slots to create
-     * @param timezone - Timezone for all slots
+     * @param _timezone - Deprecated request timezone. Canonical timezone is loaded from user profile.
      */
     async replaceUserAvailability(
         userId: string,
         slots: { start: string; end: string; busy?: boolean }[],
-        timezone: string = 'UTC'
+        _timezone?: string
     ): Promise<{ success: boolean }> {
         await prisma.$transaction(async (tx) => {
+            const user = await tx.user.findUnique({
+                where: { id: userId },
+                select: { timezone: true },
+            });
+
+            if (!user) {
+                throw new Error('User not found');
+            }
+            if (_timezone && _timezone !== user.timezone) {
+                console.warn(
+                    `[AvailabilityService] Ignoring request timezone "${_timezone}" for user ${userId}; using canonical "${user.timezone}".`
+                );
+            }
+
             // 1. Delete all future manual availability
             await tx.availability.deleteMany({
                 where: {
@@ -105,7 +126,7 @@ export const AvailabilityService = {
                         start: new Date(slot.start),
                         end: new Date(slot.end),
                         busy: slot.busy ?? false,
-                        timezone,
+                        timezone: user.timezone,
                     })),
                 });
             }

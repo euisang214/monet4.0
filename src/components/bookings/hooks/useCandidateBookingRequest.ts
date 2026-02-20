@@ -4,7 +4,17 @@ import { useCallback, useState } from 'react';
 import type { SlotInterval } from '@/components/bookings/calendar/types';
 import { createCandidateBookingRequest } from '@/components/bookings/services/candidateBookingApi';
 
-export function useCandidateBookingRequest(professionalId: string) {
+type BookingRequestPayload = {
+    professionalId: string;
+    availabilitySlots: SlotInterval[];
+    timezone: string;
+};
+
+export function buildCandidateBookingRequestPayload(payload: BookingRequestPayload): BookingRequestPayload {
+    return payload;
+}
+
+export function useCandidateBookingRequest(professionalId: string, timezone: string) {
     const [clientSecret, setClientSecret] = useState<string | null>(null);
     const [bookingId, setBookingId] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -21,12 +31,11 @@ export function useCandidateBookingRequest(professionalId: string) {
             setError(null);
 
             try {
-                const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-                const result = await createCandidateBookingRequest({
+                const result = await createCandidateBookingRequest(buildCandidateBookingRequestPayload({
                     professionalId,
                     availabilitySlots,
                     timezone,
-                });
+                }));
 
                 setClientSecret(result.clientSecret);
                 setBookingId(result.bookingId);
@@ -43,7 +52,7 @@ export function useCandidateBookingRequest(professionalId: string) {
                 setIsSubmitting(false);
             }
         },
-        [professionalId]
+        [professionalId, timezone]
     );
 
     return {

@@ -46,7 +46,7 @@ export default async function ConfirmAndSchedulePage({ params }: PageProps) {
                 <ConfirmBookingForm
                     bookingId={id}
                     slots={slots}
-                    calendarTimezone={booking.candidate.timezone}
+                    calendarTimezone={booking.timezone}
                     professionalTimezone={booking.professional.timezone}
                 />
             </div>

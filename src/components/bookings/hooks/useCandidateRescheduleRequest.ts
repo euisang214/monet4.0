@@ -9,7 +9,20 @@ interface SubmitRescheduleArgs {
     reason?: string;
 }
 
-export function useCandidateRescheduleRequest(bookingId: string | undefined) {
+type RescheduleRequestPayload = {
+    bookingId: string;
+    slots: SlotInterval[];
+    reason?: string;
+    timezone: string;
+};
+
+export function buildCandidateRescheduleRequestPayload(
+    payload: RescheduleRequestPayload
+): RescheduleRequestPayload {
+    return payload;
+}
+
+export function useCandidateRescheduleRequest(bookingId: string | undefined, timezone: string) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -29,13 +42,12 @@ export function useCandidateRescheduleRequest(bookingId: string | undefined) {
             setError(null);
 
             try {
-                const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-                await submitCandidateRescheduleRequest({
+                await submitCandidateRescheduleRequest(buildCandidateRescheduleRequestPayload({
                     bookingId,
                     slots,
                     reason,
                     timezone,
-                });
+                }));
                 return true;
             } catch (submitError: unknown) {
                 if (submitError instanceof Error) {
@@ -48,7 +60,7 @@ export function useCandidateRescheduleRequest(bookingId: string | undefined) {
                 setIsSubmitting(false);
             }
         },
-        [bookingId]
+        [bookingId, timezone]
     );
 
     return {

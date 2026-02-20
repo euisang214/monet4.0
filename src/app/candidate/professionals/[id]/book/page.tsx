@@ -5,6 +5,7 @@ import { CandidateBookingRequestForm } from '@/components/bookings/CandidateBook
 import { notFound } from 'next/navigation';
 import { Role } from '@prisma/client';
 import { appRoutes } from '@/lib/shared/routes';
+import { prisma } from '@/lib/core/db';
 
 export default async function BookingRequestPage(props: {
     params: Promise<{ id: string }>;
@@ -12,7 +13,13 @@ export default async function BookingRequestPage(props: {
     const params = await props.params;
     const user = await requireRole(Role.CANDIDATE, appRoutes.candidate.professionalBook(params.id));
 
-    const professional = await CandidateBrowse.getProfessionalDetails(params.id);
+    const [professional, candidate] = await Promise.all([
+        CandidateBrowse.getProfessionalDetails(params.id),
+        prisma.user.findUnique({
+            where: { id: user.id },
+            select: { timezone: true },
+        }),
+    ]);
     if (!professional) {
         notFound();
     }
@@ -34,6 +41,7 @@ export default async function BookingRequestPage(props: {
                 professionalId={params.id}
                 priceCents={professional.priceCents}
                 professionalTimezone={professional.timezone}
+                candidateTimezone={candidate?.timezone || 'UTC'}
             />
         </div>
     );
