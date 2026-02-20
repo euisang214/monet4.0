@@ -48,7 +48,7 @@ Edit `.env` with your configuration values. At minimum, you need:
 | `STRIPE_TEST_WEBHOOK_SECRET` | Stripe webhook secret used by Vitest | `whsec_...` |
 | `STRIPE_TEST_DEFAULT_PAYMENT_METHOD` | Test payment method for live Stripe tests | `pm_card_visa` |
 
-See `.env.example` for the full list of available environment variables including Google OAuth, Zoom integration, AWS SES, Supabase Storage, and feature flags.
+See `.env.example` for the full list of available environment variables including Google OAuth, Zoom integration, Gmail OAuth2 SMTP, Supabase Storage, and feature flags.
 
 `npm run test` uses live Stripe test-mode API calls for Stripe-related tests. Ensure the Stripe test variables above are present in your `.env`.
 
@@ -199,7 +199,7 @@ Use this section if you want Supabase for:
 | **Database** | Supabase | Managed PostgreSQL |
 | **Redis** | Upstash or Railway | For BullMQ job queue |
 | **File Storage** | Supabase Storage | Private resume uploads |
-| **Email** | AWS SES | Transactional emails |
+| **Email** | Gmail OAuth2 (Nodemailer) | Transactional emails |
 | **Payments** | Stripe Connect | Separate charges and transfers |
 
 ### Step 1: Set Up External Services
@@ -217,9 +217,10 @@ Use this section if you want Supabase for:
    - Set up a Stripe account with Connect enabled
    - Use live keys (`sk_live_...`, `pk_live_...`) for production
 
-4. **AWS SES** (Optional but recommended)
-   - Configure SES for email sending
-   - Create IAM credentials with appropriate permissions
+4. **Google Cloud + Gmail OAuth2**
+   - Create an OAuth client in Google Cloud Console
+   - Generate a refresh token for your sender account
+   - Ensure the sender is allowed for your chosen Gmail/Workspace setup
 
 5. **Supabase Storage**
    - Create a private bucket for resumes (default: `candidate-resumes`)
@@ -261,10 +262,12 @@ Use this section if you want Supabase for:
    ZOOM_CLIENT_ID=...
    ZOOM_CLIENT_SECRET=...
    
-   # AWS SES
-   AWS_REGION=us-east-1
-   AWS_ACCESS_KEY_ID=...
-   AWS_SECRET_ACCESS_KEY=...
+   # Gmail OAuth2 SMTP
+   GMAIL_OAUTH_CLIENT_ID=...
+   GMAIL_OAUTH_CLIENT_SECRET=...
+   GMAIL_OAUTH_REFRESH_TOKEN=...
+   GMAIL_OAUTH_USER=your-sender@gmail.com
+   EMAIL_FROM="Monet Platform <your-sender@gmail.com>"
    
    # Supabase Storage (Resume PDFs)
    SUPABASE_URL=https://<project-ref>.supabase.co
@@ -278,6 +281,10 @@ Use this section if you want Supabase for:
    FEATURE_QC_LLM=true
    ANTHROPIC_API_KEY=...
    ```
+
+   Email prerequisites:
+   - `EMAIL_FROM` should align with the authenticated Gmail sender identity.
+   - Verify Gmail/Workspace daily sending quotas before production rollout.
 
 4. **Deploy**
    - Vercel will automatically build and deploy
@@ -312,6 +319,26 @@ Or use Vercel's build command to run migrations automatically by updating `packa
 - Deploy `npm run dev:queue` as a separate service
 - Use Railway, Render, or a dedicated VPS
 - Ensure the worker has access to the same `REDIS_URL` and `DATABASE_URL`
+
+### Email Cutover Checklist (SES -> Gmail OAuth2)
+
+1. Configure all `GMAIL_OAUTH_*` variables and `EMAIL_FROM` in production.
+2. Deploy and run a controlled end-to-end booking acceptance.
+3. Verify:
+   - Booking moves `accepted_pending_integrations` -> `accepted`
+   - `confirm-booking` failures are retried with backoff
+   - Acceptance emails include valid Zoom links and ICS attachments
+4. Monitor for 24 hours:
+   - Count of stale `accepted_pending_integrations` bookings
+   - BullMQ failed `confirm-booking` jobs
+   - Email transport failures
+
+### Email Rollback Checklist
+
+1. Revert to the pre-cutover SES commit.
+2. Redeploy app + worker.
+3. Restore SES environment variables.
+4. Re-run controlled acceptance flow and verify email delivery.
 
 ### Production Build Commands
 

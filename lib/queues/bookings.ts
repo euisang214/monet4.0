@@ -2,10 +2,9 @@ import { Worker, Job, ConnectionOptions } from 'bullmq';
 import { prisma } from '@/lib/core/db';
 import { createZoomMeeting } from '@/lib/integrations/zoom';
 import { createGoogleCalendarEvent } from '@/lib/integrations/calendar/google';
-import { sendBookingAcceptedEmail } from '@/lib/integrations/email';
 import { expireBooking, completeCall, cancelBooking, initiateDispute, completeIntegrations } from '@/lib/domain/bookings/transitions';
 import { stripe, cancelPaymentIntent } from '@/lib/integrations/stripe';
-import { differenceInMinutes, subMinutes } from 'date-fns';
+import { subMinutes } from 'date-fns';
 import { BookingStatus, AttendanceOutcome } from '@prisma/client';
 
 export const BOOKING_QUEUE_NAME = 'bookings';
@@ -73,6 +72,18 @@ export async function processConfirmBooking(bookingId: string) {
     let zoomMeetingId = booking.zoomMeetingId;
     let zoomJoinUrl = booking.zoomJoinUrl;
 
+    if (
+        zoomMeetingId
+        && zoomJoinUrl
+        && (
+            booking.status === BookingStatus.accepted_pending_integrations
+            || booking.status === BookingStatus.accepted
+        )
+    ) {
+        // Self-heal transition state and (re)emit accepted notifications in an idempotent way.
+        await completeIntegrations(bookingId, { joinUrl: zoomJoinUrl, meetingId: zoomMeetingId });
+    }
+
     if (!zoomMeetingId) {
         try {
             const durationMinutes = (booking.endAt.getTime() - booking.startAt.getTime()) / (1000 * 60);
@@ -97,6 +108,10 @@ export async function processConfirmBooking(bookingId: string) {
             // We throw to retry the job
             throw error;
         }
+    }
+
+    if (booking.status === BookingStatus.accepted_pending_integrations && (Boolean(zoomMeetingId) !== Boolean(zoomJoinUrl))) {
+        throw new Error(`Booking ${bookingId} has incomplete Zoom metadata`);
     }
 
     // 3. Google Calendar Sync
@@ -130,21 +145,6 @@ export async function processConfirmBooking(bookingId: string) {
         });
     } catch (e) {
         console.error(`Failed to sync calendar for candidate ${booking.candidateId}`, e);
-    }
-
-    // 4. Send Emails with ICS
-    const bookingWithRelations = { ...booking, zoomJoinUrl: zoomJoinUrl }; // Ensure latest Zoom URL
-
-    try {
-        await sendBookingAcceptedEmail(bookingWithRelations, 'PROFESSIONAL');
-    } catch (e) {
-        console.error('Failed to send email to professional', e);
-    }
-
-    try {
-        await sendBookingAcceptedEmail(bookingWithRelations, 'CANDIDATE');
-    } catch (e) {
-        console.error('Failed to send email to candidate', e);
     }
 
     return { processed: true, bookingId, zoomCreated: !!zoomJoinUrl };
@@ -213,7 +213,7 @@ export async function processRescheduleBooking(bookingId: string, oldZoomMeeting
         throw error;
     }
 
-    // Reuse Calendar/Email logic
+    // Reuse calendar sync logic
     const eventParams = {
         summary: `Rescheduled Consultation Call`,
         description: `Join Zoom Meeting: ${zoomJoinUrl}`,
@@ -236,13 +236,6 @@ export async function processRescheduleBooking(bookingId: string, oldZoomMeeting
         ...eventParams,
         description: `${eventParams.description}\n\nProfessional: ${booking.professional.email}`,
     }).catch(e => console.error(e));
-
-    // Send Emails (reschedule variations?)
-    // Using standard accepted for now, or update integration to support rescheduled template.
-    // Assuming standard is fine for strict MVP, but ideally "Rescheduled".
-    const bookingWithRelations = { ...booking, zoomJoinUrl: zoomJoinUrl! };
-    await sendBookingAcceptedEmail(bookingWithRelations, 'PROFESSIONAL').catch(e => console.error(e));
-    await sendBookingAcceptedEmail(bookingWithRelations, 'CANDIDATE').catch(e => console.error(e));
 
     return { processed: true, type: 'reschedule' };
 }

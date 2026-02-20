@@ -1,5 +1,6 @@
 import { Worker, Job, ConnectionOptions } from 'bullmq';
 import { prisma } from '@/lib/core/db';
+import { BookingStatus } from '@prisma/client';
 import {
     sendFeedbackRevisionEmail,
     sendBookingRequestedEmail,
@@ -49,6 +50,11 @@ export function createNotificationsWorker(connection: ConnectionOptions) {
                 include: { professional: true, candidate: true }
             });
             if (!booking) return;
+
+            if (booking.status !== BookingStatus.accepted || !booking.zoomJoinUrl) {
+                console.warn(`[NOTIFICATIONS] Skipping acceptance email for booking ${bookingId}: status=${booking.status}, zoomJoinUrl=${booking.zoomJoinUrl ? 'present' : 'missing'}`);
+                return;
+            }
 
             await sendBookingAcceptedEmail(booking, 'CANDIDATE');
             await sendBookingAcceptedEmail(booking, 'PROFESSIONAL');

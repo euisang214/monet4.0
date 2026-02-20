@@ -37,10 +37,6 @@ vi.mock('@/lib/integrations/calendar/google', () => ({
     createGoogleCalendarEvent: vi.fn().mockResolvedValue({}),
 }));
 
-vi.mock('@/lib/integrations/email', () => ({
-    sendBookingAcceptedEmail: vi.fn().mockResolvedValue({}),
-}));
-
 // Mock the transition functions (they're the complex parts with Prisma transactions)
 vi.mock('@/lib/domain/bookings/transitions', () => ({
     expireBooking: vi.fn(),
@@ -111,11 +107,12 @@ describe('Booking Queue Workers', () => {
             expect(createZoomMeeting).not.toHaveBeenCalled();
         });
 
-        it('should skip Zoom creation if already has meeting ID', async () => {
+        it('should self-heal pending bookings with existing Zoom data', async () => {
             const mockBooking = {
                 id: 'booking_123',
                 startAt: new Date(),
                 endAt: new Date(),
+                status: BookingStatus.accepted_pending_integrations,
                 zoomMeetingId: 'existing_123',
                 zoomJoinUrl: 'https://zoom.us/existing',
                 candidate: { email: 'cand@test.com' },
@@ -127,6 +124,10 @@ describe('Booking Queue Workers', () => {
             await processConfirmBooking('booking_123');
 
             expect(createZoomMeeting).not.toHaveBeenCalled();
+            expect(completeIntegrations).toHaveBeenCalledWith('booking_123', {
+                joinUrl: 'https://zoom.us/existing',
+                meetingId: 'existing_123',
+            });
         });
     });
 

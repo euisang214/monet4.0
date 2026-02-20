@@ -404,8 +404,6 @@ export async function acceptBooking(
         throw new TransitionError('Only professionals can accept bookings');
     }
 
-    let transitioned = false;
-
     const result = await transitionBooking(bookingId, BookingStatus.accepted, { actor }, deps, async (tx) => {
         const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
         if (booking.professionalId !== actor.userId) {
@@ -420,7 +418,6 @@ export async function acceptBooking(
             throw new TransitionError(`Cannot accept booking in state ${booking.status}`);
         }
 
-        transitioned = true;
         const updated = await tx.booking.update({
             where: { id: bookingId },
             data: { status: BookingStatus.accepted },
@@ -433,13 +430,6 @@ export async function acceptBooking(
 
         return updated;
     });
-
-    if (transitioned) {
-        await notificationsQueue.add('notifications', {
-            type: 'booking_accepted',
-            bookingId: bookingId,
-        });
-    }
     return result;
 }
 
@@ -471,8 +461,6 @@ export async function acceptBookingWithIntegrations(
 ) {
     if (actor.role !== Role.PROFESSIONAL) throw new TransitionError('Not authorized');
 
-    let transitioned = false;
-
     const result = await transitionBooking(bookingId, BookingStatus.accepted_pending_integrations, { actor }, deps, async (tx) => {
         const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
         if (booking.professionalId !== actor.userId) throw new TransitionError('Not authorized');
@@ -485,7 +473,6 @@ export async function acceptBookingWithIntegrations(
             throw new TransitionError(`Invalid status: ${booking.status}`);
         }
 
-        transitioned = true;
         const updated = await tx.booking.update({
             where: { id: bookingId },
             data: { status: BookingStatus.accepted_pending_integrations },
@@ -498,13 +485,6 @@ export async function acceptBookingWithIntegrations(
 
         return updated;
     });
-
-    if (transitioned) {
-        await notificationsQueue.add('notifications', {
-            type: 'booking_accepted',
-            bookingId: bookingId,
-        });
-    }
     return result;
 }
 
@@ -514,14 +494,22 @@ export async function completeIntegrations(
     zoomData: { joinUrl: string; meetingId: string },
     deps: Dependencies = { prisma: defaultPrisma }
 ) {
-    return transitionBooking(bookingId, BookingStatus.accepted, { actor: 'system' }, deps, async (tx) => {
+    const result = await transitionBooking(bookingId, BookingStatus.accepted, { actor: 'system' }, deps, async (tx) => {
         const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
 
         if (booking.status === BookingStatus.accepted) {
             if (booking.zoomJoinUrl === zoomData.joinUrl && booking.zoomMeetingId === zoomData.meetingId) {
                 return booking;
             }
-            throw new TransitionConflictError('Booking integrations already completed with different Zoom data');
+
+            // Allow integration updates for accepted bookings (e.g., reschedule-generated new meeting).
+            return tx.booking.update({
+                where: { id: bookingId },
+                data: {
+                    zoomJoinUrl: zoomData.joinUrl,
+                    zoomMeetingId: zoomData.meetingId,
+                },
+            });
         }
 
         if (booking.status !== BookingStatus.accepted_pending_integrations) {
@@ -536,6 +524,16 @@ export async function completeIntegrations(
             }
         });
     });
+
+    await notificationsQueue.add('notifications', {
+        type: 'booking_accepted',
+        bookingId: bookingId,
+    }, {
+        // Guarantees at-most-once acceptance email dispatch per meeting provisioning.
+        jobId: `booking-accepted-${bookingId}-${zoomData.meetingId}`,
+    });
+
+    return result;
 }
 
 // 6. accepted → reschedule_pending
@@ -1066,6 +1064,15 @@ export async function updateZoomDetails(
         where: { id: bookingId },
         data: updates,
     });
+
+    if (shouldTransitionToAccepted) {
+        await notificationsQueue.add('notifications', {
+            type: 'booking_accepted',
+            bookingId,
+        }, {
+            jobId: `booking-accepted-${bookingId}-${zoomMeetingId ?? 'manual'}`,
+        });
+    }
 
     // Create audit log
     await createAuditLog(

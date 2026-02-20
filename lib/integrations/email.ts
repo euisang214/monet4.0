@@ -1,32 +1,50 @@
 
 import nodemailer from 'nodemailer';
-import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
+import { google } from 'googleapis';
 import { createEvent, DateArray } from 'ics';
 import { Booking, User, ProfessionalProfile, Payout } from '@prisma/client';
 import { appRoutes } from '@/lib/shared/routes';
 
-const hasAwsCredentials = Boolean(
-    process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
-);
+const GMAIL_OAUTH_CLIENT_ID = process.env.GMAIL_OAUTH_CLIENT_ID?.trim();
+const GMAIL_OAUTH_CLIENT_SECRET = process.env.GMAIL_OAUTH_CLIENT_SECRET?.trim();
+const GMAIL_OAUTH_REFRESH_TOKEN = process.env.GMAIL_OAUTH_REFRESH_TOKEN?.trim();
+const GMAIL_OAUTH_USER = process.env.GMAIL_OAUTH_USER?.trim();
+const EMAIL_FROM = process.env.EMAIL_FROM?.trim();
 
-// Configure SESv2 client for Nodemailer 7 transport
-const sesClient = new SESv2Client({
-    region: process.env.AWS_REGION || 'us-east-1',
-    ...(hasAwsCredentials ? {
-        credentials: {
-            accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-        },
-    } : {}),
-});
+const requiredEmailEnv = [
+    { key: 'GMAIL_OAUTH_CLIENT_ID', value: GMAIL_OAUTH_CLIENT_ID },
+    { key: 'GMAIL_OAUTH_CLIENT_SECRET', value: GMAIL_OAUTH_CLIENT_SECRET },
+    { key: 'GMAIL_OAUTH_REFRESH_TOKEN', value: GMAIL_OAUTH_REFRESH_TOKEN },
+    { key: 'GMAIL_OAUTH_USER', value: GMAIL_OAUTH_USER },
+    { key: 'EMAIL_FROM', value: EMAIL_FROM },
+];
 
-// Create Nodemailer transport
-const transporter = nodemailer.createTransport({
-    SES: {
-        sesClient,
-        SendEmailCommand,
-    },
-});
+const missingRequiredEmailEnv = requiredEmailEnv
+    .filter((entry) => !entry.value)
+    .map((entry) => entry.key);
+
+const hasGmailOAuthConfig = missingRequiredEmailEnv.length === 0;
+const missingEmailEnvMessage = `Missing Gmail OAuth email configuration: ${missingRequiredEmailEnv.join(', ')}`;
+
+if (!hasGmailOAuthConfig) {
+    if (process.env.NODE_ENV === 'production') {
+        throw new Error(missingEmailEnvMessage);
+    }
+    console.warn(`[EMAIL] ${missingEmailEnvMessage}. Email sending disabled for this environment.`);
+}
+
+const gmailOAuthClient = hasGmailOAuthConfig
+    ? new google.auth.OAuth2(
+        GMAIL_OAUTH_CLIENT_ID,
+        GMAIL_OAUTH_CLIENT_SECRET,
+    )
+    : null;
+
+if (gmailOAuthClient && GMAIL_OAUTH_REFRESH_TOKEN) {
+    gmailOAuthClient.setCredentials({
+        refresh_token: GMAIL_OAUTH_REFRESH_TOKEN,
+    });
+}
 
 interface SendEmailParams {
     to: string;
@@ -41,21 +59,43 @@ interface SendEmailParams {
 
 export async function sendEmail({ to, subject, html, attachments }: SendEmailParams) {
     try {
-        if (!hasAwsCredentials) {
-            console.log(`[DEV MODE] Email would be sent to ${to}: ${subject}`);
-            return;
+        if (!hasGmailOAuthConfig || !gmailOAuthClient) {
+            console.log(`[EMAIL][DEV] Would send to ${to}: ${subject}`);
+            return false;
         }
 
+        const accessTokenResponse = await gmailOAuthClient.getAccessToken();
+        const accessToken = typeof accessTokenResponse === 'string'
+            ? accessTokenResponse
+            : accessTokenResponse?.token;
+
+        if (!accessToken) {
+            throw new Error('Failed to obtain Gmail OAuth access token');
+        }
+
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                type: 'OAuth2',
+                user: GMAIL_OAUTH_USER!,
+                clientId: GMAIL_OAUTH_CLIENT_ID!,
+                clientSecret: GMAIL_OAUTH_CLIENT_SECRET!,
+                refreshToken: GMAIL_OAUTH_REFRESH_TOKEN!,
+                accessToken,
+            },
+        });
+
         await transporter.sendMail({
-            from: process.env.EMAIL_FROM || 'noreply@monet.local', // Adjust sender as needed
+            from: EMAIL_FROM!,
             to,
             subject,
             html,
             attachments,
         });
+        return true;
     } catch (error) {
         console.error('Error sending email:', error);
-        // Don't throw, just log to prevent blocking the flow
+        throw error;
     }
 }
 
@@ -66,6 +106,17 @@ type BookingWithRelations = Booking & {
 };
 
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+const organizerEmail = EMAIL_FROM || 'noreply@monet.local';
+
+export function isValidAbsoluteHttpUrl(value: string | null | undefined): value is string {
+    if (!value) return false;
+    try {
+        const parsed = new URL(value);
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+        return false;
+    }
+}
 
 export async function sendBookingAcceptedEmail(
     booking: BookingWithRelations,
@@ -91,19 +142,23 @@ export async function sendBookingAcceptedEmail(
     const durationMinutes = (endDate.getTime() - startDate.getTime()) / (1000 * 60);
     const duration = { hours: Math.floor(durationMinutes / 60), minutes: durationMinutes % 60 };
 
-    const meetingUrl = booking.zoomJoinUrl || 'link pending';
+    const meetingUrl = booking.zoomJoinUrl?.trim() || null;
+    const hasValidMeetingUrl = isValidAbsoluteHttpUrl(meetingUrl);
+    const meetingLabel = hasValidMeetingUrl ? meetingUrl : 'link pending';
+    const icsDescription = hasValidMeetingUrl
+        ? `Join Zoom Meeting: ${meetingUrl}`
+        : 'Join Zoom Meeting: link pending';
 
     const { error, value: icsContent } = createEvent({
         start: icsStart,
         duration,
         title: `Consultation Call (${role === 'CANDIDATE' ? 'Professional' : 'Candidate'})`,
-        description: `Join Zoom Meeting: ${meetingUrl}`,
-        location: meetingUrl,
-        url: meetingUrl,
+        description: icsDescription,
+        ...(hasValidMeetingUrl ? { location: meetingUrl, url: meetingUrl } : {}),
         categories: ['Consultation', 'Monet'],
         status: 'CONFIRMED',
         busyStatus: 'BUSY',
-        organizer: { name: 'Monet Platform', email: 'noreply@monet.local' },
+        organizer: { name: 'Monet Platform', email: organizerEmail },
         attendees: [
             { name: 'Professional', email: booking.professional.email, rsvp: true, partstat: 'ACCEPTED', role: 'REQ-PARTICIPANT' },
             { name: 'Candidate', email: booking.candidate.email, rsvp: true, partstat: 'ACCEPTED', role: 'REQ-PARTICIPANT' }
@@ -128,7 +183,7 @@ export async function sendBookingAcceptedEmail(
       <h1>Booking Confirmed!</h1>
       <p>Your consultation has been accepted by the professional.</p>
       <p><strong>Time:</strong> ${startDate.toUTCString()}</p>
-      <p><strong>Zoom Link:</strong> <a href="${meetingUrl}">${meetingUrl}</a></p>
+      <p><strong>Zoom Link:</strong> ${hasValidMeetingUrl ? `<a href="${meetingUrl}">${meetingUrl}</a>` : meetingLabel}</p>
       <p>A calendar invitation is attached.</p>
     `;
     } else {
@@ -136,7 +191,7 @@ export async function sendBookingAcceptedEmail(
       <h1>Booking Confirmed!</h1>
       <p>You have accepted the consultation request.</p>
       <p><strong>Time:</strong> ${startDate.toUTCString()}</p>
-      <p><strong>Zoom Link:</strong> <a href="${meetingUrl}">${meetingUrl}</a></p>
+      <p><strong>Zoom Link:</strong> ${hasValidMeetingUrl ? `<a href="${meetingUrl}">${meetingUrl}</a>` : meetingLabel}</p>
       <p>A calendar invitation is attached.</p>
     `;
     }

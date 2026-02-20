@@ -112,5 +112,18 @@ describe('Golden Path E2E: Book -> Pay -> Accept', () => {
 
         // Verify Start Time was set
         expect(bookingAfterAccept?.startAt).toEqual(startAt);
+
+        const { bookingsQueue } = await import('@/lib/queues');
+        expect(bookingsQueue.add).toHaveBeenCalledWith(
+            'confirm-booking',
+            { bookingId },
+            expect.objectContaining({
+                jobId: `confirm-${bookingId}`,
+                attempts: 3,
+                backoff: { type: 'exponential', delay: 60_000 },
+                removeOnComplete: true,
+                removeOnFail: false,
+            }),
+        );
     });
 });
