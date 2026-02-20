@@ -14,8 +14,10 @@ export async function GET(request: Request) {
     }
 
     try {
-        const listings = await CandidateBrowse.searchProfessionals();
-        return Response.json({ data: listings });
+        const url = new URL(request.url);
+        const cursor = url.searchParams.get('cursor') || undefined;
+        const listings = await CandidateBrowse.searchProfessionals({ cursor });
+        return Response.json({ data: listings.items, nextCursor: listings.nextCursor });
     } catch (error: any) {
         console.error('Search error:', error);
         return Response.json({ error: 'internal_error' }, { status: 500 });

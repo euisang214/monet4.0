@@ -68,13 +68,14 @@ export default async function ProfessionalProfilePage(props: {
         redirect(`/login?callbackUrl=${appRoutes.candidate.professionalDetails(params.id)}`);
     }
 
-    const profile = await CandidateBrowse.getProfessionalDetails(params.id, session.user.id);
+    const [profile, reviews] = await Promise.all([
+        CandidateBrowse.getProfessionalDetails(params.id, session.user.id),
+        CandidateBrowse.getProfessionalReviews(params.id),
+    ]);
 
     if (!profile) {
         notFound();
     }
-
-    const reviews = await CandidateBrowse.getProfessionalReviews(params.id);
     const experienceItems = [...(profile.experience || [])].sort(compareTimelineItems);
     const educationItems = [...(profile.education || [])].sort(compareTimelineItems);
     const activityItems = [...(profile.activities || [])].sort(compareTimelineItems);

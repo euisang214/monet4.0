@@ -1,33 +1,94 @@
 import React from "react";
+import Link from "next/link";
 import { requireRole } from "@/lib/core/api-helpers";
-import { ProfessionalDashboardService } from "@/lib/role/professional/dashboard";
+import { ProfessionalDashboardService, type ProfessionalDashboardView } from "@/lib/role/professional/dashboard";
 import { StatsCard } from "@/components/dashboard/StatsCard";
-import { ProfessionalRequestCard } from "@/components/bookings/ProfessionalRequestCard";
 import { ProfessionalRequestListItem } from "@/components/bookings/ProfessionalRequestListItem";
 import { FeedbackTaskCard } from "@/components/dashboard/FeedbackTaskCard";
-import { BookingStatus, Role } from "@prisma/client";
+import { Role } from "@prisma/client";
 import { EmptyState } from "@/components/ui/composites/EmptyState";
 import { ProfessionalUpcomingCallsList } from "@/components/dashboard/ProfessionalUpcomingCallsList";
+import { appRoutes } from "@/lib/shared/routes";
 
-export default async function ProfessionalDashboardPage() {
-    const user = await requireRole(Role.PROFESSIONAL, "/professional/dashboard");
+const DASHBOARD_VIEWS: ProfessionalDashboardView[] = ["upcoming", "requested", "reschedule", "pending_feedback"];
+const DEFAULT_VIEW: ProfessionalDashboardView = "upcoming";
+
+const VIEW_META: Record<
+    ProfessionalDashboardView,
+    { title: string; description: string; emptyTitle: string; emptyDescription: string }
+> = {
+    upcoming: {
+        title: "Upcoming Calls",
+        description: "Accepted calls currently scheduled on your calendar.",
+        emptyTitle: "No upcoming calls",
+        emptyDescription: "Accepted calls will appear here once they are on your schedule.",
+    },
+    requested: {
+        title: "Pending Requests",
+        description: "New candidate requests waiting for your scheduling decision.",
+        emptyTitle: "No pending requests",
+        emptyDescription: "New candidate requests will appear here automatically.",
+    },
+    reschedule: {
+        title: "Reschedule Requests",
+        description: "Requests that need an updated meeting time.",
+        emptyTitle: "No reschedule requests",
+        emptyDescription: "Reschedule requests will appear here when candidates request changes.",
+    },
+    pending_feedback: {
+        title: "Pending Feedback",
+        description: "Completed calls waiting on feedback submission or revision.",
+        emptyTitle: "No pending feedback",
+        emptyDescription: "Feedback tasks appear here after completed sessions.",
+    },
+};
+
+function isView(value: string | undefined): value is ProfessionalDashboardView {
+    if (!value) return false;
+    return DASHBOARD_VIEWS.includes(value as ProfessionalDashboardView);
+}
+
+function sectionUrl(view: ProfessionalDashboardView, cursor?: string) {
+    const params = new URLSearchParams();
+    params.set("view", view);
+    if (cursor) {
+        params.set("cursor", cursor);
+    }
+    return `${appRoutes.professional.dashboard}?${params.toString()}`;
+}
+
+export default async function ProfessionalDashboardPage({
+    searchParams,
+}: {
+    searchParams?: {
+        view?: string;
+        cursor?: string;
+    };
+}) {
+    const user = await requireRole(Role.PROFESSIONAL, appRoutes.professional.dashboard);
+    const activeView = isView(searchParams?.view) ? searchParams.view : DEFAULT_VIEW;
 
     const {
-        pendingFeedbackCount,
-        upcomingBookingsCount,
-    } = await ProfessionalDashboardService.getDashboardStats(user.id);
-
-    const { actionRequired, pendingFeedback, upcoming, recentFeedback, reviewStats } =
-        await ProfessionalDashboardService.getDashboardBookings(user.id);
-
-    const requestedTasks = actionRequired.filter((booking) => booking.status === BookingStatus.requested);
-    const rescheduleTasks = actionRequired.filter((booking) => booking.status === BookingStatus.reschedule_pending);
-    const totalTaskCount = requestedTasks.length + rescheduleTasks.length + pendingFeedback.length;
+        stats,
+        sectionCounts,
+        items,
+        nextCursor,
+        recentFeedback,
+        reviewStats,
+    } = await ProfessionalDashboardService.getDashboardData(user.id, {
+        view: activeView,
+        cursor: searchParams?.cursor,
+    });
 
     const averageRating =
         typeof reviewStats.average === "number"
             ? Number(reviewStats.average).toFixed(1)
             : null;
+    const activeMeta = VIEW_META[activeView];
+    const totalItemsInSection = sectionCounts[activeView];
+    const upcomingItems = items as Parameters<typeof ProfessionalUpcomingCallsList>[0]["bookings"];
+    const requestItems = items as Array<Parameters<typeof ProfessionalRequestListItem>[0]["booking"]>;
+    const feedbackItems = items as Array<Parameters<typeof FeedbackTaskCard>[0]["booking"]>;
 
     return (
         <div className="container py-8">
@@ -38,73 +99,87 @@ export default async function ProfessionalDashboardPage() {
             </header>
 
             <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2">
-                <StatsCard label="Upcoming Bookings" value={upcomingBookingsCount} />
-                <StatsCard label="Pending Feedback" value={pendingFeedbackCount} />
+                <StatsCard label="Upcoming Bookings" value={stats.upcomingBookingsCount} />
+                <StatsCard label="Pending Feedback" value={stats.pendingFeedbackCount} />
             </div>
 
-            <section className="mb-8">
-                <h2 className="mb-4 text-xl font-semibold text-gray-900">Upcoming Calls</h2>
-                {upcoming.length === 0 ? (
-                    <EmptyState
-                        badge="No scheduled sessions"
-                        title="No upcoming calls"
-                        description="Accepted calls will appear here once they are on your schedule."
-                    />
-                ) : (
-                    <ProfessionalUpcomingCallsList bookings={upcoming} />
-                )}
-            </section>
+            <section className="mb-8 space-y-4">
+                <nav className="flex flex-wrap gap-2" aria-label="Dashboard sections">
+                    {DASHBOARD_VIEWS.map((view) => {
+                        const isActive = view === activeView;
+                        const label = VIEW_META[view].title;
+                        return (
+                            <Link
+                                key={view}
+                                href={sectionUrl(view)}
+                                className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors ${isActive
+                                        ? "border-blue-600 bg-blue-600 text-white"
+                                        : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"
+                                    }`}
+                            >
+                                {label} ({sectionCounts[view]})
+                            </Link>
+                        );
+                    })}
+                </nav>
 
-            <section className="mb-8">
-                <h2 className="mb-4 text-xl font-semibold text-gray-900">Tasks ({totalTaskCount})</h2>
-                {totalTaskCount === 0 ? (
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <h2 className="text-xl font-semibold text-gray-900">{activeMeta.title}</h2>
+                        <p className="text-sm text-gray-600 mt-1">{activeMeta.description}</p>
+                    </div>
+                    <span className="px-2 py-1 text-xs rounded-full font-semibold bg-gray-100 text-gray-700">
+                        {totalItemsInSection}
+                    </span>
+                </div>
+
+                {items.length === 0 ? (
                     <EmptyState
                         badge="Queue clear"
-                        title="No tasks right now"
-                        description="New booking requests and feedback tasks will appear here automatically."
+                        title={activeMeta.emptyTitle}
+                        description={activeMeta.emptyDescription}
                     />
-                ) : (
-                    <div className="space-y-4">
-                        {requestedTasks.length > 0 ? (
-                            <section>
-                                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
-                                    Pending Requests ({requestedTasks.length})
-                                </h3>
-                                <ul className="space-y-3">
-                                    {requestedTasks.map((booking) => (
-                                        <ProfessionalRequestListItem key={booking.id} booking={booking} />
-                                    ))}
-                                </ul>
-                            </section>
-                        ) : null}
+                ) : null}
 
-                        {rescheduleTasks.length > 0 ? (
-                            <section>
-                                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
-                                    Reschedule Requests ({rescheduleTasks.length})
-                                </h3>
-                                <div className="space-y-3">
-                                    {rescheduleTasks.map((booking) => (
-                                        <ProfessionalRequestCard key={booking.id} booking={booking} />
-                                    ))}
-                                </div>
-                            </section>
-                        ) : null}
+                {items.length > 0 && activeView === "upcoming" ? (
+                    <ProfessionalUpcomingCallsList bookings={upcomingItems} />
+                ) : null}
 
-                        {pendingFeedback.length > 0 ? (
-                            <section>
-                                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
-                                    Pending Feedback ({pendingFeedback.length})
-                                </h3>
-                                <div className="space-y-3">
-                                    {pendingFeedback.map((booking) => (
-                                        <FeedbackTaskCard key={booking.id} booking={booking} />
-                                    ))}
-                                </div>
-                            </section>
-                        ) : null}
+                {items.length > 0 && (activeView === "requested" || activeView === "reschedule") ? (
+                    <ul className="space-y-3">
+                        {requestItems.map((booking) => (
+                            <ProfessionalRequestListItem key={booking.id} booking={booking} />
+                        ))}
+                    </ul>
+                ) : null}
+
+                {items.length > 0 && activeView === "pending_feedback" ? (
+                    <div className="space-y-3">
+                        {feedbackItems.map((booking) => (
+                            <FeedbackTaskCard key={booking.id} booking={booking} />
+                        ))}
                     </div>
-                )}
+                ) : null}
+
+                <div className="flex items-center gap-3">
+                    {searchParams?.cursor ? (
+                        <Link
+                            href={sectionUrl(activeView)}
+                            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                        >
+                            Back to first page
+                        </Link>
+                    ) : null}
+
+                    {nextCursor ? (
+                        <Link
+                            href={sectionUrl(activeView, nextCursor)}
+                            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                        >
+                            Older
+                        </Link>
+                    ) : null}
+                </div>
             </section>
 
             <section>
