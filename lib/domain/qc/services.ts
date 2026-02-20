@@ -147,6 +147,12 @@ export const QCService = {
             }
         });
 
+        // 4. Update Booking Status via transitions
+        if (finalStatus === QCStatus.passed) {
+            const { completeBooking } = await import('@/lib/domain/bookings/transitions');
+            await completeBooking(bookingId);
+        }
+
         // 4. If Passed -> Create Payout & Trigger Payment
         if (finalStatus === QCStatus.passed) {
             console.log(`[QC] Booking ${bookingId} PASSED. customized payout flow starting...`);

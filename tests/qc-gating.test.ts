@@ -7,14 +7,24 @@ import { createCapturedPaymentIntent, createConnectedAccount, stripeTest } from 
 
 vi.mock('@/lib/core/db', () => ({
     prisma: {
-        booking: { findUnique: vi.fn() },
+        booking: { findUnique: vi.fn(), update: vi.fn() },
         callFeedback: { update: vi.fn() },
         payout: {
             upsert: vi.fn(),
             findUnique: vi.fn(),
             update: vi.fn(),
         },
+        $transaction: vi.fn(async (args) => {
+            if (Array.isArray(args)) {
+                return Promise.all(args);
+            }
+            return args(prisma);
+        }),
     },
+}));
+
+vi.mock('@/lib/domain/bookings/transitions', () => ({
+    completeBooking: vi.fn()
 }));
 
 vi.mock('@/lib/integrations/claude', () => ({
@@ -91,6 +101,9 @@ describe('QC Gating Flow', () => {
                 where: { bookingId: mockBookingId },
                 data: { qcStatus: 'passed' },
             });
+
+            const { completeBooking } = await import('@/lib/domain/bookings/transitions');
+            expect(completeBooking).toHaveBeenCalledWith(mockBookingId);
 
             expect(prisma.payout.upsert).toHaveBeenCalledWith(
                 expect.objectContaining({
