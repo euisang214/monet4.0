@@ -3,6 +3,7 @@ import { prisma } from '@/lib/core/db';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { ZoomLinkForm } from './ZoomLinkForm';
+import { AttendanceEvidenceCard } from '@/components/admin/AttendanceEvidenceCard';
 
 export default async function BookingDetailPage(props: {
     params: Promise<{ id: string }>;
@@ -22,6 +23,22 @@ export default async function BookingDetailPage(props: {
     if (!booking) {
         notFound();
     }
+
+    const [attendanceEvents, latestNoShowAudit] = await Promise.all([
+        prisma.zoomAttendanceEvent.findMany({
+            where: { bookingId: booking.id },
+            orderBy: { eventTs: 'desc' },
+            take: 20,
+        }),
+        prisma.auditLog.findFirst({
+            where: {
+                entity: 'Booking',
+                entityId: booking.id,
+                action: 'attendance:no_show_decision',
+            },
+            orderBy: { createdAt: 'desc' },
+        }),
+    ]);
 
     return (
         <div className="space-y-6 max-w-4xl">
@@ -66,6 +83,18 @@ export default async function BookingDetailPage(props: {
                                 {booking.zoomJoinUrl || 'None'}
                             </a>
                         </div>
+                        <div>
+                            <span className="block text-gray-500">Candidate Zoom URL</span>
+                            <a href={booking.candidateZoomJoinUrl || '#'} target="_blank" className="text-blue-600 truncate block">
+                                {booking.candidateZoomJoinUrl || 'None'}
+                            </a>
+                        </div>
+                        <div>
+                            <span className="block text-gray-500">Professional Zoom URL</span>
+                            <a href={booking.professionalZoomJoinUrl || '#'} target="_blank" className="text-blue-600 truncate block">
+                                {booking.professionalZoomJoinUrl || 'None'}
+                            </a>
+                        </div>
                     </div>
 
                     <div className="mt-4 pt-4 border-t">
@@ -73,6 +102,8 @@ export default async function BookingDetailPage(props: {
                             bookingId={booking.id}
                             initialUrl={booking.zoomJoinUrl}
                             initialMeetingId={booking.zoomMeetingId}
+                            initialCandidateUrl={booking.candidateZoomJoinUrl}
+                            initialProfessionalUrl={booking.professionalZoomJoinUrl}
                         />
                     </div>
                 </div>
@@ -120,6 +151,14 @@ export default async function BookingDetailPage(props: {
                     </div>
                 </div>
             </div>
+
+            <AttendanceEvidenceCard
+                candidateJoinedAt={booking.candidateJoinedAt}
+                professionalJoinedAt={booking.professionalJoinedAt}
+                attendanceOutcome={booking.attendanceOutcome}
+                events={attendanceEvents}
+                latestNoShowAudit={latestNoShowAudit}
+            />
         </div>
     );
 }

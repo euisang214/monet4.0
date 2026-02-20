@@ -4,8 +4,23 @@ import { Role } from '@prisma/client';
 import { z } from 'zod';
 
 const zoomLinkSchema = z.object({
-    zoomJoinUrl: z.string().url(),
+    zoomJoinUrl: z.string().url().optional(),
     zoomMeetingId: z.string().optional(),
+    candidateZoomJoinUrl: z.string().url().optional(),
+    professionalZoomJoinUrl: z.string().url().optional(),
+}).superRefine((data, ctx) => {
+    const hasAnyJoinUrl = Boolean(
+        data.zoomJoinUrl
+        || data.candidateZoomJoinUrl
+        || data.professionalZoomJoinUrl
+    );
+    if (!hasAnyJoinUrl) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'At least one Zoom join URL is required',
+            path: ['zoomJoinUrl'],
+        });
+    }
 });
 
 /**
@@ -36,8 +51,12 @@ export const PUT = withRole(Role.ADMIN, async (req: Request, { params }: { param
 
         await updateZoomDetails(
             id,
-            result.data.zoomJoinUrl,
-            result.data.zoomMeetingId,
+            {
+                zoomJoinUrl: result.data.zoomJoinUrl,
+                zoomMeetingId: result.data.zoomMeetingId,
+                candidateZoomJoinUrl: result.data.candidateZoomJoinUrl,
+                professionalZoomJoinUrl: result.data.professionalZoomJoinUrl,
+            },
             { userId: session.user.id, role: Role.ADMIN }
         );
 

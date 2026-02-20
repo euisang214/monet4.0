@@ -90,5 +90,14 @@ describe("ProfessionalDashboardService resume signing", () => {
         expect(requestedItems[1].candidate.candidateProfile?.resumeUrl).toBe(
             "https://legacy-storage.example.com/resumes/cand-2/resume.pdf"
         );
+        expect(mockPrisma.booking.findMany).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({
+                select: expect.objectContaining({
+                    professionalZoomJoinUrl: true,
+                    zoomJoinUrl: true,
+                }),
+            })
+        );
     });
 });

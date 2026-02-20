@@ -49,9 +49,11 @@ export function BookingActions({ booking }: BookingActionsProps) {
         router.push(`/candidate/bookings/${booking.id}/reschedule`);
     };
 
+    const joinUrl = booking.candidateZoomJoinUrl || booking.zoomJoinUrl;
+
     const handleJoin = () => {
-        if (booking.zoomJoinUrl) {
-            window.open(booking.zoomJoinUrl, '_blank');
+        if (joinUrl) {
+            window.open(joinUrl, '_blank');
         }
     };
 
@@ -65,7 +67,7 @@ export function BookingActions({ booking }: BookingActionsProps) {
 
     // Use centralized visibility logic
     const { showJoin, showReschedule, showCancel, showDispute, showReview } =
-        getBookingActionVisibility(booking.status, !!booking.zoomJoinUrl);
+        getBookingActionVisibility(booking.status, !!joinUrl);
 
     return (
         <div className="flex flex-col gap-4 mt-6">

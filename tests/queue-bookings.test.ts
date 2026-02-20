@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BookingStatus, AttendanceOutcome } from '@prisma/client';
-import { createManualCapturePaymentIntentConfirmed, stripeTest } from './helpers/stripe-live';
 
 /**
  * Queue Worker Tests - Bookings
@@ -13,10 +12,29 @@ import { createManualCapturePaymentIntentConfirmed, stripeTest } from './helpers
 // Mock prisma with complete transaction support
 vi.mock('@/lib/core/db', () => ({
     prisma: {
+        $transaction: vi.fn(async (callback: any) => {
+            if (typeof callback === 'function') {
+                return callback({
+                    auditLog: {
+                        create: vi.fn(),
+                    },
+                });
+            }
+            return callback;
+        }),
         booking: {
             findMany: vi.fn(),
             findUnique: vi.fn(),
+            findFirst: vi.fn(),
             update: vi.fn(),
+        },
+        zoomAttendanceEvent: {
+            count: vi.fn(),
+            findUnique: vi.fn(),
+            update: vi.fn(),
+            deleteMany: vi.fn(),
+            create: vi.fn(),
+            findMany: vi.fn(),
         },
         payment: {
             update: vi.fn(),
@@ -37,6 +55,10 @@ vi.mock('@/lib/integrations/calendar/google', () => ({
     createGoogleCalendarEvent: vi.fn().mockResolvedValue({}),
 }));
 
+vi.mock('@/lib/integrations/stripe', () => ({
+    cancelPaymentIntent: vi.fn().mockResolvedValue(undefined),
+}));
+
 // Mock the transition functions (they're the complex parts with Prisma transactions)
 vi.mock('@/lib/domain/bookings/transitions', () => ({
     expireBooking: vi.fn(),
@@ -50,11 +72,13 @@ vi.mock('@/lib/domain/bookings/transitions', () => ({
 import { prisma } from '@/lib/core/db';
 import { createZoomMeeting, deleteZoomMeeting } from '@/lib/integrations/zoom';
 import { expireBooking, cancelBooking, initiateDispute, completeCall, completeIntegrations } from '@/lib/domain/bookings/transitions';
+import { cancelPaymentIntent } from '@/lib/integrations/stripe';
 import {
     processConfirmBooking,
     processRescheduleBooking,
     processExpiryCheck,
     processNoShowCheck,
+    processZoomAttendanceEvent,
 } from '@/lib/queues/bookings';
 
 describe('Booking Queue Workers', () => {
@@ -82,6 +106,10 @@ describe('Booking Queue Workers', () => {
                 id: 123456,
                 join_url: 'https://zoom.us/j/123456',
                 start_url: 'https://zoom.us/s/123456',
+                candidate_join_url: 'https://zoom.us/w/cand123456',
+                professional_join_url: 'https://zoom.us/w/pro123456',
+                candidate_registrant_id: 'cand_reg_123456',
+                professional_registrant_id: 'pro_reg_123456',
             });
             vi.mocked(prisma.booking.update).mockResolvedValue({
                 ...mockBooking,
@@ -96,6 +124,10 @@ describe('Booking Queue Workers', () => {
             expect(completeIntegrations).toHaveBeenCalledWith('booking_123', {
                 joinUrl: 'https://zoom.us/j/123456',
                 meetingId: '123456',
+                candidateJoinUrl: 'https://zoom.us/w/cand123456',
+                professionalJoinUrl: 'https://zoom.us/w/pro123456',
+                candidateRegistrantId: 'cand_reg_123456',
+                professionalRegistrantId: 'pro_reg_123456',
             });
             expect(result.processed).toBe(true);
         });
@@ -127,6 +159,10 @@ describe('Booking Queue Workers', () => {
             expect(completeIntegrations).toHaveBeenCalledWith('booking_123', {
                 joinUrl: 'https://zoom.us/existing',
                 meetingId: 'existing_123',
+                candidateJoinUrl: undefined,
+                professionalJoinUrl: undefined,
+                candidateRegistrantId: undefined,
+                professionalRegistrantId: undefined,
             });
         });
     });
@@ -148,6 +184,10 @@ describe('Booking Queue Workers', () => {
                 id: 999999,
                 join_url: 'https://zoom.us/j/999999',
                 start_url: 'https://zoom.us/s/999999',
+                candidate_join_url: 'https://zoom.us/w/cand999999',
+                professional_join_url: 'https://zoom.us/w/pro999999',
+                candidate_registrant_id: 'cand_reg_999999',
+                professional_registrant_id: 'pro_reg_999999',
             });
             vi.mocked(prisma.booking.update).mockResolvedValue({} as any);
 
@@ -167,7 +207,15 @@ describe('Booking Queue Workers', () => {
             };
 
             vi.mocked(prisma.booking.findUnique).mockResolvedValue(mockBooking as any);
-            vi.mocked(createZoomMeeting).mockResolvedValue({ id: 1, join_url: '', start_url: '' });
+            vi.mocked(createZoomMeeting).mockResolvedValue({
+                id: 1,
+                join_url: '',
+                start_url: '',
+                candidate_join_url: '',
+                professional_join_url: '',
+                candidate_registrant_id: 'cand_reg_1',
+                professional_registrant_id: 'pro_reg_1',
+            });
             vi.mocked(prisma.booking.update).mockResolvedValue({} as any);
 
             await processRescheduleBooking('booking_123');
@@ -178,19 +226,18 @@ describe('Booking Queue Workers', () => {
 
     describe('processExpiryCheck', () => {
         it('should find and expire stale bookings', async () => {
-            const paymentIntent = await createManualCapturePaymentIntentConfirmed(5_000);
             const staleBooking = {
                 id: 'stale_booking',
                 status: BookingStatus.requested,
                 expiresAt: new Date(Date.now() - 1000),
-                payment: { stripePaymentIntentId: paymentIntent.id },
+                payment: { stripePaymentIntentId: 'pi_test_123' },
             };
 
             vi.mocked(prisma.booking.findMany).mockResolvedValue([staleBooking] as any);
             vi.mocked(expireBooking).mockResolvedValue({} as any);
+            vi.mocked(cancelPaymentIntent).mockResolvedValue(undefined);
 
             const result = await processExpiryCheck();
-            const canceledPaymentIntent = await stripeTest.paymentIntents.retrieve(paymentIntent.id);
 
             expect(prisma.booking.findMany).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -199,7 +246,7 @@ describe('Booking Queue Workers', () => {
                     }),
                 })
             );
-            expect(canceledPaymentIntent.status).toBe('canceled');
+            expect(cancelPaymentIntent).toHaveBeenCalledWith('pi_test_123');
             expect(expireBooking).toHaveBeenCalledWith('stale_booking');
             expect(result.count).toBe(1);
         });
@@ -242,6 +289,7 @@ describe('Booking Queue Workers', () => {
 
             vi.mocked(prisma.booking.findMany).mockResolvedValue([booking] as any);
             vi.mocked(completeCall).mockResolvedValue({} as any);
+            vi.mocked(prisma.zoomAttendanceEvent.count).mockResolvedValue(0);
 
             await processNoShowCheck();
 
@@ -261,6 +309,7 @@ describe('Booking Queue Workers', () => {
 
             vi.mocked(prisma.booking.findMany).mockResolvedValue([booking] as any);
             vi.mocked(cancelBooking).mockResolvedValue({} as any);
+            vi.mocked(prisma.zoomAttendanceEvent.count).mockResolvedValue(0);
 
             await processNoShowCheck();
 
@@ -283,6 +332,7 @@ describe('Booking Queue Workers', () => {
 
             vi.mocked(prisma.booking.findMany).mockResolvedValue([booking] as any);
             vi.mocked(initiateDispute).mockResolvedValue({} as any);
+            vi.mocked(prisma.zoomAttendanceEvent.count).mockResolvedValue(0);
 
             await processNoShowCheck();
 
@@ -290,7 +340,203 @@ describe('Booking Queue Workers', () => {
                 'pro_noshow',
                 expect.objectContaining({ role: 'ADMIN' }),
                 'no_show',
-                expect.stringContaining('Professional')
+                expect.stringContaining('Professional'),
+                undefined,
+                { attendanceOutcome: AttendanceOutcome.professional_no_show }
+            );
+        });
+
+        it('should route ambiguous unknown-identity evidence to dispute at final check', async () => {
+            const booking = {
+                id: 'ambiguous_noshow',
+                status: BookingStatus.accepted,
+                startAt: new Date(Date.now() - 25 * 60 * 1000),
+                candidateJoinedAt: null,
+                professionalJoinedAt: null,
+            };
+
+            vi.mocked(prisma.booking.findMany).mockResolvedValue([booking] as any);
+            vi.mocked(prisma.zoomAttendanceEvent.count).mockResolvedValue(1);
+            vi.mocked(initiateDispute).mockResolvedValue({} as any);
+
+            await processNoShowCheck();
+
+            expect(initiateDispute).toHaveBeenCalledWith(
+                'ambiguous_noshow',
+                expect.objectContaining({ role: 'ADMIN' }),
+                'no_show',
+                expect.stringContaining('Ambiguous attendance evidence'),
+                undefined,
+                { attendanceOutcome: AttendanceOutcome.both_no_show }
+            );
+            expect(cancelBooking).not.toHaveBeenCalled();
+            expect(completeCall).not.toHaveBeenCalled();
+        });
+
+        it('should not apply terminal transitions before final window', async () => {
+            const booking = {
+                id: 'pending_final',
+                status: BookingStatus.accepted,
+                startAt: new Date(Date.now() - 12 * 60 * 1000),
+                candidateJoinedAt: null,
+                professionalJoinedAt: null,
+            };
+
+            vi.mocked(prisma.booking.findMany).mockResolvedValue([booking] as any);
+            vi.mocked(prisma.zoomAttendanceEvent.count).mockResolvedValue(0);
+
+            await processNoShowCheck();
+
+            expect(completeCall).not.toHaveBeenCalled();
+            expect(cancelBooking).not.toHaveBeenCalled();
+            expect(initiateDispute).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('processZoomAttendanceEvent', () => {
+        it('should map participant by strict email and set earliest joined timestamp', async () => {
+            const eventTs = new Date('2026-02-01T10:05:00Z');
+            vi.mocked(prisma.zoomAttendanceEvent.findUnique).mockResolvedValue({
+                id: 'evt_1',
+                meetingId: 'meeting_1',
+                eventType: 'meeting.participant_joined',
+                eventTs,
+                payload: {
+                    event: 'meeting.participant_joined',
+                    event_ts: Math.floor(eventTs.getTime() / 1000),
+                    payload: {
+                        object: {
+                            id: 'meeting_1',
+                            participant: {
+                                email: 'cand@test.com',
+                            },
+                        },
+                    },
+                },
+                processingStatus: 'pending',
+            } as any);
+
+            vi.mocked(prisma.booking.findFirst).mockResolvedValue({
+                id: 'booking_1',
+                candidateJoinedAt: null,
+                professionalJoinedAt: null,
+                candidateZoomRegistrantId: null,
+                professionalZoomRegistrantId: null,
+                candidate: { email: 'cand@test.com' },
+                professional: { email: 'pro@test.com' },
+            } as any);
+            vi.mocked(prisma.zoomAttendanceEvent.update).mockResolvedValue({} as any);
+
+            await processZoomAttendanceEvent('evt_1');
+
+            expect(prisma.booking.update).toHaveBeenCalledWith({
+                where: { id: 'booking_1' },
+                data: { candidateJoinedAt: eventTs },
+            });
+            expect(prisma.zoomAttendanceEvent.update).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: { id: 'evt_1' },
+                    data: expect.objectContaining({
+                        mappedRole: 'candidate',
+                        mappingMethod: 'strict_email',
+                        processingStatus: 'processed',
+                    }),
+                })
+            );
+        });
+
+        it('should keep unknown mapping and avoid booking join timestamp updates', async () => {
+            const eventTs = new Date('2026-02-01T10:07:00Z');
+            vi.mocked(prisma.zoomAttendanceEvent.findUnique).mockResolvedValue({
+                id: 'evt_2',
+                meetingId: 'meeting_1',
+                eventType: 'meeting.participant_joined',
+                eventTs,
+                payload: {
+                    event: 'meeting.participant_joined',
+                    event_ts: Math.floor(eventTs.getTime() / 1000),
+                    payload: {
+                        object: {
+                            id: 'meeting_1',
+                            participant: {
+                                email: 'unknown@test.com',
+                            },
+                        },
+                    },
+                },
+                processingStatus: 'pending',
+            } as any);
+
+            vi.mocked(prisma.booking.findFirst).mockResolvedValue({
+                id: 'booking_1',
+                candidateJoinedAt: null,
+                professionalJoinedAt: null,
+                candidateZoomRegistrantId: null,
+                professionalZoomRegistrantId: null,
+                candidate: { email: 'cand@test.com' },
+                professional: { email: 'pro@test.com' },
+            } as any);
+            vi.mocked(prisma.zoomAttendanceEvent.update).mockResolvedValue({} as any);
+
+            await processZoomAttendanceEvent('evt_2');
+
+            expect(prisma.booking.update).not.toHaveBeenCalled();
+            expect(prisma.zoomAttendanceEvent.update).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        mappedRole: 'unknown',
+                        mappingMethod: 'unknown',
+                    }),
+                })
+            );
+        });
+
+        it('should map participant by registrant id when email is unavailable', async () => {
+            const eventTs = new Date('2026-02-01T10:11:00Z');
+            vi.mocked(prisma.zoomAttendanceEvent.findUnique).mockResolvedValue({
+                id: 'evt_3',
+                meetingId: 'meeting_1',
+                eventType: 'meeting.participant_joined',
+                eventTs,
+                payload: {
+                    event: 'meeting.participant_joined',
+                    event_ts: Math.floor(eventTs.getTime() / 1000),
+                    payload: {
+                        object: {
+                            id: 'meeting_1',
+                            participant: {
+                                registrant_id: 'pro_reg_42',
+                            },
+                        },
+                    },
+                },
+                processingStatus: 'pending',
+            } as any);
+
+            vi.mocked(prisma.booking.findFirst).mockResolvedValue({
+                id: 'booking_1',
+                candidateJoinedAt: null,
+                professionalJoinedAt: null,
+                candidateZoomRegistrantId: 'cand_reg_42',
+                professionalZoomRegistrantId: 'pro_reg_42',
+                candidate: { email: 'cand@test.com' },
+                professional: { email: 'pro@test.com' },
+            } as any);
+            vi.mocked(prisma.zoomAttendanceEvent.update).mockResolvedValue({} as any);
+
+            await processZoomAttendanceEvent('evt_3');
+
+            expect(prisma.booking.update).toHaveBeenCalledWith({
+                where: { id: 'booking_1' },
+                data: { professionalJoinedAt: eventTs },
+            });
+            expect(prisma.zoomAttendanceEvent.update).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        mappedRole: 'professional',
+                        mappingMethod: 'registrant_id',
+                    }),
+                })
             );
         });
     });

@@ -12,7 +12,7 @@ describe.sequential('Email integration', () => {
         delete process.env.GMAIL_OAUTH_REFRESH_TOKEN;
         delete process.env.GMAIL_OAUTH_USER;
         delete process.env.EMAIL_FROM;
-        process.env['NODE_ENV'] = 'test';
+        (process.env as Record<string, string | undefined>)['NODE_ENV'] = 'test';
     });
 
     afterEach(() => {
@@ -62,8 +62,31 @@ describe.sequential('Email integration', () => {
         expect(eventArg.location).toBe('https://zoom.us/j/123456');
     });
 
+    it('prefers role-specific Zoom URL over shared URL', async () => {
+        const createEventMock = vi.fn().mockReturnValue({ error: null, value: 'BEGIN:VCALENDAR' });
+        vi.doMock('ics', () => ({
+            createEvent: createEventMock,
+        }));
+
+        const { sendBookingAcceptedEmail } = await import('@/lib/integrations/email');
+        await sendBookingAcceptedEmail({
+            id: 'booking_3',
+            startAt: new Date('2026-03-01T12:00:00Z'),
+            endAt: new Date('2026-03-01T12:30:00Z'),
+            zoomJoinUrl: 'https://zoom.us/j/shared123',
+            candidateZoomJoinUrl: 'https://zoom.us/w/candidate123',
+            professionalZoomJoinUrl: 'https://zoom.us/w/pro123',
+            candidate: { email: 'cand@example.com' },
+            professional: { email: 'pro@example.com' },
+        } as any, 'CANDIDATE');
+
+        const eventArg = createEventMock.mock.calls[0][0];
+        expect(eventArg.url).toBe('https://zoom.us/w/candidate123');
+        expect(eventArg.location).toBe('https://zoom.us/w/candidate123');
+    });
+
     it('fails fast in production when required Gmail OAuth configuration is missing', async () => {
-        process.env['NODE_ENV'] = 'production';
+        (process.env as Record<string, string | undefined>)['NODE_ENV'] = 'production';
         delete process.env.GMAIL_OAUTH_CLIENT_ID;
         delete process.env.GMAIL_OAUTH_CLIENT_SECRET;
         delete process.env.GMAIL_OAUTH_REFRESH_TOKEN;
