@@ -9,6 +9,7 @@ interface UpcomingCall {
     startAt: Date | string | null;
     timezone: string;
     zoomJoinUrl: string | null;
+    professionalZoomJoinUrl: string | null;
     candidate: {
         email: string;
     };
@@ -121,6 +122,7 @@ export function ProfessionalUpcomingCallsList({ bookings }: ProfessionalUpcoming
             {bookings.map((booking) => {
                 const cancelling = pendingAction?.id === booking.id && pendingAction.type === "cancel";
                 const rescheduling = pendingAction?.id === booking.id && pendingAction.type === "reschedule";
+                const joinUrl = booking.professionalZoomJoinUrl || booking.zoomJoinUrl;
 
                 return (
                     <article key={booking.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -149,8 +151,8 @@ export function ProfessionalUpcomingCallsList({ bookings }: ProfessionalUpcoming
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => handleJoin(booking.zoomJoinUrl)}
-                                    disabled={!booking.zoomJoinUrl}
+                                    onClick={() => handleJoin(joinUrl)}
+                                    disabled={!joinUrl}
                                     className="btn bg-blue-600 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     Join Zoom

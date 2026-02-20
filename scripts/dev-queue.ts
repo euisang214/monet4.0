@@ -21,10 +21,16 @@ const setupRepeatableJobs = async () => {
         jobId: 'repeat:expiry-check', // Singleton by ID
     });
 
-    // No-Show Check: Every 15 minutes
+    // No-Show Check: Every 5 minutes
     await bookingsQueue.add('no-show-check', {}, {
-        repeat: { pattern: '*/15 * * * *' }, // Every 15 minutes
+        repeat: { pattern: '*/5 * * * *' }, // Every 5 minutes
         jobId: 'repeat:no-show-check',
+    });
+
+    // Zoom attendance retention cleanup: Daily at 03:00
+    await bookingsQueue.add('zoom-attendance-retention', {}, {
+        repeat: { pattern: '0 3 * * *' },
+        jobId: 'repeat:zoom-attendance-retention',
     });
 
     console.log('✅ Repeatable jobs registered.');

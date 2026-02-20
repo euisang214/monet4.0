@@ -115,6 +115,10 @@ model Booking {
   paymentDueAt     DateTime?
   zoomMeetingId    String?
   zoomJoinUrl      String?
+  candidateZoomJoinUrl String?
+  professionalZoomJoinUrl String?
+  candidateZoomRegistrantId String?
+  professionalZoomRegistrantId String?
   timezone         String        @default("UTC")
   
   // Join tracking
@@ -139,6 +143,7 @@ model Booking {
   feedback     CallFeedback?
   dispute      Dispute?
   professionalRating ProfessionalRating?
+  zoomAttendanceEvents ZoomAttendanceEvent[]
   
   @@index([candidateId])
   @@index([professionalId])
@@ -441,6 +446,35 @@ model Dispute {
   
   @@index([status])
   @@index([bookingId])
+}
+
+model ZoomAttendanceEvent {
+  id              String   @id @default(cuid())
+  dedupeKey       String   @unique
+  eventType       String
+  eventTs         DateTime
+  meetingId       String
+  meetingUuid     String?
+  participantId   String?
+  participantUserId String?
+  participantEmail String?
+  participantName  String?
+  mappedRole      String   @default("unknown")
+  mappingMethod   String   @default("unknown")
+  bookingId       String?
+  payload         Json
+  processingStatus String  @default("pending")
+  processingError String?
+  createdAt       DateTime @default(now())
+  processedAt     DateTime?
+  timezone        String   @default("UTC")
+
+  booking         Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  @@index([meetingId])
+  @@index([bookingId])
+  @@index([eventTs])
+  @@index([createdAt])
 }
 
 model ProfessionalRating {

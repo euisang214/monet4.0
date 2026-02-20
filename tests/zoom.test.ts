@@ -102,6 +102,20 @@ describe('Zoom Integration', () => {
                     password: 'abc123',
                 }),
             });
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    id: 'registrant_candidate',
+                    join_url: 'https://zoom.us/w/candidate123',
+                }),
+            });
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    id: 'registrant_professional',
+                    join_url: 'https://zoom.us/w/professional123',
+                }),
+            });
 
             vi.stubEnv('ZOOM_ACCOUNT_ID', 'test_account');
             vi.stubEnv('ZOOM_CLIENT_ID', 'test_client');
@@ -115,10 +129,14 @@ describe('Zoom Integration', () => {
                 duration: 60,
                 timezone: 'UTC',
                 agenda: 'Test meeting',
+                candidateEmail: 'candidate@monet.local',
+                professionalEmail: 'professional@monet.local',
             });
 
             expect(result.join_url).toBe('https://zoom.us/j/12345');
             expect(result.id).toBe(12345);
+            expect(result.candidate_join_url).toBe('https://zoom.us/w/candidate123');
+            expect(result.professional_join_url).toBe('https://zoom.us/w/professional123');
 
             // Check meeting creation call
             expect(mockFetch).toHaveBeenCalledWith(
@@ -129,6 +147,12 @@ describe('Zoom Integration', () => {
                         Authorization: 'Bearer token',
                         'Content-Type': 'application/json',
                     }),
+                })
+            );
+            expect(mockFetch).toHaveBeenCalledWith(
+                'https://api.zoom.us/v2/meetings/12345/registrants',
+                expect.objectContaining({
+                    method: 'POST',
                 })
             );
         });
@@ -156,6 +180,8 @@ describe('Zoom Integration', () => {
                 topic: 'Test',
                 start_time: new Date(),
                 duration: 30,
+                candidateEmail: 'candidate@monet.local',
+                professionalEmail: 'professional@monet.local',
             })).rejects.toThrow('Zoom Create Meeting Failed');
         });
     });

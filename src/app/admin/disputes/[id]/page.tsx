@@ -3,6 +3,7 @@ import { prisma } from '@/lib/core/db';
 import { notFound } from 'next/navigation';
 import { format } from 'date-fns';
 import DisputeResolutionForm from './DisputeResolutionForm';
+import { AttendanceEvidenceCard } from '@/components/admin/AttendanceEvidenceCard';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,6 +41,21 @@ export default async function DisputeDetailPage(props: {
     // Safe calculation
     const payment = booking.payment;
     const maxRefund = payment ? (payment.amountGross - payment.refundedAmountCents) : 0;
+    const [attendanceEvents, latestNoShowAudit] = await Promise.all([
+        prisma.zoomAttendanceEvent.findMany({
+            where: { bookingId: booking.id },
+            orderBy: { eventTs: 'desc' },
+            take: 20,
+        }),
+        prisma.auditLog.findFirst({
+            where: {
+                entity: 'Booking',
+                entityId: booking.id,
+                action: 'attendance:no_show_decision',
+            },
+            orderBy: { createdAt: 'desc' },
+        }),
+    ]);
 
     return (
         <div className="space-y-6 max-w-4xl">
@@ -138,6 +154,14 @@ export default async function DisputeDetailPage(props: {
                     </div>
                 </div>
             )}
+
+            <AttendanceEvidenceCard
+                candidateJoinedAt={booking.candidateJoinedAt}
+                professionalJoinedAt={booking.professionalJoinedAt}
+                attendanceOutcome={booking.attendanceOutcome}
+                events={attendanceEvents}
+                latestNoShowAudit={latestNoShowAudit}
+            />
         </div>
     );
 }

@@ -132,8 +132,10 @@ describe('Integration transition notification semantics', () => {
 
         await updateZoomDetails(
             'booking_3',
-            'https://zoom.us/j/manual',
-            'manual-1',
+            {
+                zoomJoinUrl: 'https://zoom.us/j/manual',
+                zoomMeetingId: 'manual-1',
+            },
             { userId: 'admin_1', role: Role.ADMIN },
             { prisma: prisma as any },
         );

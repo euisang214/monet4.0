@@ -1,5 +1,3 @@
-import { prisma } from '@/lib/core/db';
-
 const ZOOM_ACCOUNT_ID = process.env.ZOOM_ACCOUNT_ID;
 const ZOOM_CLIENT_ID = process.env.ZOOM_CLIENT_ID;
 const ZOOM_CLIENT_SECRET = process.env.ZOOM_CLIENT_SECRET;
@@ -58,10 +56,14 @@ export async function getZoomAccessToken(): Promise<string> {
 
 interface CreateMeetingParams {
     topic: string;
-    start_time: Date; // Should be ISO string actually, but Date object is safer to pass in
-    duration: number; // minutes
+    start_time: Date;
+    duration: number;
     timezone?: string;
     agenda?: string;
+    candidateEmail: string;
+    professionalEmail: string;
+    candidateName?: string | null;
+    professionalName?: string | null;
 }
 
 interface ZoomMeetingResponse {
@@ -69,6 +71,73 @@ interface ZoomMeetingResponse {
     join_url: string;
     start_url: string;
     password?: string;
+    candidate_join_url: string;
+    professional_join_url: string;
+    candidate_registrant_id: string;
+    professional_registrant_id: string;
+}
+
+interface ZoomRegistrantResponse {
+    id?: string;
+    join_url?: string;
+}
+
+function splitName(fullName: string | null | undefined) {
+    const trimmed = fullName?.trim();
+    if (!trimmed) {
+        return { firstName: 'Participant', lastName: 'Monet' };
+    }
+
+    const parts = trimmed.split(/\s+/);
+    if (parts.length === 1) {
+        return { firstName: parts[0], lastName: 'Monet' };
+    }
+
+    return {
+        firstName: parts[0],
+        lastName: parts.slice(1).join(' '),
+    };
+}
+
+async function createRegistrant({
+    meetingId,
+    token,
+    email,
+    name,
+}: {
+    meetingId: number;
+    token: string;
+    email: string;
+    name?: string | null;
+}) {
+    const { firstName, lastName } = splitName(name);
+    const response = await fetch(`https://api.zoom.us/v2/meetings/${meetingId}/registrants`, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            email,
+            first_name: firstName,
+            last_name: lastName,
+        }),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(`Zoom Create Registrant Failed: ${JSON.stringify(error)}`);
+    }
+
+    const registrant = await response.json() as ZoomRegistrantResponse;
+    if (!registrant.join_url || !registrant.id) {
+        throw new Error('Zoom registrant response missing join_url or id');
+    }
+
+    return {
+        joinUrl: registrant.join_url,
+        registrantId: registrant.id,
+    };
 }
 
 /**
@@ -78,18 +147,16 @@ export async function createZoomMeeting({
     topic,
     start_time,
     duration,
-    timezone = 'UTC',
+    timezone,
     agenda,
+    candidateEmail,
+    professionalEmail,
+    candidateName,
+    professionalName,
 }: CreateMeetingParams): Promise<ZoomMeetingResponse> {
     const token = await getZoomAccessToken();
 
     try {
-        // Zoom API requires ISO 8601 format: yyyy-MM-ddTHH:mm:ssZ
-        // But for 'start_time', if timezone is specified, it should be local time "yyyy-MM-ddTHH:mm:ss" 
-        // or just pass UTC ISO string and let Zoom handle it.
-        // Safest is usually passing UTC time and 'UTC' as timezone.
-
-        // Note: Zoom recommends "yyyy-MM-ddTHH:mm:ss" format if timezone is provided.
         const startTimeStr = start_time.toISOString().split('.')[0] + 'Z';
 
         const response = await fetch('https://api.zoom.us/v2/users/me/meetings', {
@@ -103,7 +170,7 @@ export async function createZoomMeeting({
                 type: 2, // Scheduled meeting
                 start_time: startTimeStr,
                 duration,
-                timezone: 'UTC', // Enforce UTC to avoid ambiguity
+                timezone: timezone || 'UTC',
                 agenda,
                 settings: {
                     host_video: true,
@@ -112,6 +179,8 @@ export async function createZoomMeeting({
                     mute_upon_entry: false,
                     waiting_room: false,
                     auto_recording: 'none',
+                    approval_type: 0, // Auto-approve registrants
+                    registration_type: 1, // Register once and attend all occurrences
                 },
             }),
         });
@@ -122,12 +191,31 @@ export async function createZoomMeeting({
         }
 
         const data = await response.json();
+        const meetingId = data.id as number;
+
+        const candidateRegistrant = await createRegistrant({
+            meetingId,
+            token,
+            email: candidateEmail,
+            name: candidateName,
+        });
+
+        const professionalRegistrant = await createRegistrant({
+            meetingId,
+            token,
+            email: professionalEmail,
+            name: professionalName,
+        });
 
         return {
-            id: data.id,
+            id: meetingId,
             join_url: data.join_url,
             start_url: data.start_url,
             password: data.password,
+            candidate_join_url: candidateRegistrant.joinUrl,
+            professional_join_url: professionalRegistrant.joinUrl,
+            candidate_registrant_id: candidateRegistrant.registrantId,
+            professional_registrant_id: professionalRegistrant.registrantId,
         };
     } catch (error) {
         console.error('Error creating Zoom meeting:', error);

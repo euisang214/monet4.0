@@ -3,9 +3,20 @@ import { prisma } from '@/lib/core/db';
 import { createZoomMeeting } from '@/lib/integrations/zoom';
 import { createGoogleCalendarEvent } from '@/lib/integrations/calendar/google';
 import { expireBooking, completeCall, cancelBooking, initiateDispute, completeIntegrations } from '@/lib/domain/bookings/transitions';
-import { stripe, cancelPaymentIntent } from '@/lib/integrations/stripe';
-import { subMinutes } from 'date-fns';
-import { BookingStatus, AttendanceOutcome } from '@prisma/client';
+import { cancelPaymentIntent } from '@/lib/integrations/stripe';
+import { subDays } from 'date-fns';
+import { BookingStatus, AttendanceOutcome, Prisma } from '@prisma/client';
+import {
+    ZOOM_ATTENDANCE_ENFORCEMENT,
+    ZOOM_ATTENDANCE_EVENT_RETENTION_DAYS,
+    ZOOM_ATTENDANCE_FINAL_CHECK_MINUTES,
+    ZOOM_ATTENDANCE_INITIAL_CHECK_MINUTES,
+    isZoomParticipantJoinedEvent,
+    normalizeEmail,
+    parseZoomAttendancePayload,
+    type ZoomWebhookBody,
+} from '@/lib/integrations/zoom-attendance';
+import { createAuditLog } from '@/lib/shared/audit';
 
 export const BOOKING_QUEUE_NAME = 'bookings';
 
@@ -25,6 +36,12 @@ export function createBookingsWorker(connection: ConnectionOptions) {
             }
             if (job.name === 'no-show-check') {
                 return await processNoShowCheck();
+            }
+            if (job.name === 'zoom-attendance-event') {
+                return await processZoomAttendanceEvent(job.data.zoomAttendanceEventId);
+            }
+            if (job.name === 'zoom-attendance-retention') {
+                return await processZoomAttendanceRetention();
             }
         } catch (error: any) {
             console.error(`[BOOKINGS] Job ${job.id} failed:`, error);
@@ -46,6 +63,121 @@ export function createBookingsWorker(connection: ConnectionOptions) {
     });
 
     return worker;
+}
+
+type AttendanceRecommendation = 'both_joined' | 'candidate_no_show' | 'professional_no_show' | 'both_no_show' | 'ambiguous';
+type MappedRole = 'candidate' | 'professional' | 'unknown';
+type MappingMethod = 'registrant_id' | 'strict_email' | 'unknown';
+
+async function recordBookingAudit(bookingId: string, action: string, metadata: Record<string, unknown>) {
+    await prisma.$transaction(async (tx) => {
+        await createAuditLog(tx, 'Booking', bookingId, action, null, metadata as Prisma.InputJsonValue);
+    });
+}
+
+function getAttendanceMinutesFromStart(startAt: Date, now: Date) {
+    return Math.floor((now.getTime() - startAt.getTime()) / (60 * 1000));
+}
+
+function determineParticipantMapping({
+    participantEmail,
+    participantRegistrantId,
+    candidateEmail,
+    professionalEmail,
+    candidateRegistrantId,
+    professionalRegistrantId,
+}: {
+    participantEmail: string | null;
+    participantRegistrantId: string | null;
+    candidateEmail: string;
+    professionalEmail: string;
+    candidateRegistrantId: string | null;
+    professionalRegistrantId: string | null;
+}): { mappedRole: MappedRole; mappingMethod: MappingMethod } {
+    if (participantRegistrantId) {
+        if (candidateRegistrantId && participantRegistrantId === candidateRegistrantId) {
+            return { mappedRole: 'candidate', mappingMethod: 'registrant_id' };
+        }
+        if (professionalRegistrantId && participantRegistrantId === professionalRegistrantId) {
+            return { mappedRole: 'professional', mappingMethod: 'registrant_id' };
+        }
+    }
+
+    const normalizedParticipantEmail = normalizeEmail(participantEmail);
+    const normalizedCandidateEmail = normalizeEmail(candidateEmail);
+    const normalizedProfessionalEmail = normalizeEmail(professionalEmail);
+
+    if (normalizedParticipantEmail && normalizedCandidateEmail && normalizedParticipantEmail === normalizedCandidateEmail) {
+        return { mappedRole: 'candidate', mappingMethod: 'strict_email' };
+    }
+    if (normalizedParticipantEmail && normalizedProfessionalEmail && normalizedParticipantEmail === normalizedProfessionalEmail) {
+        return { mappedRole: 'professional', mappingMethod: 'strict_email' };
+    }
+
+    return { mappedRole: 'unknown', mappingMethod: 'unknown' };
+}
+
+async function applyFinalNoShowDecision({
+    booking,
+    candidateJoined,
+    professionalJoined,
+    hasUnknownJoinEvidence,
+}: {
+    booking: {
+        id: string;
+    };
+    candidateJoined: boolean;
+    professionalJoined: boolean;
+    hasUnknownJoinEvidence: boolean;
+}) {
+    if (candidateJoined && professionalJoined) {
+        await completeCall(booking.id, { attendanceOutcome: AttendanceOutcome.both_joined });
+        return 'both_joined' as AttendanceRecommendation;
+    }
+
+    if (hasUnknownJoinEvidence) {
+        await initiateDispute(
+            booking.id,
+            { userId: 'system', role: 'ADMIN' },
+            'no_show',
+            'Automated: Ambiguous attendance evidence from Zoom events.',
+            undefined,
+            { attendanceOutcome: AttendanceOutcome.both_no_show }
+        );
+        return 'ambiguous' as AttendanceRecommendation;
+    }
+
+    if (!candidateJoined && professionalJoined) {
+        await cancelBooking(
+            booking.id,
+            'system',
+            'Automated: Candidate No-Show',
+            { attendanceOutcome: AttendanceOutcome.candidate_no_show }
+        );
+        return 'candidate_no_show' as AttendanceRecommendation;
+    }
+
+    if (candidateJoined && !professionalJoined) {
+        await initiateDispute(
+            booking.id,
+            { userId: 'system', role: 'ADMIN' },
+            'no_show',
+            'Automated: Professional failed to join.',
+            undefined,
+            { attendanceOutcome: AttendanceOutcome.professional_no_show }
+        );
+        return 'professional_no_show' as AttendanceRecommendation;
+    }
+
+    await initiateDispute(
+        booking.id,
+        { userId: 'system', role: 'ADMIN' },
+        'no_show',
+        'Automated: Both parties failed to join.',
+        undefined,
+        { attendanceOutcome: AttendanceOutcome.both_no_show }
+    );
+    return 'both_no_show' as AttendanceRecommendation;
 }
 
 export async function processConfirmBooking(bookingId: string) {
@@ -71,6 +203,10 @@ export async function processConfirmBooking(bookingId: string) {
     // We only create if not already exists (idempotency check)
     let zoomMeetingId = booking.zoomMeetingId;
     let zoomJoinUrl = booking.zoomJoinUrl;
+    let candidateZoomJoinUrl = booking.candidateZoomJoinUrl;
+    let professionalZoomJoinUrl = booking.professionalZoomJoinUrl;
+    let candidateZoomRegistrantId = booking.candidateZoomRegistrantId;
+    let professionalZoomRegistrantId = booking.professionalZoomRegistrantId;
 
     if (
         zoomMeetingId
@@ -81,7 +217,14 @@ export async function processConfirmBooking(bookingId: string) {
         )
     ) {
         // Self-heal transition state and (re)emit accepted notifications in an idempotent way.
-        await completeIntegrations(bookingId, { joinUrl: zoomJoinUrl, meetingId: zoomMeetingId });
+        await completeIntegrations(bookingId, {
+            joinUrl: zoomJoinUrl,
+            meetingId: zoomMeetingId,
+            candidateJoinUrl: candidateZoomJoinUrl,
+            professionalJoinUrl: professionalZoomJoinUrl,
+            candidateRegistrantId: candidateZoomRegistrantId,
+            professionalRegistrantId: professionalZoomRegistrantId,
+        });
     }
 
     if (!zoomMeetingId) {
@@ -93,13 +236,28 @@ export async function processConfirmBooking(bookingId: string) {
                 start_time: booking.startAt,
                 duration: durationMinutes,
                 timezone: 'UTC',
+                candidateEmail: booking.candidate.email,
+                professionalEmail: booking.professional.email,
+                candidateName: booking.candidate.email,
+                professionalName: booking.professional.email,
             });
 
             zoomMeetingId = meeting.id.toString();
             zoomJoinUrl = meeting.join_url;
+            candidateZoomJoinUrl = meeting.candidate_join_url;
+            professionalZoomJoinUrl = meeting.professional_join_url;
+            candidateZoomRegistrantId = meeting.candidate_registrant_id;
+            professionalZoomRegistrantId = meeting.professional_registrant_id;
 
             // Transition booking status via centralized state machine
-            await completeIntegrations(bookingId, { joinUrl: zoomJoinUrl, meetingId: zoomMeetingId });
+            await completeIntegrations(bookingId, {
+                joinUrl: zoomJoinUrl,
+                meetingId: zoomMeetingId,
+                candidateJoinUrl: candidateZoomJoinUrl,
+                professionalJoinUrl: professionalZoomJoinUrl,
+                candidateRegistrantId: candidateZoomRegistrantId,
+                professionalRegistrantId: professionalZoomRegistrantId,
+            });
 
             // Refetch booking to ensure downstream has latest status/URLs if we passed strictly objects
             // But we have local vars.
@@ -193,6 +351,10 @@ export async function processRescheduleBooking(bookingId: string, oldZoomMeeting
 
     let zoomMeetingId: string | null = null;
     let zoomJoinUrl: string | null = null;
+    let candidateZoomJoinUrl: string | null = null;
+    let professionalZoomJoinUrl: string | null = null;
+    let candidateZoomRegistrantId: string | null = null;
+    let professionalZoomRegistrantId: string | null = null;
 
     try {
         const durationMinutes = (booking.endAt.getTime() - booking.startAt.getTime()) / (1000 * 60);
@@ -201,13 +363,28 @@ export async function processRescheduleBooking(bookingId: string, oldZoomMeeting
             start_time: booking.startAt,
             duration: durationMinutes,
             timezone: 'UTC',
+            candidateEmail: booking.candidate.email,
+            professionalEmail: booking.professional.email,
+            candidateName: booking.candidate.email,
+            professionalName: booking.professional.email,
         });
 
         zoomMeetingId = meeting.id.toString();
         zoomJoinUrl = meeting.join_url;
+        candidateZoomJoinUrl = meeting.candidate_join_url;
+        professionalZoomJoinUrl = meeting.professional_join_url;
+        candidateZoomRegistrantId = meeting.candidate_registrant_id;
+        professionalZoomRegistrantId = meeting.professional_registrant_id;
 
         // Transition booking status via centralized state machine
-        await completeIntegrations(bookingId, { joinUrl: zoomJoinUrl, meetingId: zoomMeetingId });
+        await completeIntegrations(bookingId, {
+            joinUrl: zoomJoinUrl,
+            meetingId: zoomMeetingId,
+            candidateJoinUrl: candidateZoomJoinUrl,
+            professionalJoinUrl: professionalZoomJoinUrl,
+            candidateRegistrantId: candidateZoomRegistrantId,
+            professionalRegistrantId: professionalZoomRegistrantId,
+        });
     } catch (error) {
         console.error(`Failed to create new Zoom meeting for reschedule ${bookingId}`, error);
         throw error;
@@ -289,20 +466,165 @@ export async function processExpiryCheck() {
     return { processed: true, count: expiredBookings.length };
 }
 
+export async function processZoomAttendanceEvent(zoomAttendanceEventId: string) {
+    const attendanceEvent = await prisma.zoomAttendanceEvent.findUnique({
+        where: { id: zoomAttendanceEventId },
+    });
+
+    if (!attendanceEvent) {
+        return { processed: false, reason: 'event_not_found', zoomAttendanceEventId };
+    }
+
+    if (attendanceEvent.processingStatus === 'processed') {
+        return { processed: true, skipped: true, reason: 'already_processed', zoomAttendanceEventId };
+    }
+
+    const payload = attendanceEvent.payload as unknown as ZoomWebhookBody;
+    const parsedPayload = parseZoomAttendancePayload(payload);
+    const meetingId = attendanceEvent.meetingId || parsedPayload.meetingId;
+
+    if (!meetingId) {
+        await prisma.zoomAttendanceEvent.update({
+            where: { id: attendanceEvent.id },
+            data: {
+                processingStatus: 'failed',
+                processingError: 'missing_meeting_id',
+                processedAt: new Date(),
+            },
+        });
+        return { processed: false, reason: 'missing_meeting_id', zoomAttendanceEventId };
+    }
+
+    const booking = await prisma.booking.findFirst({
+        where: { zoomMeetingId: meetingId },
+        select: {
+            id: true,
+            candidateId: true,
+            professionalId: true,
+            candidateJoinedAt: true,
+            professionalJoinedAt: true,
+            candidateZoomRegistrantId: true,
+            professionalZoomRegistrantId: true,
+            candidate: {
+                select: {
+                    email: true,
+                },
+            },
+            professional: {
+                select: {
+                    email: true,
+                },
+            },
+        },
+    });
+
+    let mappedRole: MappedRole = 'unknown';
+    let mappingMethod: MappingMethod = 'unknown';
+    let bookingId: string | null = null;
+
+    if (booking) {
+        bookingId = booking.id;
+        const mapping = determineParticipantMapping({
+            participantEmail: parsedPayload.participantEmail,
+            participantRegistrantId: parsedPayload.participantRegistrantId,
+            candidateEmail: booking.candidate.email,
+            professionalEmail: booking.professional.email,
+            candidateRegistrantId: booking.candidateZoomRegistrantId,
+            professionalRegistrantId: booking.professionalZoomRegistrantId,
+        });
+        mappedRole = mapping.mappedRole;
+        mappingMethod = mapping.mappingMethod;
+
+        if (isZoomParticipantJoinedEvent(attendanceEvent.eventType) && mappedRole !== 'unknown') {
+            const updates: {
+                candidateJoinedAt?: Date;
+                professionalJoinedAt?: Date;
+            } = {};
+
+            if (mappedRole === 'candidate') {
+                if (!booking.candidateJoinedAt || attendanceEvent.eventTs < booking.candidateJoinedAt) {
+                    updates.candidateJoinedAt = attendanceEvent.eventTs;
+                }
+            }
+
+            if (mappedRole === 'professional') {
+                if (!booking.professionalJoinedAt || attendanceEvent.eventTs < booking.professionalJoinedAt) {
+                    updates.professionalJoinedAt = attendanceEvent.eventTs;
+                }
+            }
+
+            if (updates.candidateJoinedAt || updates.professionalJoinedAt) {
+                await prisma.booking.update({
+                    where: { id: booking.id },
+                    data: updates,
+                });
+            }
+        }
+
+        await recordBookingAudit(booking.id, 'attendance:zoom_event_processed', {
+            eventId: attendanceEvent.id,
+            eventType: attendanceEvent.eventType,
+            mappedRole,
+            mappingMethod,
+            participantEmail: parsedPayload.participantEmail,
+            participantId: parsedPayload.participantId,
+            participantUserId: parsedPayload.participantUserId,
+            participantRegistrantId: parsedPayload.participantRegistrantId,
+            eventTs: attendanceEvent.eventTs.toISOString(),
+        });
+    }
+
+    await prisma.zoomAttendanceEvent.update({
+        where: { id: attendanceEvent.id },
+        data: {
+            bookingId,
+            mappedRole,
+            mappingMethod,
+            processingStatus: booking ? 'processed' : 'ignored',
+            processingError: booking ? null : 'booking_not_found_for_meeting',
+            processedAt: new Date(),
+        },
+    });
+
+    return {
+        processed: true,
+        zoomAttendanceEventId,
+        bookingId,
+        mappedRole,
+        mappingMethod,
+    };
+}
+
+export async function processZoomAttendanceRetention() {
+    const cutoff = subDays(new Date(), ZOOM_ATTENDANCE_EVENT_RETENTION_DAYS);
+    const deleted = await prisma.zoomAttendanceEvent.deleteMany({
+        where: {
+            createdAt: {
+                lt: cutoff,
+            },
+        },
+    });
+
+    return {
+        processed: true,
+        deletedCount: deleted.count,
+        cutoff: cutoff.toISOString(),
+    };
+}
+
 export async function processNoShowCheck() {
     console.log('[BOOKINGS] Processing No-Show Check');
 
-    // Find accepted bookings that started > 15 mins ago and have no attendance outcome
-    // 15 minute grace period
-    const gracePeriodThreshold = subMinutes(new Date(), 15);
+    const now = new Date();
+    const initialThreshold = new Date(now.getTime() - ZOOM_ATTENDANCE_INITIAL_CHECK_MINUTES * 60 * 1000);
 
     const staleBookings = await prisma.booking.findMany({
         where: {
             status: BookingStatus.accepted,
-            startAt: { lt: gracePeriodThreshold },
+            startAt: { lt: initialThreshold },
             attendanceOutcome: null,
         },
-        include: { payment: true }, // Not strictly needed unless checking something
+        include: { payment: true },
         take: 50,
     });
 
@@ -310,31 +632,102 @@ export async function processNoShowCheck() {
 
     for (const booking of staleBookings) {
         try {
+            if (!booking.startAt) {
+                continue;
+            }
+
+            const minutesFromStart = getAttendanceMinutesFromStart(booking.startAt, now);
             // Check join timestamps
             const candidateJoined = !!booking.candidateJoinedAt;
             const proJoined = !!booking.professionalJoinedAt;
+            const isFinalCheck = minutesFromStart >= ZOOM_ATTENDANCE_FINAL_CHECK_MINUTES;
 
             if (candidateJoined && proJoined) {
-                // Both joined: Complete the call
-                console.log(`[BOOKINGS] Both joined for ${booking.id}. Completing.`);
-                await completeCall(booking.id, { attendanceOutcome: AttendanceOutcome.both_joined });
-            } else if (!candidateJoined && !proJoined) {
-                // Both missing: Dispute/Manual Review required? 
-                // CLAUDE.md: "Handle both no-show: Create admin task for manual review... Funds remain held"
-                // -> Initiate Dispute (reason: other/no_show)
-                console.log(`[BOOKINGS] Both No-Show for ${booking.id}. Initiating Dispute.`);
-                await initiateDispute(booking.id, { userId: 'system', role: 'ADMIN' }, 'no_show', 'Automated: Both parties failed to join.');
-            } else if (!candidateJoined && proJoined) {
-                // Candidate No-Show: Late Cancellation (Pro gets paid)
-                console.log(`[BOOKINGS] Candidate No-Show for ${booking.id}. Late Cancellation.`);
-                // 'system' actor, reason, options
-                await cancelBooking(booking.id, 'system', 'Automated: Candidate No-Show', { attendanceOutcome: AttendanceOutcome.candidate_no_show });
-            } else if (candidateJoined && !proJoined) {
-                // Professional No-Show: Dispute (Pro penalized, likely refund/reschedule)
-                console.log(`[BOOKINGS] Professional No-Show for ${booking.id}. Initiating Dispute.`);
-                await initiateDispute(booking.id, { userId: 'system', role: 'ADMIN' }, 'no_show', 'Automated: Professional failed to join.');
+                const recommendation: AttendanceRecommendation = 'both_joined';
+                if (ZOOM_ATTENDANCE_ENFORCEMENT) {
+                    await completeCall(booking.id, { attendanceOutcome: AttendanceOutcome.both_joined });
+                    await recordBookingAudit(booking.id, 'attendance:no_show_decision', {
+                        phase: isFinalCheck ? 'final' : 'initial',
+                        recommendation,
+                        applied: recommendation,
+                        enforcementEnabled: true,
+                        minutesFromStart,
+                    });
+                } else {
+                    await recordBookingAudit(booking.id, 'attendance:no_show_decision', {
+                        phase: isFinalCheck ? 'final' : 'initial',
+                        recommendation,
+                        applied: 'skipped_due_to_kill_switch',
+                        enforcementEnabled: false,
+                        minutesFromStart,
+                    });
+                }
+                continue;
             }
 
+            if (!isFinalCheck) {
+                await recordBookingAudit(booking.id, 'attendance:no_show_decision', {
+                    phase: 'initial',
+                    recommendation: 'pending_final_check',
+                    applied: 'none',
+                    enforcementEnabled: ZOOM_ATTENDANCE_ENFORCEMENT,
+                    minutesFromStart,
+                    candidateJoined,
+                    professionalJoined: proJoined,
+                });
+                continue;
+            }
+
+            const unknownEvidenceWindowStart = new Date(
+                booking.startAt.getTime() - ZOOM_ATTENDANCE_INITIAL_CHECK_MINUTES * 60 * 1000
+            );
+            const hasUnknownJoinEvidence = (await prisma.zoomAttendanceEvent.count({
+                where: {
+                    bookingId: booking.id,
+                    eventType: 'meeting.participant_joined',
+                    mappedRole: 'unknown',
+                    eventTs: { gte: unknownEvidenceWindowStart },
+                },
+            })) > 0;
+
+            const recommendation: AttendanceRecommendation = (() => {
+                if (hasUnknownJoinEvidence) return 'ambiguous';
+                if (!candidateJoined && proJoined) return 'candidate_no_show';
+                if (candidateJoined && !proJoined) return 'professional_no_show';
+                return 'both_no_show';
+            })();
+
+            if (!ZOOM_ATTENDANCE_ENFORCEMENT) {
+                await recordBookingAudit(booking.id, 'attendance:no_show_decision', {
+                    phase: 'final',
+                    recommendation,
+                    applied: 'skipped_due_to_kill_switch',
+                    enforcementEnabled: false,
+                    minutesFromStart,
+                    candidateJoined,
+                    professionalJoined: proJoined,
+                    hasUnknownJoinEvidence,
+                });
+                continue;
+            }
+
+            const applied = await applyFinalNoShowDecision({
+                booking: { id: booking.id },
+                candidateJoined,
+                professionalJoined: proJoined,
+                hasUnknownJoinEvidence,
+            });
+
+            await recordBookingAudit(booking.id, 'attendance:no_show_decision', {
+                phase: 'final',
+                recommendation,
+                applied,
+                enforcementEnabled: true,
+                minutesFromStart,
+                candidateJoined,
+                professionalJoined: proJoined,
+                hasUnknownJoinEvidence,
+            });
         } catch (error) {
             console.error(`[BOOKINGS] Failed to process no-show for booking ${booking.id}`, error);
         }

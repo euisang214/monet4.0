@@ -80,6 +80,7 @@ export const ProfessionalDashboardService = {
                     startAt: true,
                     timezone: true,
                     zoomJoinUrl: true,
+                    professionalZoomJoinUrl: true,
                     candidate: {
                         select: {
                             email: true

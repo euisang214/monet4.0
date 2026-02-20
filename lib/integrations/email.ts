@@ -142,7 +142,12 @@ export async function sendBookingAcceptedEmail(
     const durationMinutes = (endDate.getTime() - startDate.getTime()) / (1000 * 60);
     const duration = { hours: Math.floor(durationMinutes / 60), minutes: durationMinutes % 60 };
 
-    const meetingUrl = booking.zoomJoinUrl?.trim() || null;
+    const roleSpecificMeetingUrl = (
+        role === 'CANDIDATE'
+            ? booking.candidateZoomJoinUrl
+            : booking.professionalZoomJoinUrl
+    )?.trim() || null;
+    const meetingUrl = roleSpecificMeetingUrl || booking.zoomJoinUrl?.trim() || null;
     const hasValidMeetingUrl = isValidAbsoluteHttpUrl(meetingUrl);
     const meetingLabel = hasValidMeetingUrl ? meetingUrl : 'link pending';
     const icsDescription = hasValidMeetingUrl

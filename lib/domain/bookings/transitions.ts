@@ -491,14 +491,27 @@ export async function acceptBookingWithIntegrations(
 // 5. accepted_pending_integrations → accepted
 export async function completeIntegrations(
     bookingId: string,
-    zoomData: { joinUrl: string; meetingId: string },
+    zoomData: {
+        joinUrl: string;
+        meetingId: string;
+        candidateJoinUrl?: string | null;
+        professionalJoinUrl?: string | null;
+        candidateRegistrantId?: string | null;
+        professionalRegistrantId?: string | null;
+    },
     deps: Dependencies = { prisma: defaultPrisma }
 ) {
     const result = await transitionBooking(bookingId, BookingStatus.accepted, { actor: 'system' }, deps, async (tx) => {
         const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
+        const hasMatchingZoomData = booking.zoomJoinUrl === zoomData.joinUrl
+            && booking.zoomMeetingId === zoomData.meetingId
+            && booking.candidateZoomJoinUrl === (zoomData.candidateJoinUrl ?? null)
+            && booking.professionalZoomJoinUrl === (zoomData.professionalJoinUrl ?? null)
+            && booking.candidateZoomRegistrantId === (zoomData.candidateRegistrantId ?? null)
+            && booking.professionalZoomRegistrantId === (zoomData.professionalRegistrantId ?? null);
 
         if (booking.status === BookingStatus.accepted) {
-            if (booking.zoomJoinUrl === zoomData.joinUrl && booking.zoomMeetingId === zoomData.meetingId) {
+            if (hasMatchingZoomData) {
                 return booking;
             }
 
@@ -508,6 +521,10 @@ export async function completeIntegrations(
                 data: {
                     zoomJoinUrl: zoomData.joinUrl,
                     zoomMeetingId: zoomData.meetingId,
+                    candidateZoomJoinUrl: zoomData.candidateJoinUrl ?? null,
+                    professionalZoomJoinUrl: zoomData.professionalJoinUrl ?? null,
+                    candidateZoomRegistrantId: zoomData.candidateRegistrantId ?? null,
+                    professionalZoomRegistrantId: zoomData.professionalRegistrantId ?? null,
                 },
             });
         }
@@ -521,6 +538,10 @@ export async function completeIntegrations(
                 status: BookingStatus.accepted,
                 zoomJoinUrl: zoomData.joinUrl,
                 zoomMeetingId: zoomData.meetingId,
+                candidateZoomJoinUrl: zoomData.candidateJoinUrl ?? null,
+                professionalZoomJoinUrl: zoomData.professionalJoinUrl ?? null,
+                candidateZoomRegistrantId: zoomData.candidateRegistrantId ?? null,
+                professionalZoomRegistrantId: zoomData.professionalRegistrantId ?? null,
             }
         });
     });
@@ -736,9 +757,15 @@ export async function initiateDispute(
     actor: { userId: string; role: Role },
     reason: string,
     description: string,
-    deps: Dependencies = { prisma: defaultPrisma }
+    deps: Dependencies = { prisma: defaultPrisma },
+    options?: { attendanceOutcome?: AttendanceOutcome }
 ) {
-    return transitionBooking(bookingId, BookingStatus.dispute_pending, { actor, reason }, deps, async (tx) => {
+    return transitionBooking(
+        bookingId,
+        BookingStatus.dispute_pending,
+        { actor, reason, metadata: { attendanceOutcome: options?.attendanceOutcome } },
+        deps,
+        async (tx) => {
         const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
 
         const isParticipant = booking.candidateId === actor.userId || booking.professionalId === actor.userId;
@@ -758,6 +785,17 @@ export async function initiateDispute(
                 || existingDispute.description !== description
             ) {
                 throw new TransitionConflictError('Dispute already exists with different details');
+            }
+
+            if (options?.attendanceOutcome && booking.attendanceOutcome && booking.attendanceOutcome !== options.attendanceOutcome) {
+                throw new TransitionConflictError('Dispute already exists with a different attendance outcome');
+            }
+
+            if (options?.attendanceOutcome && booking.attendanceOutcome !== options.attendanceOutcome) {
+                return tx.booking.update({
+                    where: { id: bookingId },
+                    data: { attendanceOutcome: options.attendanceOutcome },
+                });
             }
 
             return booking;
@@ -782,9 +820,13 @@ export async function initiateDispute(
 
         return tx.booking.update({
             where: { id: bookingId },
-            data: { status: BookingStatus.dispute_pending }
+            data: {
+                status: BookingStatus.dispute_pending,
+                attendanceOutcome: options?.attendanceOutcome,
+            }
         });
-    });
+        }
+    );
 }
 
 // 10. dispute_pending → refunded OR completed
@@ -1026,8 +1068,12 @@ export async function rejectReschedule(
  */
 export async function updateZoomDetails(
     bookingId: string,
-    zoomJoinUrl: string,
-    zoomMeetingId: string | undefined,
+    zoomInput: {
+        zoomJoinUrl?: string;
+        zoomMeetingId?: string;
+        candidateZoomJoinUrl?: string;
+        professionalZoomJoinUrl?: string;
+    },
     actor: { userId: string; role: Role },
     deps: Dependencies = { prisma: defaultPrisma }
 ) {
@@ -1046,14 +1092,25 @@ export async function updateZoomDetails(
 
     // Determine if we should transition status
     const shouldTransitionToAccepted = booking.status === BookingStatus.accepted_pending_integrations;
+    const resolvedSharedJoinUrl = zoomInput.zoomJoinUrl
+        ?? zoomInput.candidateZoomJoinUrl
+        ?? zoomInput.professionalZoomJoinUrl;
+
+    if (!resolvedSharedJoinUrl) {
+        throw new TransitionError('At least one Zoom join URL is required');
+    }
 
     const updates: {
         zoomJoinUrl: string;
         zoomMeetingId?: string;
+        candidateZoomJoinUrl?: string;
+        professionalZoomJoinUrl?: string;
         status?: BookingStatus;
     } = {
-        zoomJoinUrl,
-        ...(zoomMeetingId && { zoomMeetingId }),
+        zoomJoinUrl: resolvedSharedJoinUrl,
+        ...(zoomInput.zoomMeetingId && { zoomMeetingId: zoomInput.zoomMeetingId }),
+        ...(zoomInput.candidateZoomJoinUrl && { candidateZoomJoinUrl: zoomInput.candidateZoomJoinUrl }),
+        ...(zoomInput.professionalZoomJoinUrl && { professionalZoomJoinUrl: zoomInput.professionalZoomJoinUrl }),
     };
 
     if (shouldTransitionToAccepted) {
@@ -1070,7 +1127,7 @@ export async function updateZoomDetails(
             type: 'booking_accepted',
             bookingId,
         }, {
-            jobId: `booking-accepted-${bookingId}-${zoomMeetingId ?? 'manual'}`,
+            jobId: `booking-accepted-${bookingId}-${zoomInput.zoomMeetingId ?? 'manual'}`,
         });
     }
 
@@ -1082,8 +1139,10 @@ export async function updateZoomDetails(
         'admin:zoom_link_updated',
         actor.userId,
         {
-            zoomJoinUrl,
-            zoomMeetingId,
+            zoomJoinUrl: resolvedSharedJoinUrl,
+            zoomMeetingId: zoomInput.zoomMeetingId,
+            candidateZoomJoinUrl: zoomInput.candidateZoomJoinUrl,
+            professionalZoomJoinUrl: zoomInput.professionalZoomJoinUrl,
             previousStatus: booking.status,
             newStatus: updates.status ?? booking.status,
         }

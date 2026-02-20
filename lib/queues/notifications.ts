@@ -51,8 +51,14 @@ export function createNotificationsWorker(connection: ConnectionOptions) {
             });
             if (!booking) return;
 
-            if (booking.status !== BookingStatus.accepted || !booking.zoomJoinUrl) {
-                console.warn(`[NOTIFICATIONS] Skipping acceptance email for booking ${bookingId}: status=${booking.status}, zoomJoinUrl=${booking.zoomJoinUrl ? 'present' : 'missing'}`);
+            const hasAnyZoomJoinUrl = Boolean(
+                booking.zoomJoinUrl
+                || booking.candidateZoomJoinUrl
+                || booking.professionalZoomJoinUrl
+            );
+
+            if (booking.status !== BookingStatus.accepted || !hasAnyZoomJoinUrl) {
+                console.warn(`[NOTIFICATIONS] Skipping acceptance email for booking ${bookingId}: status=${booking.status}, zoomJoinUrl=${hasAnyZoomJoinUrl ? 'present' : 'missing'}`);
                 return;
             }
 
