@@ -158,13 +158,13 @@ export default async function ProfessionalProfilePage(props: {
 
                                 {activityItems.length > 0 ? (
                                     <section>
-                                        <h3 className="text-4xl font-bold text-gray-900 mb-6">Activities</h3>
+                                        <h3 className="text-4xl font-bold text-gray-900 mb-3 mt-3">Activities</h3>
                                         <div className="space-y-6">
                                             {activityItems.map((activity) => (
-                                                <article key={activity.id} className="border-l border-gray-900 pl-6">
-                                                    <h4 className="text-2xl font-semibold text-gray-900">{activity.title}</h4>
-                                                    <p className="text-2xl text-gray-600 mt-1">{activity.company}</p>
-                                                    <p className="text-2xl italic text-gray-500 mt-6">
+                                                <article key={activity.id} className="border-l border-gray-900 p-2">
+                                                    <h4 className="font-semibold text-gray-900">{activity.title}</h4>
+                                                    <p className="text-gray-600 mt-1">{activity.company}</p>
+                                                    <p className="italic text-gray-500 mt-1">
                                                         {formatDateRange(activity, monthYearFormatter)}
                                                     </p>
                                                 </article>
