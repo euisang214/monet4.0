@@ -9,10 +9,18 @@ import {
     DisputeReason,
     AttendanceOutcome
 } from '@prisma/client'
+import { loadEnvConfig } from '@next/env'
 import bcrypt from 'bcryptjs'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { uploadResume, RESUME_CONTENT_TYPE } from '../lib/integrations/resume-storage'
+import {
+    buildSeedPaymentCreateData,
+    createSeedStripePaymentProcessor,
+    validateStripeSeedEnv,
+} from './seed-stripe'
+
+loadEnvConfig(process.cwd())
 
 function normalizeEnvValue(rawValue: string | undefined): string | undefined {
     const trimmed = rawValue?.trim()
@@ -39,7 +47,7 @@ const FULL_PROFESSIONAL_NUMBERS = Array.from({ length: PROFESSIONAL_COUNT }, (_,
 const LITE_CANDIDATE_NUMBERS = [3]
 const LITE_PROFESSIONAL_NUMBERS = [2]
 
-// Helper to generate unique IDs for Stripe mocks
+// Helper to generate unique IDs for synthetic seed-only Stripe identifiers.
 const generateStripeId = (prefix: string, index: number) => `${prefix}_test_${index.toString().padStart(3, '0')}`
 const toArrayBuffer = (buffer: Buffer): ArrayBuffer => {
     const arrayBuffer = new ArrayBuffer(buffer.byteLength)
@@ -209,9 +217,22 @@ async function clearDatabase() {
 async function main() {
     const populationMode = parseSeedPopulationMode()
     const { candidateNumbers, professionalNumbers } = getUserNumbersForMode(populationMode)
+    const stripeSeedEnv = validateStripeSeedEnv()
+    const stripePaymentProcessor = createSeedStripePaymentProcessor({
+        secretKey: stripeSeedEnv.stripeTestSecretKey,
+        defaultPaymentMethod: stripeSeedEnv.defaultPaymentMethod,
+    })
+    const buildPaymentCreateData = (input: {
+        amountGross: number
+        platformFee: number
+        status: PaymentStatus
+        refundedAmountCents?: number
+        metadata?: Record<string, string>
+    }) => buildSeedPaymentCreateData(input, stripePaymentProcessor)
 
     console.log('Start seeding ...')
     console.log(`Seed population mode: ${populationMode}`)
+    console.log(`Stripe seed key source: STRIPE_TEST_SECRET_KEY`)
     assertResumeUploadEnv()
     const sampleResumePdf = await loadSampleResumePdf()
     await clearDatabase()
@@ -592,12 +613,11 @@ async function main() {
                     expiresAt: new Date(startAt.getTime() + 2 * 24 * 60 * 60 * 1000),
                     timezone: candidate.timezone,
                     payment: {
-                        create: {
+                        create: await buildPaymentCreateData({
                             amountGross: priceCents,
                             platformFee: Math.floor(priceCents * 0.15),
-                            stripePaymentIntentId: generateStripeId('pi', paymentIndex),
                             status: PaymentStatus.authorized,
-                        },
+                            }),
                     },
                 },
             })
@@ -616,12 +636,11 @@ async function main() {
                     declineReason: 'Sample matrix decline for status coverage.',
                     timezone: candidate.timezone,
                     payment: {
-                        create: {
+                        create: await buildPaymentCreateData({
                             amountGross: priceCents,
                             platformFee: Math.floor(priceCents * 0.15),
-                            stripePaymentIntentId: generateStripeId('pi', paymentIndex),
                             status: PaymentStatus.cancelled,
-                        },
+                            }),
                     },
                 },
             })
@@ -640,12 +659,11 @@ async function main() {
                     expiresAt: new Date(baseDate.getTime() - 60 * 60 * 1000),
                     timezone: candidate.timezone,
                     payment: {
-                        create: {
+                        create: await buildPaymentCreateData({
                             amountGross: priceCents,
                             platformFee: Math.floor(priceCents * 0.15),
-                            stripePaymentIntentId: generateStripeId('pi', paymentIndex),
                             status: PaymentStatus.cancelled,
-                        },
+                            }),
                     },
                 },
             })
@@ -665,12 +683,11 @@ async function main() {
                     zoomMeetingId: `zoom_matrix_accepted_${pairIndex}_${statusIndex}`,
                     zoomJoinUrl: `https://zoom.us/j/matrixaccepted${pairIndex}${statusIndex}`,
                     payment: {
-                        create: {
+                        create: await buildPaymentCreateData({
                             amountGross: priceCents,
                             platformFee: Math.floor(priceCents * 0.15),
-                            stripePaymentIntentId: generateStripeId('pi', paymentIndex),
                             status: PaymentStatus.held,
-                        },
+                            }),
                     },
                 },
             })
@@ -688,12 +705,11 @@ async function main() {
                     endAt,
                     timezone: candidate.timezone,
                     payment: {
-                        create: {
+                        create: await buildPaymentCreateData({
                             amountGross: priceCents,
                             platformFee: Math.floor(priceCents * 0.15),
-                            stripePaymentIntentId: generateStripeId('pi', paymentIndex),
                             status: PaymentStatus.held,
-                        },
+                            }),
                     },
                 },
             })
@@ -713,12 +729,11 @@ async function main() {
                     zoomMeetingId: `zoom_matrix_reschedule_${pairIndex}_${statusIndex}`,
                     zoomJoinUrl: `https://zoom.us/j/matrixreschedule${pairIndex}${statusIndex}`,
                     payment: {
-                        create: {
+                        create: await buildPaymentCreateData({
                             amountGross: priceCents,
                             platformFee: Math.floor(priceCents * 0.15),
-                            stripePaymentIntentId: generateStripeId('pi', paymentIndex),
                             status: PaymentStatus.held,
-                        },
+                            }),
                     },
                 },
             })
@@ -741,12 +756,11 @@ async function main() {
                     professionalJoinedAt: null,
                     attendanceOutcome: AttendanceOutcome.professional_no_show,
                     payment: {
-                        create: {
+                        create: await buildPaymentCreateData({
                             amountGross: priceCents,
                             platformFee: Math.floor(priceCents * 0.15),
-                            stripePaymentIntentId: generateStripeId('pi', paymentIndex),
                             status: PaymentStatus.held,
-                        },
+                            }),
                     },
                     payout: {
                         create: {
@@ -781,14 +795,12 @@ async function main() {
                     timezone: candidate.timezone,
                     refundCreatedAt: new Date(baseDate.getTime() - 2 * 60 * 60 * 1000),
                     payment: {
-                        create: {
+                        create: await buildPaymentCreateData({
                             amountGross: priceCents,
                             platformFee: Math.floor(priceCents * 0.15),
                             refundedAmountCents: priceCents,
-                            stripePaymentIntentId: generateStripeId('pi', paymentIndex),
-                            stripeRefundId: generateStripeId('re', paymentIndex),
                             status: PaymentStatus.refunded,
-                        },
+                            }),
                     },
                 },
             })
@@ -812,12 +824,11 @@ async function main() {
                     attendanceOutcome: AttendanceOutcome.both_joined,
                     payoutReleasedAt: new Date(startAt.getTime() + 2 * 24 * 60 * 60 * 1000),
                     payment: {
-                        create: {
+                        create: await buildPaymentCreateData({
                             amountGross: priceCents,
                             platformFee: Math.floor(priceCents * 0.15),
-                            stripePaymentIntentId: generateStripeId('pi', paymentIndex),
                             status: PaymentStatus.released,
-                        },
+                            }),
                     },
                     payout: {
                         create: {
@@ -850,12 +861,11 @@ async function main() {
                     attendanceOutcome: AttendanceOutcome.both_joined,
                     lastNudgeSentAt: new Date(baseDate.getTime() - 24 * 60 * 60 * 1000),
                     payment: {
-                        create: {
+                        create: await buildPaymentCreateData({
                             amountGross: priceCents,
                             platformFee: Math.floor(priceCents * 0.15),
-                            stripePaymentIntentId: generateStripeId('pi', paymentIndex),
                             status: PaymentStatus.held,
-                        },
+                            }),
                     },
                 },
             })
@@ -879,14 +889,12 @@ async function main() {
                     attendanceOutcome: AttendanceOutcome.both_joined,
                     refundCreatedAt: new Date(startAt.getTime() + 24 * 60 * 60 * 1000),
                     payment: {
-                        create: {
+                        create: await buildPaymentCreateData({
                             amountGross: priceCents,
                             platformFee: Math.floor(priceCents * 0.15),
                             refundedAmountCents: priceCents,
-                            stripePaymentIntentId: generateStripeId('pi', paymentIndex),
-                            stripeRefundId: generateStripeId('re', paymentIndex),
                             status: PaymentStatus.refunded,
-                        },
+                            }),
                     },
                     dispute: {
                         create: {
@@ -939,12 +947,11 @@ async function main() {
                     expiresAt,
                     timezone: candidate.timezone,
                     payment: {
-                        create: {
+                        create: await buildPaymentCreateData({
                             amountGross: priceCents,
                             platformFee: Math.floor(priceCents * 0.15),
-                            stripePaymentIntentId: generateStripeId('pi', bookingIndex),
                             status: PaymentStatus.authorized,
-                        },
+                            }),
                     },
                 },
             })
@@ -974,12 +981,11 @@ async function main() {
                     zoomMeetingId: `zoom_${bookingIndex}`,
                     zoomJoinUrl: `https://zoom.us/j/${100000000 + bookingIndex}`,
                     payment: {
-                        create: {
+                        create: await buildPaymentCreateData({
                             amountGross: priceCents,
                             platformFee: Math.floor(priceCents * 0.15),
-                            stripePaymentIntentId: generateStripeId('pi', bookingIndex),
                             status: PaymentStatus.held,
-                        },
+                            }),
                     },
                 },
             })
@@ -1010,12 +1016,11 @@ async function main() {
                     professionalJoinedAt: new Date(pastDate.getTime() + 2 * 60 * 1000), // Joined 2 min late
                     attendanceOutcome: AttendanceOutcome.both_joined,
                     payment: {
-                        create: {
+                        create: await buildPaymentCreateData({
                             amountGross: priceCents,
                             platformFee: Math.floor(priceCents * 0.15),
-                            stripePaymentIntentId: generateStripeId('pi', bookingIndex),
                             status: PaymentStatus.held,
-                        },
+                            }),
                     },
                 },
             })
@@ -1060,12 +1065,11 @@ async function main() {
             attendanceOutcome: AttendanceOutcome.both_joined,
             payoutReleasedAt: new Date(baseDate.getTime() - 5 * 24 * 60 * 60 * 1000),
             payment: {
-                create: {
+                create: await buildPaymentCreateData({
                     amountGross: 12500,
                     platformFee: 1875,
-                    stripePaymentIntentId: generateStripeId('pi', 998),
                     status: PaymentStatus.released,
-                },
+                    }),
             },
             payout: {
                 create: {
@@ -1112,12 +1116,11 @@ async function main() {
             declineReason: 'Unfortunately, I have a scheduling conflict during this time. Please try booking at a different time.',
             timezone: 'America/New_York',
             payment: {
-                create: {
+                create: await buildPaymentCreateData({
                     amountGross: 12500,
                     platformFee: 1875,
-                    stripePaymentIntentId: generateStripeId('pi', 997),
-                    status: PaymentStatus.cancelled, // Authorization released
-                },
+                    status: PaymentStatus.cancelled,
+                    }),
             },
         },
     })
@@ -1135,12 +1138,11 @@ async function main() {
             expiresAt: new Date(baseDate.getTime() - 1 * 24 * 60 * 60 * 1000), // Expired yesterday
             timezone: 'America/New_York',
             payment: {
-                create: {
+                create: await buildPaymentCreateData({
                     amountGross: 15000,
                     platformFee: 2250,
-                    stripePaymentIntentId: generateStripeId('pi', 996),
                     status: PaymentStatus.cancelled,
-                },
+                    }),
             },
         },
     })
@@ -1159,14 +1161,12 @@ async function main() {
             zoomMeetingId: `zoom_cancelled_1`,
             zoomJoinUrl: `https://zoom.us/j/cancelled1`,
             payment: {
-                create: {
+                create: await buildPaymentCreateData({
                     amountGross: 17500,
                     platformFee: 2625,
-                    stripePaymentIntentId: generateStripeId('pi', 995),
-                    status: PaymentStatus.refunded,
                     refundedAmountCents: 17500,
-                    stripeRefundId: generateStripeId('re', 995),
-                },
+                    status: PaymentStatus.refunded,
+                }),
             },
             refundCreatedAt: new Date(baseDate.getTime() - 1 * 24 * 60 * 60 * 1000),
         },
@@ -1188,12 +1188,11 @@ async function main() {
             zoomJoinUrl: `https://zoom.us/j/latecancel1`,
             payoutReleasedAt: new Date(),
             payment: {
-                create: {
+                create: await buildPaymentCreateData({
                     amountGross: 20000,
                     platformFee: 3000,
-                    stripePaymentIntentId: generateStripeId('pi', 994),
                     status: PaymentStatus.released,
-                },
+                    }),
             },
             payout: {
                 create: {
@@ -1224,12 +1223,11 @@ async function main() {
             professionalJoinedAt: null, // Professional didn't join
             attendanceOutcome: AttendanceOutcome.professional_no_show,
             payment: {
-                create: {
+                create: await buildPaymentCreateData({
                     amountGross: 15000,
                     platformFee: 2250,
-                    stripePaymentIntentId: generateStripeId('pi', 993),
-                    status: PaymentStatus.held, // Still held pending dispute resolution
-                },
+                    status: PaymentStatus.held,
+                    }),
             },
             payout: {
                 create: {
@@ -1268,12 +1266,11 @@ async function main() {
             attendanceOutcome: AttendanceOutcome.both_joined,
             lastNudgeSentAt: new Date(baseDate.getTime() - 2 * 24 * 60 * 60 * 1000),
             payment: {
-                create: {
+                create: await buildPaymentCreateData({
                     amountGross: 12500,
                     platformFee: 1875,
-                    stripePaymentIntentId: generateStripeId('pi', 992),
                     status: PaymentStatus.held,
-                },
+                    }),
             },
             feedback: {
                 create: {
@@ -1309,12 +1306,11 @@ async function main() {
             attendanceOutcome: AttendanceOutcome.candidate_no_show,
             payoutReleasedAt: new Date(baseDate.getTime() - 4 * 24 * 60 * 60 * 1000),
             payment: {
-                create: {
+                create: await buildPaymentCreateData({
                     amountGross: 15000,
                     platformFee: 2250,
-                    stripePaymentIntentId: generateStripeId('pi', 991),
                     status: PaymentStatus.released,
-                },
+                    }),
             },
             payout: {
                 create: {
@@ -1346,14 +1342,12 @@ async function main() {
             attendanceOutcome: AttendanceOutcome.both_joined,
             refundCreatedAt: new Date(baseDate.getTime() - 7 * 24 * 60 * 60 * 1000),
             payment: {
-                create: {
+                create: await buildPaymentCreateData({
                     amountGross: 17500,
                     platformFee: 2625,
-                    stripePaymentIntentId: generateStripeId('pi', 990),
-                    status: PaymentStatus.refunded,
                     refundedAmountCents: 17500,
-                    stripeRefundId: generateStripeId('re', 990),
-                },
+                    status: PaymentStatus.refunded,
+                }),
             },
             dispute: {
                 create: {
@@ -1383,12 +1377,11 @@ async function main() {
             zoomMeetingId: `zoom_reschedule_1`,
             zoomJoinUrl: `https://zoom.us/j/reschedule1`,
             payment: {
-                create: {
+                create: await buildPaymentCreateData({
                     amountGross: 22500,
                     platformFee: 3375,
-                    stripePaymentIntentId: generateStripeId('pi', 989),
                     status: PaymentStatus.held,
-                },
+                    }),
             },
         },
     })
@@ -1408,12 +1401,11 @@ async function main() {
             zoomMeetingId: `zoom_reschedule_2`,
             zoomJoinUrl: `https://zoom.us/j/reschedule2`,
             payment: {
-                create: {
+                create: await buildPaymentCreateData({
                     amountGross: 15000,
                     platformFee: 2250,
-                    stripePaymentIntentId: generateStripeId('pi', 988),
                     status: PaymentStatus.held,
-                },
+                    }),
             },
         },
     })
@@ -1502,6 +1494,7 @@ async function main() {
     // Summary
     const seededCandidateEmails = candidates.map((candidate) => candidate.email).join(', ')
     const seededProfessionalEmails = professionals.map((professional) => professional.email).join(', ')
+    const stripeCounters = stripePaymentProcessor.getCounters()
 
     console.log('')
     console.log('='.repeat(70))
@@ -1540,6 +1533,13 @@ async function main() {
     console.log(`  Total bookings created: ${bookingIndex + 11 + statusMatrixBookingCount}`)
     console.log('  Availability slots: 14 days for each candidate + request/reschedule candidate slots')
     console.log('  Audit log entries: 6')
+    console.log('')
+    console.log('  Stripe PaymentIntent lifecycle:')
+    console.log(`    - PaymentIntents created: ${stripeCounters.paymentIntentsCreated}`)
+    console.log(`    - PaymentIntents confirmed: ${stripeCounters.paymentIntentsConfirmed}`)
+    console.log(`    - PaymentIntents captured: ${stripeCounters.paymentIntentsCaptured}`)
+    console.log(`    - PaymentIntents cancelled: ${stripeCounters.paymentIntentsCancelled}`)
+    console.log(`    - Refunds created: ${stripeCounters.refundsCreated}`)
     console.log('='.repeat(70))
 }
 

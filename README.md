@@ -44,13 +44,13 @@ Edit `.env` with your configuration values. At minimum, you need:
 | `AUTH_SECRET` | NextAuth secret key | Generate with `openssl rand -base64 32` |
 | `STRIPE_SECRET_KEY` | Stripe secret key | `sk_test_...` |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key | `pk_test_...` |
-| `STRIPE_TEST_SECRET_KEY` | Stripe key used by Vitest live Stripe calls | `sk_test_...` |
+| `STRIPE_TEST_SECRET_KEY` | Stripe key used by Vitest live Stripe calls and `npm run seed` payment lifecycle seeding | `sk_test_...` |
 | `STRIPE_TEST_WEBHOOK_SECRET` | Stripe webhook secret used by Vitest | `whsec_...` |
 | `STRIPE_TEST_DEFAULT_PAYMENT_METHOD` | Test payment method for live Stripe tests | `pm_card_visa` |
 
 See `.env.example` for the full list of available environment variables including Google OAuth, Zoom integration, Gmail OAuth2 SMTP, Supabase Storage, and feature flags.
 
-`npm run test` uses live Stripe test-mode API calls for Stripe-related tests. Ensure the Stripe test variables above are present in your `.env`.
+`npm run test` uses live Stripe test-mode API calls for Stripe-related tests. `npm run seed` now also uses live Stripe test-mode API calls to create and transition real PaymentIntents for seeded payment rows. Ensure the Stripe test variables above are present in your `.env`.
 
 ### Step 3: Start Docker Services (Postgres + Redis)
 
@@ -86,6 +86,10 @@ npm run seed:full   # full dataset (all mocked candidates/professionals)
 ```
 
 You can also set `SEED_POPULATION_MODE=lite|full` directly.
+
+`npm run seed` requires `STRIPE_TEST_SECRET_KEY` and rejects non-test keys (`sk_live_...`). It does not fall back to `STRIPE_SECRET_KEY`.
+
+Seed runs now create real Stripe test PaymentIntents and perform capture/cancel/refund transitions to match seeded payment stages. Full mode will take longer due to Stripe API calls.
 
 **Seeded Users:**
 
@@ -369,7 +373,7 @@ npm run start
 | `npm run dev:queue` | Start BullMQ background worker |
 | `npm run build` | Create production build |
 | `npm run start` | Start production server |
-| `npm run seed` | Seed database with test data |
+| `npm run seed` | Seed database with test data and real Stripe test-mode PaymentIntent lifecycle calls |
 | `npm run test` | Run tests (Vitest; includes live Stripe test-mode calls) |
 | `npm run lint` | Run ESLint |
 
