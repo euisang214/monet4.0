@@ -2,9 +2,8 @@
 
 import React, { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CandidateWeeklySlotPicker } from '@/components/bookings/WeeklySlotCalendar';
+import { CandidateAvailabilityPanel } from '@/components/bookings/CandidateAvailabilityPanel';
 import type { SlotInterval } from '@/components/bookings/calendar/types';
-import { useCandidateGoogleBusy } from '@/components/bookings/hooks/useCandidateGoogleBusy';
 import { useCandidateRescheduleRequest } from '@/components/bookings/hooks/useCandidateRescheduleRequest';
 
 interface ReschedulePageClientProps {
@@ -20,15 +19,11 @@ export function ReschedulePageClient({
 }: ReschedulePageClientProps) {
     const router = useRouter();
     const [availabilitySlots, setAvailabilitySlots] = useState<SlotInterval[]>([]);
-    const [selectedSlotCount, setSelectedSlotCount] = useState(0);
     const [reason, setReason] = useState('');
     const resolvedCalendarTimezone = React.useMemo(
         () => calendarTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
         [calendarTimezone]
     );
-
-    const { googleBusyIntervals, isLoadingBusy, busyLoadError, lastBusyRefreshAt, refreshGoogleBusy } =
-        useCandidateGoogleBusy();
 
     const { isSubmitting, error, submitRequest } = useCandidateRescheduleRequest(
         bookingId,
@@ -36,9 +31,8 @@ export function ReschedulePageClient({
     );
 
     const handleSlotSelectionChange = useCallback(
-        ({ availabilitySlots: slots, selectedCount }: { availabilitySlots: SlotInterval[]; selectedCount: number }) => {
+        ({ availabilitySlots: slots }: { availabilitySlots: SlotInterval[]; selectedCount: number }) => {
             setAvailabilitySlots(slots);
-            setSelectedSlotCount(selectedCount);
         },
         []
     );
@@ -65,38 +59,11 @@ export function ReschedulePageClient({
             </p>
 
             <div className="bg-white p-6 rounded-lg shadow mb-6 border border-gray-200">
-                <div className="mb-3 flex flex-wrap items-center gap-3">
-                    <button
-                        type="button"
-                        onClick={() => void refreshGoogleBusy()}
-                        disabled={isLoadingBusy}
-                        className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
-                    >
-                        {isLoadingBusy ? 'Refreshing calendar...' : 'Refresh Google Calendar'}
-                    </button>
-                    {lastBusyRefreshAt && (
-                        <span className="text-xs text-gray-500">
-                            Last synced {lastBusyRefreshAt.toLocaleTimeString()}
-                        </span>
-                    )}
-                </div>
-
-                {busyLoadError && (
-                    <div className="mb-3 p-3 bg-yellow-50 text-yellow-700 rounded text-sm">
-                        {busyLoadError}
-                    </div>
-                )}
-
-                <CandidateWeeklySlotPicker
-                    googleBusyIntervals={googleBusyIntervals}
-                    onChange={handleSlotSelectionChange}
+                <CandidateAvailabilityPanel
                     calendarTimezone={resolvedCalendarTimezone}
                     professionalTimezone={professionalTimezone}
+                    onSelectionChange={handleSlotSelectionChange}
                 />
-
-                <p className="text-sm text-gray-500 mt-4">
-                    Selected candidate slots: <span className="font-medium">{selectedSlotCount}</span>
-                </p>
 
                 <div className="mt-6">
                     <label className="block text-sm font-medium mb-1">Reason (Optional)</label>

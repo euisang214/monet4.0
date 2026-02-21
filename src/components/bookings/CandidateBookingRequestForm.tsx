@@ -3,10 +3,9 @@
 import React, { useCallback, useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
-import { CandidateWeeklySlotPicker } from '@/components/bookings/WeeklySlotCalendar';
+import { CandidateAvailabilityPanel } from '@/components/bookings/CandidateAvailabilityPanel';
 import type { SlotInterval } from '@/components/bookings/calendar/types';
 import { useCandidateBookingRequest } from '@/components/bookings/hooks/useCandidateBookingRequest';
-import { useCandidateGoogleBusy } from '@/components/bookings/hooks/useCandidateGoogleBusy';
 import { appRoutes } from '@/lib/shared/routes';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
@@ -25,22 +24,17 @@ export function CandidateBookingRequestForm({
     candidateTimezone,
 }: CandidateBookingRequestFormProps) {
     const [availabilitySlots, setAvailabilitySlots] = useState<SlotInterval[]>([]);
-    const [selectedSlotCount, setSelectedSlotCount] = useState(0);
     const resolvedCandidateTimezone = React.useMemo(
         () => candidateTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
         [candidateTimezone]
     );
 
-    const { googleBusyIntervals, isLoadingBusy, busyLoadError, lastBusyRefreshAt, refreshGoogleBusy } =
-        useCandidateGoogleBusy();
-
     const { clientSecret, bookingId, isSubmitting, error, submitRequest } =
         useCandidateBookingRequest(professionalId, resolvedCandidateTimezone);
 
     const handleSlotSelectionChange = useCallback(
-        ({ availabilitySlots: slots, selectedCount }: { availabilitySlots: SlotInterval[]; selectedCount: number }) => {
+        ({ availabilitySlots: slots }: { availabilitySlots: SlotInterval[]; selectedCount: number }) => {
             setAvailabilitySlots(slots);
-            setSelectedSlotCount(selectedCount);
         },
         []
     );
@@ -66,39 +60,13 @@ export function CandidateBookingRequestForm({
 
     return (
         <div className="bg-gray-50 p-6 rounded-lg border">
-            <div className="mb-6">
-                <div className="mb-3 flex flex-wrap items-center gap-3">
-                    <button
-                        type="button"
-                        onClick={() => void refreshGoogleBusy()}
-                        disabled={isLoadingBusy}
-                        className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
-                    >
-                        {isLoadingBusy ? 'Refreshing calendar...' : 'Refresh Google Calendar'}
-                    </button>
-                    {lastBusyRefreshAt && (
-                        <span className="text-xs text-gray-500">
-                            Last synced {lastBusyRefreshAt.toLocaleTimeString()}
-                        </span>
-                    )}
-                </div>
-                {busyLoadError && (
-                    <div className="mb-3 p-3 bg-yellow-50 text-yellow-700 rounded text-sm">
-                        {busyLoadError}
-                    </div>
-                )}
-
-                <CandidateWeeklySlotPicker
-                    googleBusyIntervals={googleBusyIntervals}
-                    onChange={handleSlotSelectionChange}
-                    calendarTimezone={resolvedCandidateTimezone}
-                    professionalTimezone={professionalTimezone}
-                />
-            </div>
-
-            <p className="text-sm text-gray-500 mb-4">
-                Selected Candidate Slots: <span className="font-medium">{selectedSlotCount}</span>
-            </p>
+            <CandidateAvailabilityPanel
+                calendarTimezone={resolvedCandidateTimezone}
+                professionalTimezone={professionalTimezone}
+                onSelectionChange={handleSlotSelectionChange}
+                selectedCountLabel="Selected Candidate Slots"
+                className="mb-4"
+            />
 
             <div className="flex justify-between items-center mb-6 pt-4 border-t">
                 <span className="font-semibold">Session Price:</span>

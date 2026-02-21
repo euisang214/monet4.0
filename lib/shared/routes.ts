@@ -32,6 +32,7 @@ export const appRoutes = {
     },
     api: {
         candidate: {
+            availability: "/api/candidate/availability",
             busy: "/api/candidate/busy",
             professionalBookings: (professionalId: string) => `/api/candidate/professionals/${professionalId}/bookings`,
             bookingRescheduleRequest: (bookingId: string) => `/api/candidate/bookings/${bookingId}/reschedule/request`,
