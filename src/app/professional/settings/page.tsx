@@ -6,15 +6,31 @@ import { Button } from "@/components/ui/primitives/Button";
 import { useNotification } from "@/components/ui/hooks/useNotification";
 import { NotificationBanner } from "@/components/ui/composites/NotificationBanner";
 import { ProviderConnections } from "@/components/auth/ProviderConnections";
+import { ProfessionalProfileFields } from "@/components/profile/ProfessionalProfileFields";
+import { TimelineSectionsEditor } from "@/components/profile/TimelineSectionsEditor";
+import {
+    EducationEntry,
+    ensureExactlyOneCurrentExperience,
+    mapEducationEntries,
+    mapTimelineEntries,
+    normalizeCommaSeparated,
+    serializeEducationEntries,
+    serializeExperienceEntries,
+    TimelineEntry,
+} from "@/components/profile/timeline-form";
 
 interface ProfessionalProfileData {
     price?: number;
-    employer?: string;
-    title?: string;
+    employer?: string | null;
+    title?: string | null;
     bio?: string;
     corporateEmail?: string;
     timezone?: string;
     verifiedAt?: string | null;
+    interests?: string[];
+    experience?: TimelineEntry[];
+    activities?: TimelineEntry[];
+    education?: EducationEntry[];
 }
 
 interface StripeAccountData {
@@ -23,8 +39,6 @@ interface StripeAccountData {
     chargesEnabled?: boolean;
     detailsSubmitted?: boolean;
 }
-
-
 
 function ProfessionalSettingsPageContent() {
     const searchParams = useSearchParams();
@@ -36,13 +50,17 @@ function ProfessionalSettingsPageContent() {
     const [profile, setProfile] = useState<ProfessionalProfileData | null>(null);
     const [stripeAccount, setStripeAccount] = useState<StripeAccountData | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
 
     const [price, setPrice] = useState("");
-    const [employer, setEmployer] = useState("");
-    const [title, setTitle] = useState("");
     const [bio, setBio] = useState("");
     const [corporateEmail, setCorporateEmail] = useState("");
     const [timezone, setTimezone] = useState("");
+    const [professionalInterests, setProfessionalInterests] = useState("");
+
+    const [experienceEntries, setExperienceEntries] = useState(() => mapTimelineEntries(undefined, { enforceSingleCurrent: true }));
+    const [activityEntries, setActivityEntries] = useState(() => mapTimelineEntries(undefined));
+    const [educationEntries, setEducationEntries] = useState(() => mapEducationEntries(undefined));
 
     const [verificationSent, setVerificationSent] = useState(false);
     const [verificationCode, setVerificationCode] = useState("");
@@ -58,7 +76,7 @@ function ProfessionalSettingsPageContent() {
             notify("error", "Stripe connection failed. Please try again.");
             router.replace("/professional/settings");
         }
-    }, [successParam, errorParam, router]);
+    }, [successParam, errorParam, router, notify]);
 
     useEffect(() => {
         Promise.all([
@@ -70,11 +88,13 @@ function ProfessionalSettingsPageContent() {
                 if (data) {
                     setProfile(data);
                     setPrice(data.price?.toString() || "0");
-                    setEmployer(data.employer || "");
-                    setTitle(data.title || "");
                     setBio(data.bio || "");
                     setCorporateEmail(data.corporateEmail || "");
                     setTimezone(data.timezone || "UTC");
+                    setProfessionalInterests(data.interests?.join(", ") || "");
+                    setExperienceEntries(mapTimelineEntries(data.experience, { enforceSingleCurrent: true }));
+                    setActivityEntries(mapTimelineEntries(data.activities));
+                    setEducationEntries(mapEducationEntries(data.education));
                 }
 
                 if (typeof stripePayload?.accountId !== "undefined") {
@@ -85,33 +105,64 @@ function ProfessionalSettingsPageContent() {
                 notify("error", "Could not load professional settings.");
             })
             .finally(() => setLoading(false));
-    }, []);
+    }, [notify]);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         clear();
+
+        const parsedPrice = Number.parseFloat(price || "0");
+        if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
+            notify("error", "Enter a valid hourly rate greater than zero.");
+            return;
+        }
+
+        const interests = normalizeCommaSeparated(professionalInterests);
+        if (interests.length === 0) {
+            notify("error", "Add at least one interest.");
+            return;
+        }
+
+        if (!bio.trim()) {
+            notify("error", "Bio is required.");
+            return;
+        }
+
+        if (!ensureExactlyOneCurrentExperience(experienceEntries)) {
+            notify("error", "Select exactly one current role in experience.");
+            return;
+        }
+
+        setIsSaving(true);
 
         try {
             const response = await fetch("/api/shared/settings", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    employer,
-                    title,
-                    bio,
-                    price: parseFloat(price || "0"),
-                    corporateEmail,
+                    bio: bio.trim(),
+                    price: parsedPrice,
+                    corporateEmail: corporateEmail.trim(),
                     timezone: timezone.trim() || "UTC",
+                    interests,
+                    experience: serializeExperienceEntries(experienceEntries, "Experience"),
+                    activities: serializeExperienceEntries(activityEntries, "Activity"),
+                    education: serializeEducationEntries(educationEntries),
                 }),
             });
 
             if (!response.ok) {
                 throw new Error("Could not save professional settings");
             }
+
+            const refreshed = await fetch("/api/shared/settings").then((res) => res.json());
+            setProfile((refreshed?.data as ProfessionalProfileData) || null);
             notify("success", "Profile settings saved.");
         } catch (error) {
             console.error(error);
             notify("error", "Failed to save profile settings.");
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -189,7 +240,7 @@ function ProfessionalSettingsPageContent() {
     if (loading) {
         return (
             <main className="container py-8">
-                <div className="max-w-3xl mx-auto bg-white p-8 rounded-xl border border-gray-200 shadow-sm">
+                <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl border border-gray-200 shadow-sm">
                     <p className="text-sm text-gray-600">Loading professional settings...</p>
                 </div>
             </main>
@@ -201,7 +252,7 @@ function ProfessionalSettingsPageContent() {
 
     return (
         <main className="container py-8">
-            <div className="max-w-3xl mx-auto">
+            <div className="max-w-4xl mx-auto">
                 <header className="mb-8">
                     <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Professional Settings</p>
                     <h1 className="text-3xl font-bold text-gray-900 mb-2">Profile, payout, and verification</h1>
@@ -226,97 +277,69 @@ function ProfessionalSettingsPageContent() {
                 <form onSubmit={handleSave} className="space-y-8 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                     <section>
                         <h2 className="text-xl font-semibold text-gray-900 mb-4">Profile Details</h2>
-                        <div className="grid grid-cols-1 gap-6">
-                            <div>
-                                <label className="block text-sm font-medium mb-1" htmlFor="employer">
-                                    Current employer
-                                </label>
-                                <input
-                                    id="employer"
-                                    type="text"
-                                    value={employer}
-                                    onChange={(e) => setEmployer(e.target.value)}
-                                    className="w-full p-2 border rounded-md"
-                                />
-                            </div>
+                        {profile?.title || profile?.employer ? (
+                            <p className="text-sm text-gray-600 mb-4">
+                                Current role: {profile.title || "Unknown title"}
+                                {profile.employer ? ` at ${profile.employer}` : ""}
+                            </p>
+                        ) : null}
 
-                            <div>
-                                <label className="block text-sm font-medium mb-1" htmlFor="title">
-                                    Job title
-                                </label>
-                                <input
-                                    id="title"
-                                    type="text"
-                                    value={title}
-                                    onChange={(e) => setTitle(e.target.value)}
-                                    className="w-full p-2 border rounded-md"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium mb-1" htmlFor="price">
-                                    Hourly rate ($)
-                                </label>
-                                <input
-                                    id="price"
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={price}
-                                    onChange={(e) => setPrice(e.target.value)}
-                                    className="w-full p-2 border rounded-md"
-                                />
-                                <p className="text-xs text-gray-500 mt-1">Platform fee of 20% is deducted before payout.</p>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium mb-1" htmlFor="bio">
-                                    Bio
-                                </label>
-                                <textarea
-                                    id="bio"
-                                    value={bio}
-                                    onChange={(e) => setBio(e.target.value)}
-                                    className="w-full p-2 border rounded-md h-32"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium mb-1" htmlFor="timezone">
-                                    Timezone
-                                </label>
-                                <input
-                                    id="timezone"
-                                    type="text"
-                                    value={timezone}
-                                    onChange={(e) => setTimezone(e.target.value)}
-                                    className="w-full p-2 border rounded-md"
-                                    placeholder="America/New_York"
-                                />
-                            </div>
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium mb-1" htmlFor="timezone">
+                                Timezone
+                            </label>
+                            <input
+                                id="timezone"
+                                type="text"
+                                value={timezone}
+                                onChange={(e) => setTimezone(e.target.value)}
+                                className="w-full p-2 border rounded-md"
+                                placeholder="America/New_York"
+                                disabled={isSaving}
+                            />
                         </div>
+
+                        <ProfessionalProfileFields
+                            bio={bio}
+                            onBioChange={setBio}
+                            price={price}
+                            onPriceChange={setPrice}
+                            corporateEmail={corporateEmail}
+                            onCorporateEmailChange={setCorporateEmail}
+                            interests={professionalInterests}
+                            onInterestsChange={setProfessionalInterests}
+                            disabled={isSaving}
+                        />
                     </section>
+
+                    <TimelineSectionsEditor
+                        experienceEntries={experienceEntries}
+                        setExperienceEntries={setExperienceEntries}
+                        activityEntries={activityEntries}
+                        setActivityEntries={setActivityEntries}
+                        educationEntries={educationEntries}
+                        setEducationEntries={setEducationEntries}
+                        enforceSingleCurrentExperience
+                        disabled={isSaving}
+                    />
 
                     <section className="pt-6 border-t">
                         <h2 className="text-xl font-semibold text-gray-900 mb-4">Verification</h2>
                         <div className="flex gap-4 items-end">
                             <div className="flex-1">
-                                <label className="block text-sm font-medium mb-1" htmlFor="corporate-email">
+                                <label className="block text-sm font-medium mb-1" htmlFor="corporate-email-verification">
                                     Corporate email
                                 </label>
                                 <input
-                                    id="corporate-email"
+                                    id="corporate-email-verification"
                                     type="email"
                                     value={corporateEmail}
                                     onChange={(e) => setCorporateEmail(e.target.value)}
                                     className="w-full p-2 border rounded-md"
+                                    disabled={isSaving}
                                 />
                             </div>
-                            <Button
-                                type="button"
-                                onClick={handleVerifyEmail}
-                                disabled={verificationSent}
-                            >
+                            <Button type="button" onClick={handleVerifyEmail} disabled={verificationSent || isSaving}>
                                 {verificationSent ? "Sent" : "Send Code"}
                             </Button>
                         </div>
@@ -338,11 +361,12 @@ function ProfessionalSettingsPageContent() {
                                         onChange={(e) => setVerificationCode(e.target.value)}
                                         className="flex-1 p-2 border rounded-md"
                                         placeholder="XXXXXX"
+                                        disabled={isSaving}
                                     />
                                     <Button
                                         type="button"
                                         onClick={handleConfirmVerification}
-                                        disabled={verifying || !verificationCode}
+                                        disabled={verifying || !verificationCode || isSaving}
                                     >
                                         {verifying ? "Verifying..." : "Confirm"}
                                     </Button>
@@ -354,7 +378,9 @@ function ProfessionalSettingsPageContent() {
                     </section>
 
                     <div className="pt-6 border-t flex justify-end">
-                        <Button type="submit">Save settings</Button>
+                        <Button type="submit" disabled={isSaving}>
+                            {isSaving ? "Saving..." : "Save settings"}
+                        </Button>
                     </div>
                 </form>
 

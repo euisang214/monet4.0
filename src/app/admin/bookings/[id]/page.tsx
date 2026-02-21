@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import Link from 'next/link';
 import { ZoomLinkForm } from './ZoomLinkForm';
 import { AttendanceEvidenceCard } from '@/components/admin/AttendanceEvidenceCard';
+import { deriveCurrentRoleFromExperiences } from '@/lib/domain/users/current-role';
 
 export default async function BookingDetailPage(props: {
     params: Promise<{ id: string }>;
@@ -13,7 +14,27 @@ export default async function BookingDetailPage(props: {
         where: { id: params.id },
         include: {
             candidate: { select: { email: true, id: true } },
-            professional: { select: { email: true, id: true, professionalProfile: { select: { title: true, employer: true } } } },
+            professional: {
+                select: {
+                    email: true,
+                    id: true,
+                    professionalProfile: {
+                        select: {
+                            experience: {
+                                where: { type: 'EXPERIENCE' },
+                                orderBy: [{ isCurrent: 'desc' }, { startDate: 'desc' }, { id: 'desc' }],
+                                select: {
+                                    id: true,
+                                    title: true,
+                                    company: true,
+                                    isCurrent: true,
+                                    startDate: true,
+                                },
+                            },
+                        },
+                    },
+                },
+            },
             payment: true,
             payout: true,
             dispute: true,
@@ -23,6 +44,9 @@ export default async function BookingDetailPage(props: {
     if (!booking) {
         notFound();
     }
+    const professionalRole = deriveCurrentRoleFromExperiences(
+        booking.professional.professionalProfile?.experience || []
+    );
 
     const [attendanceEvents, latestNoShowAudit] = await Promise.all([
         prisma.zoomAttendanceEvent.findMany({
@@ -120,7 +144,10 @@ export default async function BookingDetailPage(props: {
                         <div>
                             <span className="block text-gray-500">Professional</span>
                             <div className="font-medium">{booking.professional.email}</div>
-                            <div className="text-gray-600">{booking.professional.professionalProfile?.title} @ {booking.professional.professionalProfile?.employer}</div>
+                            <div className="text-gray-600">
+                                {(professionalRole.title || 'Unknown role')}
+                                {professionalRole.employer ? ` @ ${professionalRole.employer}` : ''}
+                            </div>
                             <div className="text-xs text-gray-400">{booking.professional.id}</div>
                         </div>
                     </div>

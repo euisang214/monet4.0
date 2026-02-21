@@ -76,6 +76,8 @@ export default async function ProfessionalProfilePage(props: {
     if (!profile) {
         notFound();
     }
+    const roleTitle = profile.title || 'Professional';
+    const roleEmployer = profile.employer || '';
     const experienceItems = [...(profile.experience || [])].sort(compareTimelineItems);
     const educationItems = [...(profile.education || [])].sort(compareTimelineItems);
     const activityItems = [...(profile.activities || [])].sort(compareTimelineItems);
@@ -97,10 +99,10 @@ export default async function ProfessionalProfilePage(props: {
                         <div className="flex items-start justify-between mb-6 gap-4">
                             <div>
                                 <h1 className="text-3xl font-bold text-gray-900 mb-1">
-                                    {profile.title}
+                                    {roleTitle}
                                 </h1>
                                 <p className="text-lg text-gray-600 font-medium">
-                                    {profile.employer}
+                                    {roleEmployer || 'Employer not provided'}
                                 </p>
                             </div>
                             <div className="text-xl font-bold text-green-700 bg-green-50 px-4 py-2 rounded-lg">
@@ -213,7 +215,7 @@ export default async function ProfessionalProfilePage(props: {
                             <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Next Steps</p>
                             <h3 className="text-lg font-semibold mb-3">Ready to book?</h3>
                             <p className="text-gray-600 mb-6 text-sm">
-                                Schedule a consultation with {profile.title} to discuss your career goals.
+                                Schedule a consultation with {roleTitle} to discuss your career goals.
                             </p>
 
                             <Link

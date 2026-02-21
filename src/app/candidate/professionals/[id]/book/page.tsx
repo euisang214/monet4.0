@@ -23,6 +23,8 @@ export default async function BookingRequestPage(props: {
     if (!professional) {
         notFound();
     }
+    const titleLabel = professional.title || 'Professional';
+    const employerLabel = professional.employer || 'Employer not provided';
 
     return (
         <div className="container mx-auto py-8 max-w-2xl">
@@ -31,7 +33,7 @@ export default async function BookingRequestPage(props: {
                 {/* User name isn't on User model in Prisma schema, so we use Title/Employer 
             which is consistent with anonymous browsing anyway. 
         */}
-                <h2 className="text-xl font-semibold">{professional.title} at {professional.employer}</h2>
+                <h2 className="text-xl font-semibold">{titleLabel} at {employerLabel}</h2>
                 <p className="text-lg font-medium mt-2">
                     Rate: {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(professional.priceCents / 100)} / session
                 </p>

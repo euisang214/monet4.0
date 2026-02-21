@@ -4,6 +4,14 @@ import {
     ProfessionalProfileUpsertInput,
     CandidateProfileUpsertInput,
 } from "@/lib/types/profile-schemas";
+import { deriveCurrentRoleFromExperiences } from "@/lib/domain/users/current-role";
+
+function assertExactlyOneCurrentExperience(entries: ProfessionalProfileUpsertInput["experience"]) {
+    const currentCount = entries.filter((entry) => entry.isCurrent).length;
+    if (currentCount !== 1) {
+        throw new Error("Professional profile must include exactly one current experience");
+    }
+}
 
 /**
  * Upserts a Professional Profile and replaces all related (owned) experience/education/activities.
@@ -13,14 +21,13 @@ export async function upsertProfessionalProfile(
     userId: string,
     data: ProfessionalProfileUpsertInput
 ) {
+    assertExactlyOneCurrentExperience(data.experience);
+
     return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-        // 1. Upsert the main profile
         const profile = await tx.professionalProfile.upsert({
             where: { userId },
             create: {
                 userId,
-                employer: data.employer,
-                title: data.title,
                 bio: data.bio,
                 priceCents: data.priceCents,
                 availabilityPrefs: data.availabilityPrefs as Prisma.InputJsonValue,
@@ -29,8 +36,6 @@ export async function upsertProfessionalProfile(
                 interests: data.interests,
             },
             update: {
-                employer: data.employer,
-                title: data.title,
                 bio: data.bio,
                 priceCents: data.priceCents,
                 availabilityPrefs: data.availabilityPrefs as Prisma.InputJsonValue,
@@ -40,8 +45,6 @@ export async function upsertProfessionalProfile(
             },
         });
 
-        // 2. Handle Experience (Delete all existing for this profile and re-create)
-        // Note: We use deleteMany with professionalId to clear old ones.
         await tx.experience.deleteMany({
             where: { OR: [{ professionalId: userId }, { professionalActivityId: userId }] },
         });
@@ -53,7 +56,7 @@ export async function upsertProfessionalProfile(
                     company: exp.company,
                     location: exp.location,
                     startDate: exp.startDate,
-                    endDate: exp.endDate,
+                    endDate: exp.isCurrent ? null : exp.endDate,
                     isCurrent: exp.isCurrent,
                     title: exp.title,
                     description: exp.description,
@@ -63,7 +66,6 @@ export async function upsertProfessionalProfile(
             });
         }
 
-        // 3. Handle Education
         await tx.education.deleteMany({
             where: { professionalId: userId },
         });
@@ -75,7 +77,7 @@ export async function upsertProfessionalProfile(
                     school: edu.school,
                     location: edu.location,
                     startDate: edu.startDate,
-                    endDate: edu.endDate,
+                    endDate: edu.isCurrent ? null : edu.endDate,
                     isCurrent: edu.isCurrent,
                     degree: edu.degree,
                     fieldOfStudy: edu.fieldOfStudy,
@@ -86,25 +88,16 @@ export async function upsertProfessionalProfile(
             });
         }
 
-        // 4. Handle Activities (Mapped to Experience model with type='ACTIVITY')
-        // We already deleted all experience for this pro above, effectively clearing activities too IF they share professionalId.
-        // However, if we want to differentiate clean-up, we should have been more specific in deletion or careful in creation.
-        // Since 'type' is on the Experience model, `deleteMany { professionalId: userId }` wiped both.
-        // So we just create new ones now.
-
-        // Note: If reusing 'Experience' model for activities, we assume 'company' maps to 'Activity Name' or similar?
-        // The Schema has 'company' and 'title'. We'll map to those. 
-        // If the input schema for activities uses ExperienceSchema, it has 'company'.
         if (data.activities.length > 0) {
             await tx.experience.createMany({
                 data: data.activities.map((act) => ({
                     professionalActivityId: userId,
-                    company: act.company, // e.g., "Chess Club"
+                    company: act.company,
                     location: act.location,
                     startDate: act.startDate,
-                    endDate: act.endDate,
+                    endDate: act.isCurrent ? null : act.endDate,
                     isCurrent: act.isCurrent,
-                    title: act.title, // e.g., "Member"
+                    title: act.title,
                     description: act.description,
                     positionHistory: act.positionHistory,
                     type: "ACTIVITY",
@@ -137,13 +130,13 @@ export async function upsertCandidateProfile(
             },
         });
 
-        // Handle Experience
         await tx.experience.deleteMany({
             where: { OR: [{ candidateId: userId }, { candidateActivityId: userId }] },
         });
+
         if (data.experience.length > 0) {
             await tx.experience.createMany({
-                data: data.experience.map(exp => ({
+                data: data.experience.map((exp) => ({
                     candidateId: userId,
                     company: exp.company,
                     location: exp.location,
@@ -153,18 +146,18 @@ export async function upsertCandidateProfile(
                     title: exp.title,
                     description: exp.description,
                     positionHistory: exp.positionHistory,
-                    type: "EXPERIENCE"
-                }))
+                    type: "EXPERIENCE",
+                })),
             });
         }
 
-        // Handle Education
         await tx.education.deleteMany({
             where: { candidateId: userId },
         });
+
         if (data.education.length > 0) {
             await tx.education.createMany({
-                data: data.education.map(edu => ({
+                data: data.education.map((edu) => ({
                     candidateId: userId,
                     school: edu.school,
                     location: edu.location,
@@ -176,14 +169,13 @@ export async function upsertCandidateProfile(
                     gpa: edu.gpa,
                     honors: edu.honors,
                     activities: edu.activities,
-                }))
+                })),
             });
         }
 
-        // Handle Activities (Experience type=ACTIVITY)
         if (data.activities.length > 0) {
             await tx.experience.createMany({
-                data: data.activities.map(act => ({
+                data: data.activities.map((act) => ({
                     candidateActivityId: userId,
                     company: act.company,
                     location: act.location,
@@ -193,8 +185,8 @@ export async function upsertCandidateProfile(
                     title: act.title,
                     description: act.description,
                     positionHistory: act.positionHistory,
-                    type: "ACTIVITY"
-                }))
+                    type: "ACTIVITY",
+                })),
             });
         }
 
@@ -209,49 +201,41 @@ export async function upsertCandidateProfile(
  */
 export async function getProfessionalProfile(
     userId: string,
-    viewerId?: string // Optional: if null/undefined, assume unauthenticated guest -> Redacted
+    viewerId?: string
 ) {
     const profile = await prisma.professionalProfile.findUnique({
         where: { userId },
         include: {
-            user: true, // Need user email
-            experience: { where: { type: "EXPERIENCE" } },
-            education: true,
-            // We also need to fetch activities. Prisma relations are one-to-many.
-            // We can fetch them via a separate query or filter in JS if we fetch all Experience.
-            // But we filtered `experience` relation above.
-            // Let's assume we want to return them separately.
-            // Since the schema doesn't have a separate relation for activities, we can't easily include them in a separate property here without custom logic.
-            // We will fix the return type to include them conceptually.
+            user: true,
+            experience: {
+                where: { type: "EXPERIENCE" },
+                orderBy: [{ isCurrent: "desc" }, { startDate: "desc" }, { id: "desc" }],
+            },
+            activities: {
+                where: { type: "ACTIVITY" },
+                orderBy: [{ isCurrent: "desc" }, { startDate: "desc" }, { id: "desc" }],
+            },
+            education: {
+                orderBy: [{ isCurrent: "desc" }, { startDate: "desc" }, { id: "desc" }],
+            },
         },
     });
 
     if (!profile) return null;
 
-    // Manual fetch for activities since they are stored in Experience table but semantically distinct
-    const activities = await prisma.experience.findMany({
-        where: {
-            type: "ACTIVITY",
-            OR: [{ professionalId: userId }, { professionalActivityId: userId }],
-        }
-    });
+    const currentRole = deriveCurrentRoleFromExperiences(profile.experience);
 
-    // Determine if we should redact
     let showIdentity = false;
 
     if (viewerId === userId) {
-        showIdentity = true; // Viewing own profile
+        showIdentity = true;
     } else if (viewerId) {
-        // Check for history
         const booking = await prisma.booking.findFirst({
             where: {
                 professionalId: userId,
                 candidateId: viewerId,
-                status: { in: ['accepted', 'completed', 'completed_pending_feedback'] } // "Reveals identity after first booking" implies accepted/confirmed state? 
-                // CLAUDE.md says: "Shows redacted profile if no booking history, reveals identity after first booking".
-                // Strict interpretation: Has a booking existed? 
-                // I'll assume 'accepted' or later status constitutes a valid booking establishment.
-            }
+                status: { in: ["accepted", "completed", "completed_pending_feedback"] },
+            },
         });
         if (booking) {
             showIdentity = true;
@@ -263,18 +247,19 @@ export async function getProfessionalProfile(
             ...profile,
             user: {
                 ...profile.user,
-                email: "REDACTED", // Redact User Email
-                // Redact other sensitive fields from User if passed
+                email: "REDACTED",
             },
-            corporateEmail: "REDACTED", // Redact Corporate Email
-            activities,
-            isRedacted: true
+            corporateEmail: "REDACTED",
+            title: currentRole.title,
+            employer: currentRole.employer,
+            isRedacted: true,
         };
     }
 
     return {
         ...profile,
-        activities,
-        isRedacted: false
+        title: currentRole.title,
+        employer: currentRole.employer,
+        isRedacted: false,
     };
 }

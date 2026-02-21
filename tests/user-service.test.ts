@@ -46,21 +46,27 @@ describe('User Service', () => {
     describe('upsertProfessionalProfile', () => {
         it('should create new profile with experience and education in transaction', async () => {
             const profileData: ProfessionalProfileUpsertInput = {
-                employer: 'Test Corp',
-                title: 'Senior Engineer',
                 bio: 'A test bio',
                 priceCents: 10000,
                 corporateEmail: 'test@corp.com',
                 availabilityPrefs: {},
                 timezone: 'America/New_York',
                 interests: ['AI', 'Tech'],
-                activities: [],
+                activities: [
+                    {
+                        company: 'Mentor Guild',
+                        title: 'Advisor',
+                        startDate: new Date('2022-01-01'),
+                        isCurrent: true,
+                        positionHistory: [],
+                    },
+                ],
                 experience: [
                     {
                         company: 'Company A',
-                        title: 'Engineer',
+                        title: 'Senior Engineer',
                         startDate: new Date('2020-01-01'),
-                        isCurrent: false,
+                        isCurrent: true,
                         positionHistory: [],
                     },
                 ],
@@ -92,17 +98,40 @@ describe('User Service', () => {
 
         it('should replace existing nested relations', async () => {
             const profileData: ProfessionalProfileUpsertInput = {
-                employer: 'New Corp',
-                title: 'Director',
                 bio: 'Updated bio',
                 priceCents: 20000,
                 corporateEmail: 'new@corp.com',
                 availabilityPrefs: {},
                 timezone: 'UTC',
-                interests: [],
-                activities: [],
-                experience: [],
-                education: [],
+                interests: ['Leadership'],
+                activities: [
+                    {
+                        company: 'Community Board',
+                        title: 'Member',
+                        startDate: new Date('2021-01-01'),
+                        isCurrent: true,
+                        positionHistory: [],
+                    },
+                ],
+                experience: [
+                    {
+                        company: 'New Corp',
+                        title: 'Director',
+                        startDate: new Date('2023-01-01'),
+                        isCurrent: true,
+                        positionHistory: [],
+                    },
+                ],
+                education: [
+                    {
+                        school: 'University A',
+                        degree: 'MBA',
+                        fieldOfStudy: 'Business',
+                        startDate: new Date('2015-01-01'),
+                        isCurrent: false,
+                        activities: [],
+                    },
+                ],
             };
 
             let deleteManyCallCount = 0;
@@ -178,16 +207,24 @@ describe('User Service', () => {
         it('should return full profile for authenticated user with booking history', async () => {
             const mockProfile = {
                 userId: 'pro1',
-                employer: 'Test Corp',
-                title: 'Engineer',
                 bio: 'Bio',
                 priceCents: 10000,
                 corporateEmail: 'pro@corp.com',
                 user: { email: 'pro@test.com' },
+                experience: [
+                    {
+                        id: 'exp_1',
+                        title: 'Engineer',
+                        company: 'Test Corp',
+                        isCurrent: true,
+                        startDate: new Date('2020-01-01'),
+                    },
+                ],
+                activities: [],
+                education: [],
             };
 
             mockPrisma.professionalProfile.findUnique.mockResolvedValue(mockProfile);
-            mockPrisma.experience.findMany.mockResolvedValue([]); // Mock activities
             mockPrisma.booking.findFirst.mockResolvedValue({
                 id: 'booking1',
                 status: BookingStatus.completed,
@@ -196,28 +233,32 @@ describe('User Service', () => {
             const result = await getProfessionalProfile('pro1', 'viewer1');
 
             expect(result).toMatchObject(mockProfile);
+            expect(result?.title).toBe('Engineer');
+            expect(result?.employer).toBe('Test Corp');
             expect(result?.corporateEmail).toBe('pro@corp.com');
-            expect(mockPrisma.experience.findMany).toHaveBeenCalledWith({
-                where: {
-                    type: 'ACTIVITY',
-                    OR: [{ professionalId: 'pro1' }, { professionalActivityId: 'pro1' }],
-                },
-            });
         });
 
         it('should return redacted profile for guests', async () => {
             const mockProfile = {
                 userId: 'pro1',
-                employer: 'Test Corp',
-                title: 'Engineer',
                 bio: 'Bio',
                 priceCents: 10000,
                 corporateEmail: 'pro@corp.com',
                 user: { email: 'pro@test.com' },
+                experience: [
+                    {
+                        id: 'exp_1',
+                        title: 'Engineer',
+                        company: 'Test Corp',
+                        isCurrent: true,
+                        startDate: new Date('2020-01-01'),
+                    },
+                ],
+                activities: [],
+                education: [],
             };
 
             mockPrisma.professionalProfile.findUnique.mockResolvedValue(mockProfile);
-            mockPrisma.experience.findMany.mockResolvedValue([]); // Mock activities
             mockPrisma.booking.findFirst.mockResolvedValue(null);
 
             const result = await getProfessionalProfile('pro1'); // No viewerId

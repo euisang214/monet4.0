@@ -39,13 +39,23 @@ export async function createE2EActors(): Promise<E2EActors> {
             stripeAccountId: connectedAccount.id,
             professionalProfile: {
                 create: {
-                    employer: 'Test Corp',
-                    title: 'Senior Tester',
                     bio: 'I test things',
                     priceCents: 10000,
                     corporateEmail: `pro-corp-${unique}@example.com`,
                 },
             },
+        },
+    });
+
+    await prisma.experience.create({
+        data: {
+            professionalId: professional.id,
+            company: 'Test Corp',
+            title: 'Senior Tester',
+            startDate: new Date('2020-01-01'),
+            isCurrent: true,
+            positionHistory: [],
+            type: 'EXPERIENCE',
         },
     });
 

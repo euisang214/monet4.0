@@ -1,29 +1,42 @@
 import { prisma } from '@/lib/core/db';
 import { Role } from '@prisma/client';
 import { z } from 'zod';
+import { upsertProfessionalProfile } from '@/lib/domain/users/service';
+import { EducationSchema, ExperienceSchema } from '@/lib/types/profile-schemas';
+import { deriveCurrentRoleFromExperiences } from '@/lib/domain/users/current-role';
 
-// Validation schemas
 export const candidateProfileSchema = z.object({
     interests: z.array(z.string()).optional(),
     resumeUrl: z.string().url().optional(),
 });
 
-export const professionalProfileSchema = z.object({
-    employer: z.string().optional(),
-    title: z.string().optional(),
-    bio: z.string().optional(),
-    price: z.number().min(0).optional(), // Input as dollars (float)
-    corporateEmail: z.string().email().optional(),
-    interests: z.array(z.string()).optional(),
-});
+export const professionalProfileSchema = z
+    .object({
+        bio: z.string().trim().min(1, 'Bio is required'),
+        price: z.coerce.number().min(0, 'Price must be non-negative'),
+        corporateEmail: z.string().email('Corporate email is invalid'),
+        interests: z.array(z.string().trim().min(1)).min(1, 'At least one interest is required'),
+        timezone: z.string().trim().min(1, 'Timezone is required'),
+        experience: z.array(ExperienceSchema).min(1, 'At least one experience entry is required'),
+        activities: z.array(ExperienceSchema).min(1, 'At least one activity entry is required'),
+        education: z.array(EducationSchema).min(1, 'At least one education entry is required'),
+    })
+    .strict()
+    .superRefine((profile, ctx) => {
+        const currentCount = profile.experience.filter((entry) => entry.isCurrent).length;
+        if (currentCount !== 1) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['experience'],
+                message: 'Exactly one professional experience must be marked as current',
+            });
+        }
+    });
 
 export type CandidateProfileInput = z.infer<typeof candidateProfileSchema>;
 export type ProfessionalProfileInput = z.infer<typeof professionalProfileSchema>;
 
 export const ProfileService = {
-    /**
-     * Updates a candidate's profile.
-     */
     async updateCandidateProfile(userId: string, data: CandidateProfileInput) {
         return await prisma.candidateProfile.upsert({
             where: { userId },
@@ -37,56 +50,64 @@ export const ProfileService = {
         });
     },
 
-    /**
-     * Updates a professional's profile.
-     * Handles price conversion from dollars to cents.
-     */
     async updateProfessionalProfile(userId: string, data: ProfessionalProfileInput) {
-        const { price, ...rest } = data;
-        const updateData: Record<string, unknown> = { ...rest };
-
-        // Convert price from dollars to cents if provided
-        if (price !== undefined) {
-            updateData.priceCents = Math.round(price * 100);
-        }
-
-        return await prisma.professionalProfile.upsert({
+        const existingProfile = await prisma.professionalProfile.findUnique({
             where: { userId },
-            create: {
-                userId,
-                priceCents: (updateData.priceCents as number) || 0,
-                employer: (updateData.employer as string) || "",
-                title: (updateData.title as string) || "",
-                bio: (updateData.bio as string) || "",
-                corporateEmail: "",
-                ...rest,
-            },
-            update: updateData,
+            select: { availabilityPrefs: true },
+        });
+
+        return await upsertProfessionalProfile(userId, {
+            bio: data.bio,
+            priceCents: Math.round(data.price * 100),
+            availabilityPrefs: (existingProfile?.availabilityPrefs ?? {}) as Record<string, unknown>,
+            corporateEmail: data.corporateEmail,
+            timezone: data.timezone,
+            interests: data.interests,
+            experience: data.experience,
+            activities: data.activities,
+            education: data.education,
         });
     },
 
-    /**
-     * Gets a user's profile based on their role.
-     * For professionals, converts priceCents to price in dollars.
-     */
     async getProfileByUserId(userId: string, role: Role) {
         if (role === Role.CANDIDATE) {
             return await prisma.candidateProfile.findUnique({
-                where: { userId }
+                where: { userId },
             });
-        } else if (role === Role.PROFESSIONAL) {
-            const profile = await prisma.professionalProfile.findUnique({
-                where: { userId }
-            });
-            // Convert cents to dollars for frontend
-            if (profile) {
-                return {
-                    ...profile,
-                    price: profile.priceCents / 100
-                };
-            }
-            return null;
         }
+
+        if (role === Role.PROFESSIONAL) {
+            const profile = await prisma.professionalProfile.findUnique({
+                where: { userId },
+                include: {
+                    experience: {
+                        where: { type: 'EXPERIENCE' },
+                        orderBy: [{ isCurrent: 'desc' }, { startDate: 'desc' }, { id: 'desc' }],
+                    },
+                    activities: {
+                        where: { type: 'ACTIVITY' },
+                        orderBy: [{ isCurrent: 'desc' }, { startDate: 'desc' }, { id: 'desc' }],
+                    },
+                    education: {
+                        orderBy: [{ isCurrent: 'desc' }, { startDate: 'desc' }, { id: 'desc' }],
+                    },
+                },
+            });
+
+            if (!profile) {
+                return null;
+            }
+
+            const currentRole = deriveCurrentRoleFromExperiences(profile.experience);
+
+            return {
+                ...profile,
+                price: profile.priceCents / 100,
+                title: currentRole.title,
+                employer: currentRole.employer,
+            };
+        }
+
         return null;
-    }
+    },
 };

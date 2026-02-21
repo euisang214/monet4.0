@@ -45,9 +45,57 @@ describe("candidate chat pagination", () => {
 
     it("returns paginated items and nextCursor", async () => {
         mockPrisma.booking.findMany.mockResolvedValue([
-            { id: "booking-1", status: BookingStatus.requested },
-            { id: "booking-2", status: BookingStatus.requested },
-            { id: "booking-3", status: BookingStatus.requested },
+            {
+                id: "booking-1",
+                status: BookingStatus.requested,
+                professional: {
+                    professionalProfile: {
+                        experience: [
+                            {
+                                id: "exp-1",
+                                title: "Principal",
+                                company: "Monet",
+                                isCurrent: true,
+                                startDate: new Date("2024-01-01"),
+                            },
+                        ],
+                    },
+                },
+            },
+            {
+                id: "booking-2",
+                status: BookingStatus.requested,
+                professional: {
+                    professionalProfile: {
+                        experience: [
+                            {
+                                id: "exp-2",
+                                title: "Director",
+                                company: "Org 2",
+                                isCurrent: true,
+                                startDate: new Date("2023-01-01"),
+                            },
+                        ],
+                    },
+                },
+            },
+            {
+                id: "booking-3",
+                status: BookingStatus.requested,
+                professional: {
+                    professionalProfile: {
+                        experience: [
+                            {
+                                id: "exp-3",
+                                title: "VP",
+                                company: "Org 3",
+                                isCurrent: true,
+                                startDate: new Date("2022-01-01"),
+                            },
+                        ],
+                    },
+                },
+            },
         ]);
 
         const page = await getCandidateChatSectionPage("cand-1", "pending", {
@@ -56,6 +104,8 @@ describe("candidate chat pagination", () => {
 
         expect(page.items).toHaveLength(2);
         expect(page.nextCursor).toBe("booking-2");
+        expect(page.items[0]?.professional.professionalProfile?.title).toBe("Principal");
+        expect(page.items[0]?.professional.professionalProfile?.employer).toBe("Monet");
         expect(mockPrisma.booking.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
                 take: 3,

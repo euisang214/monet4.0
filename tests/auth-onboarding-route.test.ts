@@ -219,8 +219,6 @@ describe("POST /api/auth/onboarding", () => {
 
         const response = await POST(
             makeRequest({
-                employer: "Monet",
-                title: "Principal",
                 bio: "Guides candidates through case prep.",
                 price: 200,
                 corporateEmail: "pro@monet.com",
@@ -281,6 +279,7 @@ describe("POST /api/auth/onboarding", () => {
         expect(txMocks.professionalProfile.upsert).toHaveBeenCalledWith(
             expect.objectContaining({
                 update: expect.objectContaining({
+                    bio: "Guides candidates through case prep.",
                     interests: ["Mentorship", "Interview Coaching"],
                 }),
             })
@@ -303,5 +302,149 @@ describe("POST /api/auth/onboarding", () => {
                 data: expect.arrayContaining([expect.objectContaining({ professionalId: "professional_1" })]),
             })
         );
+    });
+
+    it("rejects professional onboarding when no current experience is selected", async () => {
+        authMock.mockResolvedValue({
+            user: { id: "professional_2", role: Role.PROFESSIONAL },
+        });
+
+        const response = await POST(
+            makeRequest({
+                bio: "Guides candidates through case prep.",
+                price: 200,
+                corporateEmail: "pro@monet.com",
+                timezone: "America/New_York",
+                interests: ["Mentorship"],
+                experience: [
+                    {
+                        company: "Monet",
+                        title: "Principal",
+                        startDate: "2022-01-01",
+                        isCurrent: false,
+                        endDate: "2023-01-01",
+                    },
+                ],
+                activities: [
+                    {
+                        company: "Association",
+                        title: "Speaker",
+                        startDate: "2021-05-01",
+                        isCurrent: true,
+                    },
+                ],
+                education: [
+                    {
+                        school: "University A",
+                        degree: "BS",
+                        fieldOfStudy: "Finance",
+                        startDate: "2012-09-01",
+                        endDate: "2016-05-01",
+                        isCurrent: false,
+                    },
+                ],
+            })
+        );
+
+        expect(response.status).toBe(400);
+        expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("rejects professional onboarding when multiple current experiences are selected", async () => {
+        authMock.mockResolvedValue({
+            user: { id: "professional_3", role: Role.PROFESSIONAL },
+        });
+
+        const response = await POST(
+            makeRequest({
+                bio: "Guides candidates through case prep.",
+                price: 200,
+                corporateEmail: "pro@monet.com",
+                timezone: "America/New_York",
+                interests: ["Mentorship"],
+                experience: [
+                    {
+                        company: "Monet",
+                        title: "Principal",
+                        startDate: "2022-01-01",
+                        isCurrent: true,
+                    },
+                    {
+                        company: "Prev Co",
+                        title: "Manager",
+                        startDate: "2020-01-01",
+                        isCurrent: true,
+                    },
+                ],
+                activities: [
+                    {
+                        company: "Association",
+                        title: "Speaker",
+                        startDate: "2021-05-01",
+                        isCurrent: true,
+                    },
+                ],
+                education: [
+                    {
+                        school: "University A",
+                        degree: "BS",
+                        fieldOfStudy: "Finance",
+                        startDate: "2012-09-01",
+                        endDate: "2016-05-01",
+                        isCurrent: false,
+                    },
+                ],
+            })
+        );
+
+        expect(response.status).toBe(400);
+        expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("rejects professional onboarding payloads that include legacy employer/title fields", async () => {
+        authMock.mockResolvedValue({
+            user: { id: "professional_4", role: Role.PROFESSIONAL },
+        });
+
+        const response = await POST(
+            makeRequest({
+                employer: "Legacy Corp",
+                title: "Legacy Title",
+                bio: "Guides candidates through case prep.",
+                price: 200,
+                corporateEmail: "pro@monet.com",
+                timezone: "America/New_York",
+                interests: ["Mentorship"],
+                experience: [
+                    {
+                        company: "Monet",
+                        title: "Principal",
+                        startDate: "2022-01-01",
+                        isCurrent: true,
+                    },
+                ],
+                activities: [
+                    {
+                        company: "Association",
+                        title: "Speaker",
+                        startDate: "2021-05-01",
+                        isCurrent: true,
+                    },
+                ],
+                education: [
+                    {
+                        school: "University A",
+                        degree: "BS",
+                        fieldOfStudy: "Finance",
+                        startDate: "2012-09-01",
+                        endDate: "2016-05-01",
+                        isCurrent: false,
+                    },
+                ],
+            })
+        );
+
+        expect(response.status).toBe(400);
+        expect(prismaMock.$transaction).not.toHaveBeenCalled();
     });
 });

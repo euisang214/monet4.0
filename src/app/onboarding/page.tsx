@@ -77,8 +77,6 @@ export default async function OnboardingPage() {
             },
             professionalProfile: {
                 select: {
-                    employer: true,
-                    title: true,
                     bio: true,
                     priceCents: true,
                     corporateEmail: true,
@@ -181,8 +179,6 @@ export default async function OnboardingPage() {
                 initialProfessional={
                     user.professionalProfile
                         ? {
-                              employer: user.professionalProfile.employer,
-                              title: user.professionalProfile.title,
                               bio: user.professionalProfile.bio,
                               price: user.professionalProfile.priceCents / 100,
                               corporateEmail: user.professionalProfile.corporateEmail,

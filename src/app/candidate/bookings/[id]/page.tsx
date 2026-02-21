@@ -52,9 +52,14 @@ export default async function BookingDetailsPage(props: {
                             <p className="font-medium text-gray-900">
                                 {booking.professional.professionalProfile?.title || booking.professional.email}
                             </p>
-                            <p className="text-gray-500 text-xs mt-1">
-                                {booking.professional.professionalProfile?.title} at {booking.professional.professionalProfile?.employer}
-                            </p>
+                            {booking.professional.professionalProfile?.title ? (
+                                <p className="text-gray-500 text-xs mt-1">
+                                    {booking.professional.professionalProfile.title}
+                                    {booking.professional.professionalProfile.employer
+                                        ? ` at ${booking.professional.professionalProfile.employer}`
+                                        : ''}
+                                </p>
+                            ) : null}
                         </div>
                         <div>
                             <p className="block text-gray-500 mb-1">Rate</p>

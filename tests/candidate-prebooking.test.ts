@@ -7,6 +7,7 @@ vi.mock('@/lib/core/db', () => {
         professionalProfile: { findUnique: vi.fn() },
         booking: { findFirst: vi.fn() },
         availability: { findMany: vi.fn(), create: vi.fn() },
+        user: { findUnique: vi.fn() },
         experience: { findMany: vi.fn() },
         $transaction: vi.fn((callback) => {
             if (Array.isArray(callback)) {
@@ -89,6 +90,8 @@ describe('Pre-Booking Domain Logic', () => {
 
         it('setAvailability should create availability slots', async () => {
             const slots = [{ start: new Date(), end: new Date(), busy: true }];
+            // @ts-ignore
+            prisma.user.findUnique.mockResolvedValue({ timezone: 'UTC' });
             // @ts-ignore
             prisma.availability.create.mockResolvedValue({});
 

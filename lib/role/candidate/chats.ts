@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/core/db";
+import { deriveCurrentRoleFromExperiences } from "@/lib/domain/users/current-role";
 import { BookingStatus, Prisma } from "@prisma/client";
 
 export type CandidateChatSection = "upcoming" | "pending" | "expired" | "past" | "other";
@@ -32,16 +33,67 @@ const STATUS_BY_SECTION: Record<CandidateChatSection, BookingStatus[]> = {
 const candidateChatInclude = {
     professional: {
         include: {
-            professionalProfile: true,
+            professionalProfile: {
+                include: {
+                    experience: {
+                        where: { type: "EXPERIENCE" },
+                        orderBy: [{ isCurrent: "desc" }, { startDate: "desc" }, { id: "desc" }],
+                    },
+                },
+            },
         },
     },
     payment: true,
     feedback: true,
 } satisfies Prisma.BookingInclude;
 
-export type CandidateChatBooking = Prisma.BookingGetPayload<{
+type CandidateChatBookingRaw = Prisma.BookingGetPayload<{
     include: typeof candidateChatInclude;
 }>;
+
+type ProfessionalProfileWithRole = NonNullable<
+    CandidateChatBookingRaw["professional"]["professionalProfile"]
+> & {
+    title: string | null;
+    employer: string | null;
+};
+
+export type CandidateChatBooking = Omit<CandidateChatBookingRaw, "professional"> & {
+    professional: Omit<CandidateChatBookingRaw["professional"], "professionalProfile"> & {
+        professionalProfile: ProfessionalProfileWithRole | null;
+    };
+};
+
+function withDerivedProfessionalRole(booking: CandidateChatBookingRaw): CandidateChatBooking {
+    if (!booking.professional) {
+        return booking as unknown as CandidateChatBooking;
+    }
+
+    const profile = booking.professional.professionalProfile;
+    if (!profile) {
+        return {
+            ...booking,
+            professional: {
+                ...booking.professional,
+                professionalProfile: null,
+            },
+        };
+    }
+
+    const role = deriveCurrentRoleFromExperiences(profile.experience);
+
+    return {
+        ...booking,
+        professional: {
+            ...booking.professional,
+            professionalProfile: {
+                ...profile,
+                title: role.title,
+                employer: role.employer,
+            },
+        },
+    };
+}
 
 function getPageSize(take: number | undefined) {
     if (typeof take !== "number" || Number.isNaN(take)) {
@@ -125,7 +177,7 @@ export async function getCandidateChatSectionCounts(candidateId: string): Promis
 export async function getCandidateChatSectionPage(
     candidateId: string,
     section: CandidateChatSection,
-    options: { take?: number; cursor?: string } = {},
+    options: { take?: number; cursor?: string } = {}
 ): Promise<{ items: CandidateChatBooking[]; nextCursor?: string }> {
     const take = getPageSize(options.take);
     const startedAt = performance.now();
@@ -136,13 +188,12 @@ export async function getCandidateChatSectionPage(
         take: take + 1,
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     });
-    let items: CandidateChatBooking[];
+    let items: CandidateChatBookingRaw[];
 
     try {
         items = await prisma.booking.findMany(buildQuery(options.cursor));
     } catch (error) {
         if (options.cursor && isInvalidCursorError(error)) {
-            // Fallback to first page when cursor is stale/invalid.
             items = await prisma.booking.findMany(buildQuery());
         } else {
             throw error;
@@ -163,11 +214,14 @@ export async function getCandidateChatSectionPage(
         durationMs,
     });
 
-    return { items: pageItems, nextCursor };
+    return {
+        items: pageItems.map(withDerivedProfessionalRole),
+        nextCursor,
+    };
 }
 
 export async function getCandidateBookingDetails(bookingId: string, candidateId: string) {
-    return prisma.booking.findUnique({
+    const booking = await prisma.booking.findUnique({
         where: {
             id: bookingId,
             candidateId,
@@ -175,10 +229,24 @@ export async function getCandidateBookingDetails(bookingId: string, candidateId:
         include: {
             professional: {
                 include: {
-                    professionalProfile: true,
+                    professionalProfile: {
+                        include: {
+                            experience: {
+                                where: { type: "EXPERIENCE" },
+                                orderBy: [{ isCurrent: "desc" }, { startDate: "desc" }, { id: "desc" }],
+                            },
+                        },
+                    },
                 },
             },
             payment: true,
+            feedback: true,
         },
     });
+
+    if (!booking) {
+        return null;
+    }
+
+    return withDerivedProfessionalRole(booking);
 }

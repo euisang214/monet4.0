@@ -212,8 +212,6 @@ model CallFeedback {
 
 model ProfessionalProfile {
   userId            String       @id
-  employer          String
-  title             String
   bio               String
   priceCents        Int
   availabilityPrefs Json         @default("{}")
@@ -249,7 +247,6 @@ model ProfessionalProfile {
   // CLAUDE.md Experience model (670) doesn't show a 'type' field.
   // I will map both to Experience for now, assuming they are just a collection of experiences.
   
-  @@index([employer])
   @@index([priceCents])
 }
 
@@ -324,6 +321,7 @@ model Experience {
   candidateActivityId    String?
 
   @@index([professionalId])
+  @@index([professionalId, type, isCurrent, startDate(sort: Desc)])
   @@index([candidateId])
   @@index([professionalActivityId])
   @@index([candidateActivityId])

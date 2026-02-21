@@ -364,8 +364,6 @@ async function main() {
                 corporateEmailVerified: true,
                 professionalProfile: {
                     create: {
-                        employer: company.employer,
-                        title: company.title,
                         bio,
                         priceCents: 10000 + (i * 2500), // $125 to $350 range
                         corporateEmail: `pro${i}@${company.employer.toLowerCase().replace(/\s+/g, '')}.local`,

@@ -15,8 +15,6 @@ async function createRoleProfile(
         await tx.professionalProfile.create({
             data: {
                 userId,
-                employer: '',
-                title: '',
                 bio: '',
                 priceCents: 0,
                 corporateEmail: email,

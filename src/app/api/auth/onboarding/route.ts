@@ -63,27 +63,39 @@ const educationEntrySchema = z
         }
     });
 
-const candidateOnboardingSchema = z.object({
-    resumeUrl: z.string().url("Invalid resume URL").optional(),
-    interests: z.array(z.string().trim().min(1)).min(1, "At least one interest is required"),
-    timezone: z.string().trim().min(1, "Timezone is required"),
-    experience: z.array(timelineEntrySchema).min(1, "At least one experience entry is required"),
-    activities: z.array(timelineEntrySchema).min(1, "At least one activity entry is required"),
-    education: z.array(educationEntrySchema).min(1, "At least one education entry is required"),
-});
+const candidateOnboardingSchema = z
+    .object({
+        resumeUrl: z.string().url("Invalid resume URL").optional(),
+        interests: z.array(z.string().trim().min(1)).min(1, "At least one interest is required"),
+        timezone: z.string().trim().min(1, "Timezone is required"),
+        experience: z.array(timelineEntrySchema).min(1, "At least one experience entry is required"),
+        activities: z.array(timelineEntrySchema).min(1, "At least one activity entry is required"),
+        education: z.array(educationEntrySchema).min(1, "At least one education entry is required"),
+    })
+    .strict();
 
-const professionalOnboardingSchema = z.object({
-    employer: z.string().trim().min(1, "Employer is required"),
-    title: z.string().trim().min(1, "Title is required"),
-    bio: z.string().trim().min(1, "Bio is required"),
-    price: z.number().positive("Price must be greater than zero"),
-    corporateEmail: z.string().email("Corporate email is invalid"),
-    timezone: z.string().trim().min(1, "Timezone is required"),
-    interests: z.array(z.string().trim().min(1)).min(1, "At least one interest is required"),
-    experience: z.array(timelineEntrySchema).min(1, "At least one experience entry is required"),
-    activities: z.array(timelineEntrySchema).min(1, "At least one activity entry is required"),
-    education: z.array(educationEntrySchema).min(1, "At least one education entry is required"),
-});
+const professionalOnboardingSchema = z
+    .object({
+        bio: z.string().trim().min(1, "Bio is required"),
+        price: z.number().positive("Price must be greater than zero"),
+        corporateEmail: z.string().email("Corporate email is invalid"),
+        timezone: z.string().trim().min(1, "Timezone is required"),
+        interests: z.array(z.string().trim().min(1)).min(1, "At least one interest is required"),
+        experience: z.array(timelineEntrySchema).min(1, "At least one experience entry is required"),
+        activities: z.array(timelineEntrySchema).min(1, "At least one activity entry is required"),
+        education: z.array(educationEntrySchema).min(1, "At least one education entry is required"),
+    })
+    .strict()
+    .superRefine((profile, ctx) => {
+        const currentExperienceCount = profile.experience.filter((entry) => entry.isCurrent).length;
+        if (currentExperienceCount !== 1) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["experience"],
+                message: "Exactly one professional experience must be marked as current",
+            });
+        }
+    });
 
 type TimelineEntryInput = z.infer<typeof timelineEntrySchema>;
 type EducationEntryInput = z.infer<typeof educationEntrySchema>;
@@ -269,7 +281,7 @@ export async function POST(request: Request) {
                 return Response.json({ error: "validation_error", details: parsed.error.flatten() }, { status: 400 });
             }
 
-            const { employer, title, bio, price, corporateEmail, timezone } = parsed.data;
+            const { bio, price, corporateEmail, timezone } = parsed.data;
             const priceCents = Math.round(price * 100);
 
             await prisma.$transaction(async (tx) => {
@@ -277,8 +289,6 @@ export async function POST(request: Request) {
                     where: { userId },
                     create: {
                         userId,
-                        employer,
-                        title,
                         bio,
                         priceCents,
                         corporateEmail,
@@ -287,8 +297,6 @@ export async function POST(request: Request) {
                         availabilityPrefs: {},
                     },
                     update: {
-                        employer,
-                        title,
                         bio,
                         priceCents,
                         corporateEmail,
