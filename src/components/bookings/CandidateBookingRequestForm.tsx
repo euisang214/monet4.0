@@ -15,6 +15,7 @@ interface CandidateBookingRequestFormProps {
     priceCents: number;
     professionalTimezone?: string | null;
     candidateTimezone?: string;
+    initialAvailabilitySlots?: SlotInterval[];
 }
 
 export function CandidateBookingRequestForm({
@@ -22,8 +23,9 @@ export function CandidateBookingRequestForm({
     priceCents,
     professionalTimezone,
     candidateTimezone,
+    initialAvailabilitySlots = [],
 }: CandidateBookingRequestFormProps) {
-    const [availabilitySlots, setAvailabilitySlots] = useState<SlotInterval[]>([]);
+    const [availabilitySlots, setAvailabilitySlots] = useState<SlotInterval[]>(() => initialAvailabilitySlots);
     const resolvedCandidateTimezone = React.useMemo(
         () => candidateTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
         [candidateTimezone]
@@ -63,6 +65,7 @@ export function CandidateBookingRequestForm({
             <CandidateAvailabilityPanel
                 calendarTimezone={resolvedCandidateTimezone}
                 professionalTimezone={professionalTimezone}
+                initialSelectedSlots={initialAvailabilitySlots}
                 onSelectionChange={handleSlotSelectionChange}
                 selectedCountLabel="Selected Candidate Slots"
                 className="mb-4"

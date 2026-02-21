@@ -1,4 +1,10 @@
 import { AvailabilityService } from '@/lib/shared/availability';
+import { prisma } from '@/lib/core/db';
+
+export type SavedAvailabilitySeed = {
+    candidateTimezone: string;
+    initialAvailabilitySlots: Array<{ start: string; end: string }>;
+};
 
 export const CandidateAvailability = {
     getBusyTimes: async (candidateId: string) => {
@@ -11,5 +17,28 @@ export const CandidateAvailability = {
 
     setAvailability: async (candidateId: string, slots: any[]) => {
         return await AvailabilityService.setAvailability(candidateId, slots);
-    }
+    },
+
+    getSavedAvailabilitySeed: async (candidateId: string): Promise<SavedAvailabilitySeed> => {
+        const now = new Date();
+
+        const [candidate, availability] = await Promise.all([
+            prisma.user.findUnique({
+                where: { id: candidateId },
+                select: { timezone: true },
+            }),
+            AvailabilityService.getUserAvailability(candidateId),
+        ]);
+
+        const initialAvailabilitySlots = availability
+            .filter((slot) => !slot.busy)
+            .filter((slot) => slot.end > now)
+            .map((slot) => ({ start: slot.start.toISOString(), end: slot.end.toISOString() }))
+            .sort((a, b) => a.start.localeCompare(b.start));
+
+        return {
+            candidateTimezone: candidate?.timezone || 'UTC',
+            initialAvailabilitySlots,
+        };
+    },
 };

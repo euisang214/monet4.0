@@ -1,25 +1,13 @@
 import { requireRole } from '@/lib/core/api-helpers';
-import { CandidateSettings } from '@/lib/role/candidate/settings';
+import { CandidateAvailability } from '@/lib/role/candidate/availability';
 import { Role } from '@prisma/client';
-import { prisma } from '@/lib/core/db';
 import { CandidateAvailabilityEditor } from './CandidateAvailabilityEditor';
 
 export default async function CandidateAvailabilityPage() {
     const user = await requireRole(Role.CANDIDATE, '/candidate/availability');
 
-    const [availability, candidate] = await Promise.all([
-        CandidateSettings.getAvailability(user.id),
-        prisma.user.findUnique({
-            where: { id: user.id },
-            select: { timezone: true },
-        }),
-    ]);
-    const now = new Date();
-    const initialAvailabilitySlots = availability
-        .filter((slot) => !slot.busy)
-        .filter((slot) => slot.end > now)
-        .map((slot) => ({ start: slot.start.toISOString(), end: slot.end.toISOString() }));
-    const calendarTimezone = candidate?.timezone || 'UTC';
+    const { initialAvailabilitySlots, candidateTimezone } =
+        await CandidateAvailability.getSavedAvailabilitySeed(user.id);
 
     return (
         <main className="container py-8">
@@ -31,7 +19,7 @@ export default async function CandidateAvailabilityPage() {
 
             <CandidateAvailabilityEditor
                 initialAvailabilitySlots={initialAvailabilitySlots}
-                calendarTimezone={calendarTimezone}
+                calendarTimezone={candidateTimezone}
             />
         </main>
     );
