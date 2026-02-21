@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/primitives/Button";
 import { useNotification } from "@/components/ui/hooks/useNotification";
 import { NotificationBanner } from "@/components/ui/composites/NotificationBanner";
+import { ProviderConnections } from "@/components/auth/ProviderConnections";
 
 interface ProfessionalProfileData {
     price?: number;
@@ -12,6 +13,7 @@ interface ProfessionalProfileData {
     title?: string;
     bio?: string;
     corporateEmail?: string;
+    timezone?: string;
     verifiedAt?: string | null;
 }
 
@@ -40,6 +42,7 @@ function ProfessionalSettingsPageContent() {
     const [title, setTitle] = useState("");
     const [bio, setBio] = useState("");
     const [corporateEmail, setCorporateEmail] = useState("");
+    const [timezone, setTimezone] = useState("");
 
     const [verificationSent, setVerificationSent] = useState(false);
     const [verificationCode, setVerificationCode] = useState("");
@@ -71,6 +74,7 @@ function ProfessionalSettingsPageContent() {
                     setTitle(data.title || "");
                     setBio(data.bio || "");
                     setCorporateEmail(data.corporateEmail || "");
+                    setTimezone(data.timezone || "UTC");
                 }
 
                 if (typeof stripePayload?.accountId !== "undefined") {
@@ -88,7 +92,7 @@ function ProfessionalSettingsPageContent() {
         clear();
 
         try {
-            await fetch("/api/shared/settings", {
+            const response = await fetch("/api/shared/settings", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -96,8 +100,14 @@ function ProfessionalSettingsPageContent() {
                     title,
                     bio,
                     price: parseFloat(price || "0"),
+                    corporateEmail,
+                    timezone: timezone.trim() || "UTC",
                 }),
             });
+
+            if (!response.ok) {
+                throw new Error("Could not save professional settings");
+            }
             notify("success", "Profile settings saved.");
         } catch (error) {
             console.error(error);
@@ -270,6 +280,20 @@ function ProfessionalSettingsPageContent() {
                                     className="w-full p-2 border rounded-md h-32"
                                 />
                             </div>
+
+                            <div>
+                                <label className="block text-sm font-medium mb-1" htmlFor="timezone">
+                                    Timezone
+                                </label>
+                                <input
+                                    id="timezone"
+                                    type="text"
+                                    value={timezone}
+                                    onChange={(e) => setTimezone(e.target.value)}
+                                    className="w-full p-2 border rounded-md"
+                                    placeholder="America/New_York"
+                                />
+                            </div>
                         </div>
                     </section>
 
@@ -333,6 +357,10 @@ function ProfessionalSettingsPageContent() {
                         <Button type="submit">Save settings</Button>
                     </div>
                 </form>
+
+                <div className="mt-8">
+                    <ProviderConnections />
+                </div>
             </div>
         </main>
     );

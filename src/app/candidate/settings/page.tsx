@@ -5,10 +5,12 @@ import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/primitives/Button";
 import { useNotification } from "@/components/ui/hooks/useNotification";
 import { NotificationBanner } from "@/components/ui/composites/NotificationBanner";
+import { ProviderConnections } from "@/components/auth/ProviderConnections";
 
 interface CandidateProfileData {
     resumeUrl?: string | null;
     interests?: string[] | null;
+    timezone?: string | null;
 }
 
 const MAX_RESUME_SIZE_BYTES = 4 * 1024 * 1024;
@@ -18,6 +20,7 @@ export default function CandidateSettingsPage() {
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
     const [interests, setInterests] = useState("");
+    const [timezone, setTimezone] = useState("");
     const { notification, notify, clear } = useNotification();
 
     useEffect(() => {
@@ -27,6 +30,7 @@ export default function CandidateSettingsPage() {
                 if (data.data) {
                     setProfile(data.data);
                     setInterests(data.data.interests?.join(", ") || "");
+                    setTimezone(data.data.timezone || "UTC");
                 }
             })
             .catch(() => {
@@ -98,7 +102,7 @@ export default function CandidateSettingsPage() {
         clear();
 
         try {
-            await fetch("/api/shared/settings", {
+            const response = await fetch("/api/shared/settings", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -106,8 +110,13 @@ export default function CandidateSettingsPage() {
                         .split(",")
                         .map((value) => value.trim())
                         .filter(Boolean),
+                    timezone: timezone.trim() || "UTC",
                 }),
             });
+
+            if (!response.ok) {
+                throw new Error("Could not save candidate settings");
+            }
             notify("success", "Settings saved.");
         } catch (error) {
             console.error(error);
@@ -199,6 +208,25 @@ export default function CandidateSettingsPage() {
                         />
                     </section>
 
+                    <section>
+                        <h2 className="text-xl font-semibold text-gray-900 mb-2">Timezone</h2>
+                        <p className="text-sm text-gray-600 mb-4">
+                            We use this timezone for booking and scheduling displays.
+                        </p>
+                        <label htmlFor="timezone" className="block text-sm font-medium mb-1">
+                            Timezone
+                        </label>
+                        <input
+                            id="timezone"
+                            type="text"
+                            required
+                            value={timezone}
+                            onChange={(e) => setTimezone(e.target.value)}
+                            className="w-full p-2 border rounded-md"
+                            placeholder="America/New_York"
+                        />
+                    </section>
+
                     <div className="pt-4 border-t flex justify-between items-center">
                         <Link href="/candidate/availability" className="text-sm font-medium text-gray-600 hover:text-black">
                             Manage availability
@@ -206,6 +234,10 @@ export default function CandidateSettingsPage() {
                         <Button type="submit">Save changes</Button>
                     </div>
                 </form>
+
+                <div className="mt-8">
+                    <ProviderConnections />
+                </div>
             </div>
         </main>
     );

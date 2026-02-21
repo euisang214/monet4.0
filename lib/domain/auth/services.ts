@@ -1,8 +1,39 @@
 import { prisma } from '@/lib/core/db';
 import { sendPasswordResetEmail } from '@/lib/integrations/email';
-import { Role } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+
+async function createRoleProfile(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    role: Role,
+    email: string,
+    resumeUrl?: string
+) {
+    if (role === Role.PROFESSIONAL) {
+        await tx.professionalProfile.create({
+            data: {
+                userId,
+                employer: '',
+                title: '',
+                bio: '',
+                priceCents: 0,
+                corporateEmail: email,
+            },
+        });
+        return;
+    }
+
+    if (role === Role.CANDIDATE) {
+        await tx.candidateProfile.create({
+            data: {
+                userId,
+                resumeUrl,
+            },
+        });
+    }
+}
 
 export const AuthService = {
     /**
@@ -32,29 +63,43 @@ export const AuthService = {
                     email,
                     hashedPassword,
                     role,
+                    onboardingRequired: true,
+                    onboardingCompleted: false,
                 },
             });
 
-            if (role === Role.PROFESSIONAL) {
-                await tx.professionalProfile.create({
-                    data: {
-                        userId: newUser.id,
-                        employer: '',
-                        title: '',
-                        bio: '',
-                        priceCents: 0,
-                        corporateEmail: email,
-                    },
-                });
-            } else if (role === Role.CANDIDATE) {
-                await tx.candidateProfile.create({
-                    data: {
-                        userId: newUser.id,
-                        resumeUrl,
-                    },
-                });
-            }
+            await createRoleProfile(tx, newUser.id, role, email, resumeUrl);
 
+            return newUser;
+        });
+
+        return user;
+    },
+
+    /**
+     * Creates a new OAuth-backed user. The account is onboarding-required until
+     * required role fields are submitted through the onboarding flow.
+     */
+    async createOAuthUser(email: string, role: Role) {
+        const existingUser = await prisma.user.findUnique({
+            where: { email },
+        });
+
+        if (existingUser) {
+            return existingUser;
+        }
+
+        const user = await prisma.$transaction(async (tx) => {
+            const newUser = await tx.user.create({
+                data: {
+                    email,
+                    role,
+                    onboardingRequired: true,
+                    onboardingCompleted: false,
+                },
+            });
+
+            await createRoleProfile(tx, newUser.id, role, email);
             return newUser;
         });
 

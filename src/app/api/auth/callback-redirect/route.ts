@@ -15,6 +15,12 @@ export async function GET() {
     }
 
     const role = session.user.role
+    const onboardingRequired = session.user.onboardingRequired === true
+    const onboardingCompleted = session.user.onboardingCompleted === true
+
+    if (onboardingRequired && !onboardingCompleted) {
+        return NextResponse.redirect(new URL("/onboarding", process.env.NEXTAUTH_URL || "http://localhost:3000"))
+    }
 
     let redirectUrl: string
     switch (role) {

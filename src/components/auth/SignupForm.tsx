@@ -4,13 +4,10 @@ import Link from "next/link";
 import { Role } from "@prisma/client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
+import { signIn } from "next-auth/react";
 
 const MAX_RESUME_SIZE_BYTES = 4 * 1024 * 1024;
 const PDF_CONTENT_TYPE = "application/pdf";
-
-function getPostLoginPath(role: Role): string {
-    return role === Role.PROFESSIONAL ? "/professional/dashboard" : "/candidate/browse";
-}
 
 export function SignupForm() {
     const router = useRouter();
@@ -28,6 +25,22 @@ export function SignupForm() {
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [isUploadingResume, setIsUploadingResume] = useState(false);
+
+    const setOAuthIntent = (selectedRole: Role) => {
+        document.cookie = `oauth_role_intent=${selectedRole}; Path=/; Max-Age=600; SameSite=Lax`;
+    };
+
+    const handleOAuthSignup = async (provider: "google" | "linkedin") => {
+        setError("");
+        setIsLoading(true);
+        try {
+            setOAuthIntent(role);
+            await signIn(provider, { callbackUrl: "/api/auth/callback-redirect" });
+        } catch {
+            setError("Unable to start social signup.");
+            setIsLoading(false);
+        }
+    };
 
     const uploadResumeForSignup = async (file: File): Promise<string> => {
         const formData = new FormData();
@@ -95,9 +108,19 @@ export function SignupForm() {
                 const errorMessage = (data as { error?: string } | null)?.error || "Signup failed";
                 throw new Error(errorMessage);
             }
+            const signInResult = await signIn("credentials", {
+                redirect: false,
+                email,
+                password,
+                callbackUrl: "/onboarding",
+            });
 
-            const callbackUrl = getPostLoginPath(role);
-            router.push(`/login?signup=success&callbackUrl=${encodeURIComponent(callbackUrl)}`);
+            if (signInResult?.error) {
+                throw new Error("Account created, but automatic sign-in failed.");
+            }
+
+            router.push("/onboarding");
+            router.refresh();
         } catch (error: unknown) {
             if (error instanceof Error) {
                 setError(error.message);
@@ -224,6 +247,25 @@ export function SignupForm() {
                     {isUploadingResume ? "Uploading resume..." : isLoading ? "Creating account..." : "Create account"}
                 </button>
             </form>
+
+            <div className="space-y-3">
+                <button
+                    type="button"
+                    onClick={() => void handleOAuthSignup("google")}
+                    disabled={isLoading}
+                    className="flex w-full items-center justify-center gap-3 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
+                >
+                    Continue with Google
+                </button>
+                <button
+                    type="button"
+                    onClick={() => void handleOAuthSignup("linkedin")}
+                    disabled={isLoading}
+                    className="flex w-full items-center justify-center gap-3 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
+                >
+                    Continue with LinkedIn
+                </button>
+            </div>
 
             <div className="text-center text-sm">
                 <span className="text-gray-500">Already have an account? </span>

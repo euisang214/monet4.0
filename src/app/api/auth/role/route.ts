@@ -15,5 +15,7 @@ export async function GET() {
     return Response.json({
         role: session.user.role,
         userId: session.user.id,
+        onboardingRequired: session.user.onboardingRequired,
+        onboardingCompleted: session.user.onboardingCompleted,
     });
 }

@@ -30,6 +30,13 @@ export async function middleware(req: NextRequest) {
         return NextResponse.redirect(new URL("/", req.nextUrl))
     }
 
+    const isOnboardingRole = token.role === "CANDIDATE" || token.role === "PROFESSIONAL"
+    const onboardingRequired = token.onboardingRequired === true
+    const onboardingCompleted = token.onboardingCompleted === true
+    if (isOnboardingRole && onboardingRequired && !onboardingCompleted) {
+        return NextResponse.redirect(new URL("/onboarding", req.nextUrl))
+    }
+
     return NextResponse.next()
 }
 

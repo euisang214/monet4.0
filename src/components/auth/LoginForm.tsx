@@ -4,6 +4,7 @@ import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Role } from "@prisma/client";
 
 const ROLE_REDIRECT_PATH = "/api/auth/callback-redirect";
 
@@ -41,6 +42,11 @@ export function LoginForm() {
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [oauthRole, setOauthRole] = useState<Role>(Role.CANDIDATE);
+
+    const setOAuthIntent = (role: Role) => {
+        document.cookie = `oauth_role_intent=${role}; Path=/; Max-Age=600; SameSite=Lax`;
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -70,9 +76,16 @@ export function LoginForm() {
         }
     };
 
-    const handleOAuthSignIn = (provider: "google" | "linkedin") => {
+    const handleOAuthSignIn = async (provider: "google" | "linkedin") => {
         setIsLoading(true);
-        signIn(provider, { callbackUrl });
+        setError("");
+        try {
+            setOAuthIntent(oauthRole);
+            await signIn(provider, { callbackUrl });
+        } catch {
+            setError("Unable to start social sign-in");
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -90,7 +103,33 @@ export function LoginForm() {
             )}
 
             <div className="space-y-3">
+                <div className="bg-gray-100 rounded-full p-1 grid grid-cols-2 gap-1">
+                    <button
+                        type="button"
+                        disabled={isLoading}
+                        onClick={() => setOauthRole(Role.CANDIDATE)}
+                        className={`rounded-full text-sm font-medium py-2 transition-colors ${oauthRole === Role.CANDIDATE
+                            ? "bg-black text-white"
+                            : "bg-transparent text-gray-600 hover:bg-gray-200"
+                            }`}
+                    >
+                        Candidate
+                    </button>
+                    <button
+                        type="button"
+                        disabled={isLoading}
+                        onClick={() => setOauthRole(Role.PROFESSIONAL)}
+                        className={`rounded-full text-sm font-medium py-2 transition-colors ${oauthRole === Role.PROFESSIONAL
+                            ? "bg-black text-white"
+                            : "bg-transparent text-gray-600 hover:bg-gray-200"
+                            }`}
+                    >
+                        Professional
+                    </button>
+                </div>
+
                 <button
+                    type="button"
                     onClick={() => handleOAuthSignIn("google")}
                     disabled={isLoading}
                     className="flex w-full items-center justify-center gap-3 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
@@ -105,6 +144,7 @@ export function LoginForm() {
                 </button>
 
                 <button
+                    type="button"
                     onClick={() => handleOAuthSignIn("linkedin")}
                     disabled={isLoading}
                     className="flex w-full items-center justify-center gap-3 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"

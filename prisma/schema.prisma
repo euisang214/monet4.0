@@ -80,6 +80,8 @@ model User {
   email                   String   @unique
   hashedPassword          String?
   role                    Role
+  onboardingRequired      Boolean  @default(false)
+  onboardingCompleted     Boolean  @default(false)
   googleCalendarConnected Boolean  @default(false)
   linkedinConnected       Boolean  @default(false)
   corporateEmailVerified  Boolean  @default(false)

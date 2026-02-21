@@ -13,6 +13,7 @@ export const professionalProfileSchema = z.object({
     title: z.string().optional(),
     bio: z.string().optional(),
     price: z.number().min(0).optional(), // Input as dollars (float)
+    corporateEmail: z.string().email().optional(),
     interests: z.array(z.string()).optional(),
 });
 

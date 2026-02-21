@@ -1,5 +1,6 @@
 import { auth } from "@/auth"
 import { Role } from "@prisma/client"
+import { prisma } from "@/lib/core/db"
 import {
     ProfileService,
     candidateProfileSchema,
@@ -16,6 +17,10 @@ export async function PUT(request: Request) {
     try {
         const body = await request.json()
         const role = session.user.role as Role
+        const timezone =
+            typeof body?.timezone === "string" && body.timezone.trim().length > 0
+                ? body.timezone.trim()
+                : undefined
 
         if (role === Role.CANDIDATE) {
             const parsed = candidateProfileSchema.safeParse(body)
@@ -27,6 +32,13 @@ export async function PUT(request: Request) {
             if (!parsed.success) return Response.json({ error: "validation_error" }, { status: 400 })
 
             await ProfileService.updateProfessionalProfile(session.user.id, parsed.data)
+        }
+
+        if (timezone) {
+            await prisma.user.update({
+                where: { id: session.user.id },
+                data: { timezone },
+            })
         }
 
         return Response.json({ data: { success: true } })
@@ -44,10 +56,16 @@ export async function GET() {
 
     try {
         const role = session.user.role as Role
-        const profile = await ProfileService.getProfileByUserId(
-            session.user.id,
-            role
-        )
+        const [profile, user] = await Promise.all([
+            ProfileService.getProfileByUserId(
+                session.user.id,
+                role
+            ),
+            prisma.user.findUnique({
+                where: { id: session.user.id },
+                select: { timezone: true },
+            }),
+        ])
 
         if (role === Role.CANDIDATE && profile) {
             const signResumeUrl = createResumeUrlSigner()
@@ -55,7 +73,14 @@ export async function GET() {
             candidateProfile.resumeUrl = (await signResumeUrl(candidateProfile.resumeUrl)) ?? null
         }
 
-        return Response.json({ data: profile })
+        const profileWithTimezone = profile
+            ? {
+                ...profile,
+                timezone: user?.timezone || "UTC",
+            }
+            : profile
+
+        return Response.json({ data: profileWithTimezone })
     } catch (error) {
         console.error("Error fetching settings:", error)
         return Response.json({ error: "internal_error" }, { status: 500 })
