@@ -14,8 +14,13 @@ strip_wrapping_quotes() {
 }
 
 export STORAGE_POSTGRES_PRISMA_URL="$(strip_wrapping_quotes "${STORAGE_POSTGRES_PRISMA_URL:-}")"
+export STORAGE_POSTGRES_URL_NON_POOLING="$(strip_wrapping_quotes "${STORAGE_POSTGRES_URL_NON_POOLING:-}")"
 export STORAGE_SUPABASE_URL="$(strip_wrapping_quotes "${STORAGE_SUPABASE_URL:-}")"
 export STORAGE_SUPABASE_SERVICE_ROLE_KEY="$(strip_wrapping_quotes "${STORAGE_SUPABASE_SERVICE_ROLE_KEY:-}")"
+
+if [[ -n "${STORAGE_POSTGRES_URL_NON_POOLING}" ]]; then
+    export STORAGE_POSTGRES_PRISMA_URL="${STORAGE_POSTGRES_URL_NON_POOLING}"
+fi
 
 if [[ -z "${STORAGE_POSTGRES_PRISMA_URL}" ]]; then
     echo "STORAGE_POSTGRES_PRISMA_URL is missing."
