@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { Role, BookingStatus } from '@prisma/client';
+import { BookingStatus } from '@prisma/client';
 
 // Use vi.hoisted to ensure mocks are created before module loading
 const mockPrisma = vi.hoisted(() => ({
@@ -197,6 +197,12 @@ describe('User Service', () => {
 
             expect(result).toMatchObject(mockProfile);
             expect(result?.corporateEmail).toBe('pro@corp.com');
+            expect(mockPrisma.experience.findMany).toHaveBeenCalledWith({
+                where: {
+                    type: 'ACTIVITY',
+                    OR: [{ professionalId: 'pro1' }, { professionalActivityId: 'pro1' }],
+                },
+            });
         });
 
         it('should return redacted profile for guests', async () => {

@@ -6,35 +6,7 @@ import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { Button } from "@/components/ui/primitives/Button";
 import { appRoutes } from "@/lib/shared/routes";
-
-type UserRole = "CANDIDATE" | "PROFESSIONAL" | "ADMIN";
-
-type NavLink = {
-    label: string;
-    href: string;
-};
-
-const ROLE_NAV_LINKS: Record<UserRole, NavLink[]> = {
-    CANDIDATE: [
-        { label: "Browse", href: appRoutes.candidate.browse },
-        { label: "Chats", href: appRoutes.candidate.chats },
-        { label: "Availability", href: appRoutes.candidate.availability },
-        { label: "Settings", href: appRoutes.candidate.settings },
-    ],
-    PROFESSIONAL: [
-        { label: "Dashboard", href: appRoutes.professional.dashboard },
-        { label: "Requests", href: appRoutes.professional.requests },
-        { label: "Earnings", href: appRoutes.professional.earnings },
-        { label: "Settings", href: appRoutes.professional.settings },
-    ],
-    ADMIN: [
-        { label: "Bookings", href: appRoutes.admin.bookings },
-        { label: "Disputes", href: appRoutes.admin.disputes },
-        { label: "Users", href: appRoutes.admin.users },
-        { label: "Feedback", href: appRoutes.admin.feedback },
-        { label: "Payments", href: appRoutes.admin.payments },
-    ],
-};
+import { resolveNavLinksForSessionUser, type UserRole } from "@/components/layout/auth-navbar-links";
 
 const CANDIDATE_DASHBOARD_LEGACY_PATH = "/candidate/dashboard";
 
@@ -53,7 +25,11 @@ export function AuthNavbar() {
     };
 
     const userRole = session.user.role as UserRole;
-    const navLinks = ROLE_NAV_LINKS[userRole] ?? [];
+    const navLinks = resolveNavLinksForSessionUser({
+        role: userRole,
+        onboardingRequired: session.user.onboardingRequired,
+        onboardingCompleted: session.user.onboardingCompleted,
+    });
     const homeLink = navLinks[0]?.href ?? "/";
 
     return (

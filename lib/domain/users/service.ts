@@ -23,7 +23,7 @@ export async function upsertProfessionalProfile(
                 title: data.title,
                 bio: data.bio,
                 priceCents: data.priceCents,
-                availabilityPrefs: data.availabilityPrefs as any,
+                availabilityPrefs: data.availabilityPrefs as Prisma.InputJsonValue,
                 corporateEmail: data.corporateEmail,
                 timezone: data.timezone,
                 interests: data.interests,
@@ -33,7 +33,7 @@ export async function upsertProfessionalProfile(
                 title: data.title,
                 bio: data.bio,
                 priceCents: data.priceCents,
-                availabilityPrefs: data.availabilityPrefs as any,
+                availabilityPrefs: data.availabilityPrefs as Prisma.InputJsonValue,
                 corporateEmail: data.corporateEmail,
                 timezone: data.timezone,
                 interests: data.interests,
@@ -43,7 +43,7 @@ export async function upsertProfessionalProfile(
         // 2. Handle Experience (Delete all existing for this profile and re-create)
         // Note: We use deleteMany with professionalId to clear old ones.
         await tx.experience.deleteMany({
-            where: { professionalId: userId },
+            where: { OR: [{ professionalId: userId }, { professionalActivityId: userId }] },
         });
 
         if (data.experience.length > 0) {
@@ -98,7 +98,7 @@ export async function upsertProfessionalProfile(
         if (data.activities.length > 0) {
             await tx.experience.createMany({
                 data: data.activities.map((act) => ({
-                    professionalId: userId,
+                    professionalActivityId: userId,
                     company: act.company, // e.g., "Chess Club"
                     location: act.location,
                     startDate: act.startDate,
@@ -139,7 +139,7 @@ export async function upsertCandidateProfile(
 
         // Handle Experience
         await tx.experience.deleteMany({
-            where: { candidateId: userId },
+            where: { OR: [{ candidateId: userId }, { candidateActivityId: userId }] },
         });
         if (data.experience.length > 0) {
             await tx.experience.createMany({
@@ -184,7 +184,7 @@ export async function upsertCandidateProfile(
         if (data.activities.length > 0) {
             await tx.experience.createMany({
                 data: data.activities.map(act => ({
-                    candidateId: userId,
+                    candidateActivityId: userId,
                     company: act.company,
                     location: act.location,
                     startDate: act.startDate,
@@ -230,7 +230,10 @@ export async function getProfessionalProfile(
 
     // Manual fetch for activities since they are stored in Experience table but semantically distinct
     const activities = await prisma.experience.findMany({
-        where: { professionalId: userId, type: "ACTIVITY" }
+        where: {
+            type: "ACTIVITY",
+            OR: [{ professionalId: userId }, { professionalActivityId: userId }],
+        }
     });
 
     // Determine if we should redact
