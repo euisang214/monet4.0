@@ -1,6 +1,7 @@
 "use client";
 
 import type { Dispatch, SetStateAction } from "react";
+import { AutoResizeTextarea } from "@/components/profile/shared/AutoResizeTextarea";
 import {
     createEmptyExperienceEntry,
     ExperienceFormEntry,
@@ -193,13 +194,15 @@ export function TimelineEntriesEditor({
                             </div>
                         </div>
 
-                        <textarea
+                        <AutoResizeTextarea
                             disabled={disabled}
                             value={entry.description}
                             onChange={(event) =>
                                 updateEntry(setEntries, index, "description", event.target.value, enforceSingleCurrent)
                             }
-                            className="w-full p-2 border rounded-md h-20"
+                            className="w-full p-2 border rounded-md"
+                            rows={3}
+                            style={{ minHeight: "5rem" }}
                             placeholder="Description (optional)"
                         />
                     </article>

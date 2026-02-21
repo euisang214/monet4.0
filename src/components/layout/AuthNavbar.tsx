@@ -16,6 +16,7 @@ export function AuthNavbar() {
     const pathname = usePathname();
 
     if (status === "loading") return null;
+    if (pathname === "/forgot-password") return null;
     if (!session?.user) return null;
 
     const handleLogout = () => {

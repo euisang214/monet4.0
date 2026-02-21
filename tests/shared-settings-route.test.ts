@@ -177,6 +177,24 @@ describe("shared settings route", () => {
         expect(upsertProfessionalProfileFromPayloadMock).not.toHaveBeenCalled();
     });
 
+    it("rejects professional updates with an unsupported timezone", async () => {
+        authMock.mockResolvedValue({
+            user: { id: "pro-1", role: Role.PROFESSIONAL },
+        });
+
+        const response = await PUT(
+            makeRequest({
+                ...validProfessionalPayload,
+                timezone: "Mars/Olympus",
+            })
+        );
+        const body = await response.json();
+
+        expect(response.status).toBe(400);
+        expect(body.error).toBe("validation_error");
+        expect(upsertProfessionalProfileFromPayloadMock).not.toHaveBeenCalled();
+    });
+
     it("returns full candidate profile payload including resume view URL", async () => {
         authMock.mockResolvedValue({
             user: { id: "cand-1", role: Role.CANDIDATE },
@@ -239,5 +257,23 @@ describe("shared settings route", () => {
         expect(response.status).toBe(400);
         expect(body.error).toBe("validation_error");
         expect(body.details?.fieldErrors?.resumeUrl?.[0]).toContain("Resume is required");
+    });
+
+    it("rejects candidate updates with an unsupported timezone", async () => {
+        authMock.mockResolvedValue({
+            user: { id: "cand-1", role: Role.CANDIDATE },
+        });
+
+        const response = await PUT(
+            makeRequest({
+                ...validCandidatePayload,
+                timezone: "Mars/Olympus",
+            })
+        );
+        const body = await response.json();
+
+        expect(response.status).toBe(400);
+        expect(body.error).toBe("validation_error");
+        expect(upsertCandidateProfileFromPayloadMock).not.toHaveBeenCalled();
     });
 });

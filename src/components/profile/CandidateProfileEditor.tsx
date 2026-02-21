@@ -3,6 +3,7 @@
 import { ReactNode, useEffect, useState } from "react";
 import { TimelineEntriesEditor } from "@/components/profile/shared/TimelineEntriesEditor";
 import { EducationEntriesEditor } from "@/components/profile/shared/EducationEntriesEditor";
+import { SUPPORTED_TIMEZONES, normalizeTimezone } from "@/lib/utils/supported-timezones";
 import {
     EducationEntry,
     mapEducationEntries,
@@ -88,7 +89,7 @@ export function CandidateProfileEditor({
     disabled = false,
     footerContent,
 }: CandidateProfileEditorProps) {
-    const [timezone, setTimezone] = useState(initialData?.timezone || "UTC");
+    const [timezone, setTimezone] = useState(normalizeTimezone(initialData?.timezone));
     const [candidateResumeUrl, setCandidateResumeUrl] = useState(initialData?.resumeUrl || "");
     const [candidateResumeViewUrl, setCandidateResumeViewUrl] = useState(
         initialData?.resumeViewUrl || initialData?.resumeUrl || ""
@@ -102,7 +103,7 @@ export function CandidateProfileEditor({
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        setTimezone(initialData?.timezone || "UTC");
+        setTimezone(normalizeTimezone(initialData?.timezone));
         setCandidateResumeUrl(initialData?.resumeUrl || "");
         setCandidateResumeViewUrl(initialData?.resumeViewUrl || initialData?.resumeUrl || "");
         setCandidateResumeFile(null);
@@ -151,7 +152,7 @@ export function CandidateProfileEditor({
             }
 
             await onSubmit({
-                timezone: timezone.trim() || "UTC",
+                timezone: normalizeTimezone(timezone),
                 resumeUrl,
                 interests,
                 experience: serializeExperienceEntries(experienceEntries, "Experience"),
@@ -184,16 +185,20 @@ export function CandidateProfileEditor({
                     <label htmlFor="candidate-timezone" className="block text-sm font-medium mb-1">
                         Timezone
                     </label>
-                    <input
+                    <select
                         id="candidate-timezone"
-                        type="text"
                         required
                         disabled={effectiveDisabled}
                         value={timezone}
                         onChange={(event) => setTimezone(event.target.value)}
                         className="w-full p-2 border rounded-md"
-                        placeholder="America/New_York"
-                    />
+                    >
+                        {SUPPORTED_TIMEZONES.map((timezoneOption) => (
+                            <option key={timezoneOption} value={timezoneOption}>
+                                {timezoneOption}
+                            </option>
+                        ))}
+                    </select>
                 </div>
 
                 <div className="rounded-md border border-gray-300 p-4 space-y-2">

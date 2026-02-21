@@ -2,6 +2,7 @@ import { prisma } from "@/lib/core/db";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { createResumeUrlSigner } from "@/lib/integrations/resume-storage";
+import { isSupportedTimezone } from "@/lib/utils/supported-timezones";
 import {
     upsertCandidateProfile,
     upsertProfessionalProfile,
@@ -12,7 +13,7 @@ export const candidateProfilePayloadSchema = z
     .object({
         resumeUrl: z.string().url("Invalid resume URL").optional(),
         interests: z.array(z.string().trim().min(1)).min(1, "At least one interest is required"),
-        timezone: z.string().trim().min(1, "Timezone is required"),
+        timezone: z.string().trim().refine(isSupportedTimezone, "Select a valid timezone"),
         experience: z.array(ExperienceSchema).min(1, "At least one experience entry is required"),
         activities: z.array(ExperienceSchema).min(1, "At least one activity entry is required"),
         education: z.array(EducationSchema).min(1, "At least one education entry is required"),
@@ -24,7 +25,7 @@ export const professionalProfilePayloadSchema = z
         bio: z.string().trim().min(1, "Bio is required"),
         price: z.coerce.number().positive("Price must be greater than zero"),
         corporateEmail: z.string().email("Corporate email is invalid"),
-        timezone: z.string().trim().min(1, "Timezone is required"),
+        timezone: z.string().trim().refine(isSupportedTimezone, "Select a valid timezone"),
         interests: z.array(z.string().trim().min(1)).min(1, "At least one interest is required"),
         experience: z.array(ExperienceSchema).min(1, "At least one experience entry is required"),
         activities: z.array(ExperienceSchema).min(1, "At least one activity entry is required"),

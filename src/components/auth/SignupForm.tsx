@@ -5,6 +5,7 @@ import { Role } from "@prisma/client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { signIn } from "next-auth/react";
+import { OAuthProviderIcon } from "@/components/auth/OAuthProviderIcon";
 
 const MAX_RESUME_SIZE_BYTES = 4 * 1024 * 1024;
 const PDF_CONTENT_TYPE = "application/pdf";
@@ -255,6 +256,7 @@ export function SignupForm() {
                     disabled={isLoading}
                     className="flex w-full items-center justify-center gap-3 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
                 >
+                    <OAuthProviderIcon provider="google" className="h-5 w-5" />
                     Continue with Google
                 </button>
                 <button
@@ -263,6 +265,7 @@ export function SignupForm() {
                     disabled={isLoading}
                     className="flex w-full items-center justify-center gap-3 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
                 >
+                    <OAuthProviderIcon provider="linkedin" className="h-5 w-5" />
                     Continue with LinkedIn
                 </button>
             </div>

@@ -99,6 +99,9 @@ describe("ProfessionalProfileEditor", () => {
         expect(html).toContain("Add experience");
         expect(html).toContain("Add activity");
         expect(html).toContain("Add education");
+        expect(html).toContain('id="professional-timezone-settings"');
+        expect(html).toContain("<select");
+        expect(html).toContain('value="UTC"');
         expect(html).toContain("Save settings");
     });
 });

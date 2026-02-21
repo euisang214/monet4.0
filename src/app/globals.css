@@ -1044,6 +1044,7 @@ img {
 input,
 select,
 textarea {
+  font-family: inherit;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: #ffffff;

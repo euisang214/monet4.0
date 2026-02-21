@@ -158,6 +158,24 @@ describe("POST /api/auth/onboarding", () => {
         expect(body.details?.fieldErrors?.resumeUrl?.[0]).toContain("Resume is required");
     });
 
+    it("rejects candidate onboarding payloads with an unsupported timezone", async () => {
+        authMock.mockResolvedValue({
+            user: { id: "candidate_2", role: Role.CANDIDATE },
+        });
+
+        const response = await POST(
+            makeRequest({
+                ...validCandidatePayload,
+                timezone: "Mars/Olympus",
+            })
+        );
+        const body = await response.json();
+
+        expect(response.status).toBe(400);
+        expect(body.error).toBe("validation_error");
+        expect(upsertCandidateProfileFromPayloadMock).not.toHaveBeenCalled();
+    });
+
     it("rejects professional onboarding when Stripe payouts are not ready", async () => {
         authMock.mockResolvedValue({
             user: { id: "professional_1", role: Role.PROFESSIONAL },
@@ -180,6 +198,25 @@ describe("POST /api/auth/onboarding", () => {
         expect(response.status).toBe(400);
         expect(body.error).toBe("stripe_payout_not_ready");
         expect(upsertProfessionalProfileFromPayloadMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects professional onboarding payloads with an unsupported timezone", async () => {
+        authMock.mockResolvedValue({
+            user: { id: "professional_1", role: Role.PROFESSIONAL },
+        });
+
+        const response = await POST(
+            makeRequest({
+                ...validProfessionalPayload,
+                timezone: "Mars/Olympus",
+            })
+        );
+        const body = await response.json();
+
+        expect(response.status).toBe(400);
+        expect(body.error).toBe("validation_error");
+        expect(upsertProfessionalProfileFromPayloadMock).not.toHaveBeenCalled();
+        expect(getProfessionalStripeStatusMock).not.toHaveBeenCalled();
     });
 
     it("allows professional onboarding when payouts are enabled even if charges are disabled", async () => {

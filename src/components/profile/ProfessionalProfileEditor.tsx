@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ProfessionalProfileFields } from "@/components/profile/ProfessionalProfileFields";
 import { TimelineEntriesEditor } from "@/components/profile/shared/TimelineEntriesEditor";
 import { EducationEntriesEditor } from "@/components/profile/shared/EducationEntriesEditor";
+import { SUPPORTED_TIMEZONES, normalizeTimezone } from "@/lib/utils/supported-timezones";
 import {
     EducationEntry,
     ensureExactlyOneCurrentExperience,
@@ -80,7 +81,7 @@ export function ProfessionalProfileEditor({
     onConnectStripe,
     onCorporateEmailDraftChange,
 }: ProfessionalProfileEditorProps) {
-    const [timezone, setTimezone] = useState(initialData?.timezone || "UTC");
+    const [timezone, setTimezone] = useState(normalizeTimezone(initialData?.timezone));
     const [bio, setBio] = useState(initialData?.bio || "");
     const [price, setPrice] = useState(
         typeof initialData?.price === "number" ? initialData.price.toString() : ""
@@ -97,7 +98,7 @@ export function ProfessionalProfileEditor({
     const [isConnectingStripe, setIsConnectingStripe] = useState(false);
 
     useEffect(() => {
-        setTimezone(initialData?.timezone || "UTC");
+        setTimezone(normalizeTimezone(initialData?.timezone));
         setBio(initialData?.bio || "");
         setPrice(typeof initialData?.price === "number" ? initialData.price.toString() : "");
         const nextCorporateEmail = initialData?.corporateEmail || "";
@@ -169,7 +170,7 @@ export function ProfessionalProfileEditor({
             }
 
             await onSubmit({
-                timezone: timezone.trim() || "UTC",
+                timezone: normalizeTimezone(timezone),
                 bio: trimmedBio,
                 price: parsedPrice,
                 corporateEmail: trimmedCorporateEmail,
@@ -235,16 +236,20 @@ export function ProfessionalProfileEditor({
                     <label htmlFor={`professional-timezone-${mode}`} className="block text-sm font-medium mb-1">
                         Timezone
                     </label>
-                    <input
+                    <select
                         id={`professional-timezone-${mode}`}
-                        type="text"
                         required
                         disabled={effectiveDisabled}
                         value={timezone}
                         onChange={(event) => setTimezone(event.target.value)}
                         className="w-full p-2 border rounded-md"
-                        placeholder="America/New_York"
-                    />
+                    >
+                        {SUPPORTED_TIMEZONES.map((timezoneOption) => (
+                            <option key={timezoneOption} value={timezoneOption}>
+                                {timezoneOption}
+                            </option>
+                        ))}
+                    </select>
                 </div>
 
                 <ProfessionalProfileFields

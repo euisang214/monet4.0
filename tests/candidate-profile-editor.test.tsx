@@ -48,6 +48,9 @@ describe("CandidateProfileEditor", () => {
         expect(html).toContain("Add experience");
         expect(html).toContain("Add activity");
         expect(html).toContain("Add education");
+        expect(html).toContain('id="candidate-timezone"');
+        expect(html).toContain("<select");
+        expect(html).toContain('value="UTC"');
         expect(html).toContain("Save changes");
     });
 });

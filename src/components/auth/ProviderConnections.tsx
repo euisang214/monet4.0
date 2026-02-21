@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 import { usePathname } from "next/navigation";
+import { OAuthProviderIcon } from "@/components/auth/OAuthProviderIcon";
 
 type Provider = "google" | "linkedin";
 
@@ -120,32 +121,39 @@ export function ProviderConnections() {
                                 key={provider}
                                 className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 p-4"
                             >
-                                <div>
-                                    <p className="font-medium text-gray-900">{providerLabels[provider]}</p>
-                                    <p className="text-sm text-gray-500">
-                                        {connected ? "Connected" : "Not connected"}
-                                    </p>
+                                <div className="flex items-center gap-3">
+                                    <div className="rounded-md border border-gray-200 bg-white p-2">
+                                        <OAuthProviderIcon provider={provider} className="h-5 w-5" />
+                                    </div>
+                                    <div>
+                                        <p className="font-medium text-gray-900">{providerLabels[provider]}</p>
+                                        <p className="text-sm text-gray-500">
+                                            {connected ? "Connected" : "Not connected"}
+                                        </p>
+                                    </div>
                                 </div>
 
-                                {connected ? (
-                                    <button
-                                        type="button"
-                                        disabled={isBusy || !canDisconnect}
-                                        onClick={() => void disconnectProvider(provider)}
-                                        className="rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-200 disabled:opacity-50"
-                                    >
-                                        {isBusy ? "Disconnecting..." : "Disconnect"}
-                                    </button>
-                                ) : (
-                                    <button
-                                        type="button"
-                                        disabled={isBusy}
-                                        onClick={() => void connectProvider(provider)}
-                                        className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
-                                    >
-                                        {isBusy ? "Connecting..." : "Connect"}
-                                    </button>
-                                )}
+                                <div className="flex-shrink-0">
+                                    {connected ? (
+                                        <button
+                                            type="button"
+                                            disabled={isBusy || !canDisconnect}
+                                            onClick={() => void disconnectProvider(provider)}
+                                            className="rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-200 disabled:opacity-50"
+                                        >
+                                            {isBusy ? "Disconnecting..." : "Disconnect"}
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            disabled={isBusy}
+                                            onClick={() => void connectProvider(provider)}
+                                            className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+                                        >
+                                            {isBusy ? "Connecting..." : "Connect"}
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         );
                     })}

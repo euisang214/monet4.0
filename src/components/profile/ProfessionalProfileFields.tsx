@@ -1,5 +1,7 @@
 "use client";
 
+import { AutoResizeTextarea } from "@/components/profile/shared/AutoResizeTextarea";
+
 type ProfessionalProfileFieldsProps = {
     bio: string;
     onBioChange: (value: string) => void;
@@ -29,13 +31,15 @@ export function ProfessionalProfileFields({
                 <label htmlFor="professional-bio" className="block text-sm font-medium mb-1">
                     Bio
                 </label>
-                <textarea
+                <AutoResizeTextarea
                     id="professional-bio"
                     required
                     disabled={disabled}
                     value={bio}
                     onChange={(event) => onBioChange(event.target.value)}
-                    className="w-full p-2 border rounded-md h-28"
+                    className="w-full p-2 border rounded-md"
+                    rows={5}
+                    style={{ minHeight: "7rem" }}
                 />
             </div>
 

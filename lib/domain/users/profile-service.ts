@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { upsertProfessionalProfile } from '@/lib/domain/users/service';
 import { EducationSchema, ExperienceSchema } from '@/lib/types/profile-schemas';
 import { deriveCurrentRoleFromExperiences } from '@/lib/domain/users/current-role';
+import { isSupportedTimezone } from '@/lib/utils/supported-timezones';
 
 export const candidateProfileSchema = z.object({
     interests: z.array(z.string()).optional(),
@@ -16,7 +17,7 @@ export const professionalProfileSchema = z
         price: z.coerce.number().min(0, 'Price must be non-negative'),
         corporateEmail: z.string().email('Corporate email is invalid'),
         interests: z.array(z.string().trim().min(1)).min(1, 'At least one interest is required'),
-        timezone: z.string().trim().min(1, 'Timezone is required'),
+        timezone: z.string().trim().refine(isSupportedTimezone, 'Select a valid timezone'),
         experience: z.array(ExperienceSchema).min(1, 'At least one experience entry is required'),
         activities: z.array(ExperienceSchema).min(1, 'At least one activity entry is required'),
         education: z.array(EducationSchema).min(1, 'At least one education entry is required'),
