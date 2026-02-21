@@ -2,34 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Role } from "@prisma/client";
 
 const authMock = vi.hoisted(() => vi.fn());
-const txMocks = vi.hoisted(() => ({
-    candidateProfile: {
-        upsert: vi.fn(),
-    },
-    professionalProfile: {
-        upsert: vi.fn(),
-    },
-    experience: {
-        deleteMany: vi.fn(),
-        createMany: vi.fn(),
-    },
-    education: {
-        deleteMany: vi.fn(),
-        createMany: vi.fn(),
-    },
-    user: {
-        update: vi.fn(),
-    },
-}));
-
+const upsertCandidateProfileFromPayloadMock = vi.hoisted(() => vi.fn());
+const upsertProfessionalProfileFromPayloadMock = vi.hoisted(() => vi.fn());
+const getProfessionalStripeStatusMock = vi.hoisted(() => vi.fn());
 const prismaMock = vi.hoisted(() => ({
-    candidateProfile: {
-        findUnique: vi.fn(),
-    },
     user: {
         findUnique: vi.fn(),
     },
-    $transaction: vi.fn(),
 }));
 
 vi.mock("@/auth", () => ({
@@ -38,6 +17,22 @@ vi.mock("@/auth", () => ({
 
 vi.mock("@/lib/core/db", () => ({
     prisma: prismaMock,
+}));
+
+vi.mock("@/lib/domain/users/profile-upsert-service", async () => {
+    const actual = await vi.importActual<typeof import("@/lib/domain/users/profile-upsert-service")>(
+        "@/lib/domain/users/profile-upsert-service"
+    );
+
+    return {
+        ...actual,
+        upsertCandidateProfileFromPayload: upsertCandidateProfileFromPayloadMock,
+        upsertProfessionalProfileFromPayload: upsertProfessionalProfileFromPayloadMock,
+    };
+});
+
+vi.mock("@/lib/domain/users/professional-stripe-status", () => ({
+    getProfessionalStripeStatus: getProfessionalStripeStatusMock,
 }));
 
 import { POST } from "@/app/api/auth/onboarding/route";
@@ -50,401 +45,207 @@ function makeRequest(body: unknown) {
     });
 }
 
+const validCandidatePayload = {
+    timezone: "America/New_York",
+    interests: ["Interview Prep"],
+    experience: [
+        {
+            company: "Acme Corp",
+            title: "Analyst",
+            startDate: "2023-01-01",
+            endDate: "2024-01-01",
+            isCurrent: false,
+        },
+    ],
+    activities: [
+        {
+            company: "Mentorship Club",
+            title: "Mentor",
+            startDate: "2022-01-01",
+            isCurrent: true,
+        },
+    ],
+    education: [
+        {
+            school: "State University",
+            degree: "BS",
+            fieldOfStudy: "Economics",
+            startDate: "2018-09-01",
+            endDate: "2022-05-01",
+            isCurrent: false,
+        },
+    ],
+};
+
+const validProfessionalPayload = {
+    bio: "Guides candidates through case prep.",
+    price: 200,
+    corporateEmail: "pro@monet.com",
+    timezone: "America/New_York",
+    interests: ["Mentorship"],
+    experience: [
+        {
+            company: "Monet",
+            title: "Principal",
+            startDate: "2022-01-01",
+            isCurrent: true,
+        },
+    ],
+    activities: [
+        {
+            company: "Association",
+            title: "Speaker",
+            startDate: "2021-05-01",
+            isCurrent: true,
+        },
+    ],
+    education: [
+        {
+            school: "University A",
+            degree: "BS",
+            fieldOfStudy: "Finance",
+            startDate: "2012-09-01",
+            endDate: "2016-05-01",
+            isCurrent: false,
+        },
+    ],
+};
+
 describe("POST /api/auth/onboarding", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        prismaMock.$transaction.mockImplementation(async (callback: (tx: typeof txMocks) => Promise<unknown>) =>
-            callback(txMocks)
-        );
         prismaMock.user.findUnique.mockResolvedValue({
             onboardingRequired: true,
             onboardingCompleted: true,
         });
     });
 
-    it("allows candidates to complete onboarding using an existing resume on file", async () => {
+    it("completes candidate onboarding using shared upsert service", async () => {
         authMock.mockResolvedValue({
             user: { id: "candidate_1", role: Role.CANDIDATE },
         });
-        prismaMock.candidateProfile.findUnique.mockResolvedValue({
-            resumeUrl: "https://example.com/existing-resume.pdf",
-        });
 
-        const response = await POST(
-            makeRequest({
-                timezone: "America/New_York",
-                interests: ["Interview Prep"],
-                experience: [
-                    {
-                        company: "Acme Corp",
-                        title: "Analyst",
-                        startDate: "2023-01-01",
-                        endDate: "2024-01-01",
-                        isCurrent: false,
-                    },
-                ],
-                activities: [
-                    {
-                        company: "Mentorship Club",
-                        title: "Mentor",
-                        startDate: "2022-01-01",
-                        isCurrent: true,
-                    },
-                ],
-                education: [
-                    {
-                        school: "State University",
-                        degree: "BS",
-                        fieldOfStudy: "Economics",
-                        startDate: "2018-09-01",
-                        endDate: "2022-05-01",
-                        isCurrent: false,
-                    },
-                ],
-            })
-        );
-
-        expect(response.status).toBe(200);
-        expect(prismaMock.candidateProfile.findUnique).toHaveBeenCalledWith({
-            where: { userId: "candidate_1" },
-            select: { resumeUrl: true },
-        });
-        expect(txMocks.candidateProfile.upsert).toHaveBeenCalledWith(
-            expect.objectContaining({
-                update: expect.objectContaining({
-                    resumeUrl: "https://example.com/existing-resume.pdf",
-                }),
-            })
-        );
-        expect(txMocks.experience.createMany).toHaveBeenCalledTimes(2);
-        expect(txMocks.experience.createMany).toHaveBeenNthCalledWith(
-            1,
-            expect.objectContaining({
-                data: [
-                    expect.objectContaining({
-                        candidateId: "candidate_1",
-                        type: "EXPERIENCE",
-                    }),
-                ],
-            })
-        );
-        expect(txMocks.experience.createMany).toHaveBeenNthCalledWith(
-            2,
-            expect.objectContaining({
-                data: [
-                    expect.objectContaining({
-                        candidateActivityId: "candidate_1",
-                        type: "ACTIVITY",
-                    }),
-                ],
-            })
-        );
-        expect(txMocks.education.createMany).toHaveBeenCalledTimes(1);
-    });
-
-    it("rejects candidate onboarding when no resume exists in payload or profile", async () => {
-        authMock.mockResolvedValue({
-            user: { id: "candidate_2", role: Role.CANDIDATE },
-        });
-        prismaMock.candidateProfile.findUnique.mockResolvedValue({
-            resumeUrl: null,
-        });
-
-        const response = await POST(
-            makeRequest({
-                timezone: "America/New_York",
-                interests: ["Interview Prep"],
-                experience: [
-                    {
-                        company: "Acme Corp",
-                        title: "Analyst",
-                        startDate: "2023-01-01",
-                        isCurrent: true,
-                    },
-                ],
-                activities: [
-                    {
-                        company: "Mentorship Club",
-                        title: "Mentor",
-                        startDate: "2022-01-01",
-                        isCurrent: true,
-                    },
-                ],
-                education: [
-                    {
-                        school: "State University",
-                        degree: "BS",
-                        fieldOfStudy: "Economics",
-                        startDate: "2018-09-01",
-                        isCurrent: true,
-                    },
-                ],
-            })
-        );
-
-        expect(response.status).toBe(400);
-        const body = await response.json();
-        expect(body.error).toBe("validation_error");
-        expect(body.details?.fieldErrors?.resumeUrl?.[0]).toContain("Resume is required");
-        expect(prismaMock.$transaction).not.toHaveBeenCalled();
-    });
-
-    it("requires at least one experience, activity, and education entry", async () => {
-        authMock.mockResolvedValue({
-            user: { id: "candidate_3", role: Role.CANDIDATE },
-        });
-        prismaMock.candidateProfile.findUnique.mockResolvedValue({
+        upsertCandidateProfileFromPayloadMock.mockResolvedValue({
+            success: true,
             resumeUrl: "https://example.com/resume.pdf",
         });
 
-        const response = await POST(
-            makeRequest({
-                timezone: "America/New_York",
-                resumeUrl: "https://example.com/resume.pdf",
-                interests: ["Interview Prep"],
-                experience: [],
-                activities: [],
-                education: [],
-            })
-        );
+        const response = await POST(makeRequest(validCandidatePayload));
 
-        expect(response.status).toBe(400);
-        expect(prismaMock.$transaction).not.toHaveBeenCalled();
+        expect(response.status).toBe(200);
+        expect(upsertCandidateProfileFromPayloadMock).toHaveBeenCalledWith(
+            "candidate_1",
+            expect.objectContaining({ timezone: "America/New_York" }),
+            { markOnboardingCompleted: true }
+        );
     });
 
-    it("persists multiple professional experiences, activities, and education entries", async () => {
+    it("rejects candidate onboarding when no resume is available", async () => {
+        authMock.mockResolvedValue({
+            user: { id: "candidate_2", role: Role.CANDIDATE },
+        });
+
+        upsertCandidateProfileFromPayloadMock.mockResolvedValue({
+            success: false,
+            error: "resume_required",
+        });
+
+        const response = await POST(makeRequest(validCandidatePayload));
+        const body = await response.json();
+
+        expect(response.status).toBe(400);
+        expect(body.error).toBe("validation_error");
+        expect(body.details?.fieldErrors?.resumeUrl?.[0]).toContain("Resume is required");
+    });
+
+    it("rejects professional onboarding when Stripe payouts are not ready", async () => {
         authMock.mockResolvedValue({
             user: { id: "professional_1", role: Role.PROFESSIONAL },
         });
+        prismaMock.user.findUnique.mockResolvedValueOnce({
+            onboardingCompleted: false,
+        });
 
-        const response = await POST(
-            makeRequest({
-                bio: "Guides candidates through case prep.",
-                price: 200,
-                corporateEmail: "pro@monet.com",
-                timezone: "America/New_York",
-                interests: ["Mentorship", "Interview Coaching"],
-                experience: [
-                    {
-                        company: "Monet",
-                        title: "Principal",
-                        startDate: "2022-01-01",
-                        isCurrent: true,
-                    },
-                    {
-                        company: "Prev Co",
-                        title: "Manager",
-                        startDate: "2020-01-01",
-                        endDate: "2021-12-31",
-                        isCurrent: false,
-                    },
-                ],
-                activities: [
-                    {
-                        company: "Association",
-                        title: "Speaker",
-                        startDate: "2021-05-01",
-                        isCurrent: true,
-                    },
-                    {
-                        company: "Volunteer Group",
-                        title: "Coach",
-                        startDate: "2020-05-01",
-                        endDate: "2021-04-01",
-                        isCurrent: false,
-                    },
-                ],
-                education: [
-                    {
-                        school: "University A",
-                        degree: "BS",
-                        fieldOfStudy: "Finance",
-                        startDate: "2012-09-01",
-                        endDate: "2016-05-01",
-                        isCurrent: false,
-                    },
-                    {
-                        school: "University B",
-                        degree: "MBA",
-                        fieldOfStudy: "Management",
-                        startDate: "2018-09-01",
-                        endDate: "2020-05-01",
-                        isCurrent: false,
-                    },
-                ],
-            })
-        );
+        getProfessionalStripeStatusMock.mockResolvedValue({
+            accountId: "acct_123",
+            payoutsEnabled: false,
+            chargesEnabled: true,
+            detailsSubmitted: true,
+            isPayoutReady: false,
+        });
 
-        expect(response.status).toBe(200);
-        expect(txMocks.professionalProfile.upsert).toHaveBeenCalledWith(
-            expect.objectContaining({
-                update: expect.objectContaining({
-                    bio: "Guides candidates through case prep.",
-                    interests: ["Mentorship", "Interview Coaching"],
-                }),
-            })
-        );
-        expect(txMocks.experience.createMany).toHaveBeenCalledTimes(2);
-        expect(txMocks.experience.createMany).toHaveBeenNthCalledWith(
-            1,
-            expect.objectContaining({
-                data: expect.arrayContaining([expect.objectContaining({ professionalId: "professional_1" })]),
-            })
-        );
-        expect(txMocks.experience.createMany).toHaveBeenNthCalledWith(
-            2,
-            expect.objectContaining({
-                data: expect.arrayContaining([expect.objectContaining({ professionalActivityId: "professional_1" })]),
-            })
-        );
-        expect(txMocks.education.createMany).toHaveBeenCalledWith(
-            expect.objectContaining({
-                data: expect.arrayContaining([expect.objectContaining({ professionalId: "professional_1" })]),
-            })
-        );
+        const response = await POST(makeRequest(validProfessionalPayload));
+        const body = await response.json();
+
+        expect(response.status).toBe(400);
+        expect(body.error).toBe("stripe_payout_not_ready");
+        expect(upsertProfessionalProfileFromPayloadMock).not.toHaveBeenCalled();
     });
 
-    it("rejects professional onboarding when no current experience is selected", async () => {
+    it("allows professional onboarding when payouts are enabled even if charges are disabled", async () => {
         authMock.mockResolvedValue({
             user: { id: "professional_2", role: Role.PROFESSIONAL },
         });
+        prismaMock.user.findUnique.mockResolvedValueOnce({
+            onboardingCompleted: false,
+        });
 
-        const response = await POST(
-            makeRequest({
-                bio: "Guides candidates through case prep.",
-                price: 200,
-                corporateEmail: "pro@monet.com",
-                timezone: "America/New_York",
-                interests: ["Mentorship"],
-                experience: [
-                    {
-                        company: "Monet",
-                        title: "Principal",
-                        startDate: "2022-01-01",
-                        isCurrent: false,
-                        endDate: "2023-01-01",
-                    },
-                ],
-                activities: [
-                    {
-                        company: "Association",
-                        title: "Speaker",
-                        startDate: "2021-05-01",
-                        isCurrent: true,
-                    },
-                ],
-                education: [
-                    {
-                        school: "University A",
-                        degree: "BS",
-                        fieldOfStudy: "Finance",
-                        startDate: "2012-09-01",
-                        endDate: "2016-05-01",
-                        isCurrent: false,
-                    },
-                ],
-            })
+        getProfessionalStripeStatusMock.mockResolvedValue({
+            accountId: "acct_123",
+            payoutsEnabled: true,
+            chargesEnabled: false,
+            detailsSubmitted: false,
+            isPayoutReady: true,
+        });
+
+        upsertProfessionalProfileFromPayloadMock.mockResolvedValue(undefined);
+
+        const response = await POST(makeRequest(validProfessionalPayload));
+
+        expect(response.status).toBe(200);
+        expect(upsertProfessionalProfileFromPayloadMock).toHaveBeenCalledWith(
+            "professional_2",
+            expect.objectContaining({ bio: "Guides candidates through case prep." }),
+            { markOnboardingCompleted: true }
         );
-
-        expect(response.status).toBe(400);
-        expect(prismaMock.$transaction).not.toHaveBeenCalled();
     });
 
-    it("rejects professional onboarding when multiple current experiences are selected", async () => {
+    it("does not enforce Stripe payout gate for already completed professionals", async () => {
+        authMock.mockResolvedValue({
+            user: { id: "professional_4", role: Role.PROFESSIONAL },
+        });
+        prismaMock.user.findUnique.mockResolvedValueOnce({
+            onboardingCompleted: true,
+        });
+
+        upsertProfessionalProfileFromPayloadMock.mockResolvedValue(undefined);
+
+        const response = await POST(makeRequest(validProfessionalPayload));
+
+        expect(response.status).toBe(200);
+        expect(getProfessionalStripeStatusMock).not.toHaveBeenCalled();
+        expect(upsertProfessionalProfileFromPayloadMock).toHaveBeenCalledWith(
+            "professional_4",
+            expect.objectContaining({ bio: "Guides candidates through case prep." }),
+            { markOnboardingCompleted: true }
+        );
+    });
+
+    it("rejects professional onboarding payloads that include legacy employer/title fields", async () => {
         authMock.mockResolvedValue({
             user: { id: "professional_3", role: Role.PROFESSIONAL },
         });
 
         const response = await POST(
             makeRequest({
-                bio: "Guides candidates through case prep.",
-                price: 200,
-                corporateEmail: "pro@monet.com",
-                timezone: "America/New_York",
-                interests: ["Mentorship"],
-                experience: [
-                    {
-                        company: "Monet",
-                        title: "Principal",
-                        startDate: "2022-01-01",
-                        isCurrent: true,
-                    },
-                    {
-                        company: "Prev Co",
-                        title: "Manager",
-                        startDate: "2020-01-01",
-                        isCurrent: true,
-                    },
-                ],
-                activities: [
-                    {
-                        company: "Association",
-                        title: "Speaker",
-                        startDate: "2021-05-01",
-                        isCurrent: true,
-                    },
-                ],
-                education: [
-                    {
-                        school: "University A",
-                        degree: "BS",
-                        fieldOfStudy: "Finance",
-                        startDate: "2012-09-01",
-                        endDate: "2016-05-01",
-                        isCurrent: false,
-                    },
-                ],
-            })
-        );
-
-        expect(response.status).toBe(400);
-        expect(prismaMock.$transaction).not.toHaveBeenCalled();
-    });
-
-    it("rejects professional onboarding payloads that include legacy employer/title fields", async () => {
-        authMock.mockResolvedValue({
-            user: { id: "professional_4", role: Role.PROFESSIONAL },
-        });
-
-        const response = await POST(
-            makeRequest({
+                ...validProfessionalPayload,
                 employer: "Legacy Corp",
                 title: "Legacy Title",
-                bio: "Guides candidates through case prep.",
-                price: 200,
-                corporateEmail: "pro@monet.com",
-                timezone: "America/New_York",
-                interests: ["Mentorship"],
-                experience: [
-                    {
-                        company: "Monet",
-                        title: "Principal",
-                        startDate: "2022-01-01",
-                        isCurrent: true,
-                    },
-                ],
-                activities: [
-                    {
-                        company: "Association",
-                        title: "Speaker",
-                        startDate: "2021-05-01",
-                        isCurrent: true,
-                    },
-                ],
-                education: [
-                    {
-                        school: "University A",
-                        degree: "BS",
-                        fieldOfStudy: "Finance",
-                        startDate: "2012-09-01",
-                        endDate: "2016-05-01",
-                        isCurrent: false,
-                    },
-                ],
             })
         );
 
         expect(response.status).toBe(400);
-        expect(prismaMock.$transaction).not.toHaveBeenCalled();
+        expect(upsertProfessionalProfileFromPayloadMock).not.toHaveBeenCalled();
+        expect(getProfessionalStripeStatusMock).not.toHaveBeenCalled();
     });
 });

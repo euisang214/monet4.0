@@ -1,37 +1,16 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/primitives/Button";
 import { useNotification } from "@/components/ui/hooks/useNotification";
 import { NotificationBanner } from "@/components/ui/composites/NotificationBanner";
 import { ProviderConnections } from "@/components/auth/ProviderConnections";
-import { ProfessionalProfileFields } from "@/components/profile/ProfessionalProfileFields";
-import { TimelineSectionsEditor } from "@/components/profile/TimelineSectionsEditor";
 import {
-    EducationEntry,
-    ensureExactlyOneCurrentExperience,
-    mapEducationEntries,
-    mapTimelineEntries,
-    normalizeCommaSeparated,
-    serializeEducationEntries,
-    serializeExperienceEntries,
-    TimelineEntry,
-} from "@/components/profile/timeline-form";
-
-interface ProfessionalProfileData {
-    price?: number;
-    employer?: string | null;
-    title?: string | null;
-    bio?: string;
-    corporateEmail?: string;
-    timezone?: string;
-    verifiedAt?: string | null;
-    interests?: string[];
-    experience?: TimelineEntry[];
-    activities?: TimelineEntry[];
-    education?: EducationEntry[];
-}
+    ProfessionalProfileEditor,
+    ProfessionalProfileEditorInitialData,
+    ProfessionalProfileSubmitPayload,
+} from "@/components/profile/ProfessionalProfileEditor";
 
 interface StripeAccountData {
     accountId: string | null;
@@ -47,129 +26,90 @@ function ProfessionalSettingsPageContent() {
     const successParam = searchParams.get("success");
     const errorParam = searchParams.get("error");
 
-    const [profile, setProfile] = useState<ProfessionalProfileData | null>(null);
+    const [profile, setProfile] = useState<ProfessionalProfileEditorInitialData | null>(null);
     const [stripeAccount, setStripeAccount] = useState<StripeAccountData | null>(null);
     const [loading, setLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false);
-
-    const [price, setPrice] = useState("");
-    const [bio, setBio] = useState("");
-    const [corporateEmail, setCorporateEmail] = useState("");
-    const [timezone, setTimezone] = useState("");
-    const [professionalInterests, setProfessionalInterests] = useState("");
-
-    const [experienceEntries, setExperienceEntries] = useState(() => mapTimelineEntries(undefined, { enforceSingleCurrent: true }));
-    const [activityEntries, setActivityEntries] = useState(() => mapTimelineEntries(undefined));
-    const [educationEntries, setEducationEntries] = useState(() => mapEducationEntries(undefined));
 
     const [verificationSent, setVerificationSent] = useState(false);
     const [verificationCode, setVerificationCode] = useState("");
     const [verifying, setVerifying] = useState(false);
+    const [corporateEmail, setCorporateEmail] = useState("");
     const { notification, notify, clear } = useNotification();
 
-    useEffect(() => {
-        if (successParam) {
-            notify("success", "Stripe account connected successfully.");
-            router.replace("/professional/settings");
-        }
-        if (errorParam) {
-            notify("error", "Stripe connection failed. Please try again.");
-            router.replace("/professional/settings");
-        }
-    }, [successParam, errorParam, router, notify]);
-
-    useEffect(() => {
-        Promise.all([
+    const loadData = useCallback(async () => {
+        const [settingsPayload, stripePayload] = await Promise.all([
             fetch("/api/shared/settings").then((res) => res.json()),
             fetch("/api/shared/stripe/account").then((res) => res.json()),
-        ])
-            .then(([settingsPayload, stripePayload]) => {
-                const data = settingsPayload?.data as ProfessionalProfileData | null | undefined;
-                if (data) {
-                    setProfile(data);
-                    setPrice(data.price?.toString() || "0");
-                    setBio(data.bio || "");
-                    setCorporateEmail(data.corporateEmail || "");
-                    setTimezone(data.timezone || "UTC");
-                    setProfessionalInterests(data.interests?.join(", ") || "");
-                    setExperienceEntries(mapTimelineEntries(data.experience, { enforceSingleCurrent: true }));
-                    setActivityEntries(mapTimelineEntries(data.activities));
-                    setEducationEntries(mapEducationEntries(data.education));
-                }
+        ]);
 
-                if (typeof stripePayload?.accountId !== "undefined") {
-                    setStripeAccount(stripePayload as StripeAccountData);
-                }
-            })
+        const settingsData = settingsPayload?.data as ProfessionalProfileEditorInitialData | null | undefined;
+        if (settingsData) {
+            setProfile(settingsData);
+            setCorporateEmail(settingsData.corporateEmail || "");
+        }
+
+        if (typeof stripePayload?.accountId !== "undefined") {
+            setStripeAccount(stripePayload as StripeAccountData);
+        }
+    }, []);
+
+    useEffect(() => {
+        loadData()
             .catch(() => {
                 notify("error", "Could not load professional settings.");
             })
             .finally(() => setLoading(false));
-    }, [notify]);
+    }, [loadData, notify]);
 
-    const handleSave = async (e: React.FormEvent) => {
-        e.preventDefault();
+    useEffect(() => {
+        if (!successParam && !errorParam) return;
+
+        if (successParam) {
+            notify("success", "Stripe account connected successfully.");
+            void loadData();
+        }
+
+        if (errorParam) {
+            notify("error", "Stripe connection failed. Please try again.");
+        }
+
+        router.replace("/professional/settings");
+    }, [successParam, errorParam, router, notify, loadData]);
+
+    const handleProfileSave = async (payload: ProfessionalProfileSubmitPayload) => {
         clear();
 
-        const parsedPrice = Number.parseFloat(price || "0");
-        if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
-            notify("error", "Enter a valid hourly rate greater than zero.");
-            return;
-        }
+        const response = await fetch("/api/shared/settings", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
 
-        const interests = normalizeCommaSeparated(professionalInterests);
-        if (interests.length === 0) {
-            notify("error", "Add at least one interest.");
-            return;
-        }
+        const responsePayload = (await response.json().catch(() => null)) as
+            | { error?: string; details?: { fieldErrors?: Record<string, string[]> } }
+            | null;
 
-        if (!bio.trim()) {
-            notify("error", "Bio is required.");
-            return;
-        }
-
-        if (!ensureExactlyOneCurrentExperience(experienceEntries)) {
-            notify("error", "Select exactly one current role in experience.");
-            return;
-        }
-
-        setIsSaving(true);
-
-        try {
-            const response = await fetch("/api/shared/settings", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    bio: bio.trim(),
-                    price: parsedPrice,
-                    corporateEmail: corporateEmail.trim(),
-                    timezone: timezone.trim() || "UTC",
-                    interests,
-                    experience: serializeExperienceEntries(experienceEntries, "Experience"),
-                    activities: serializeExperienceEntries(activityEntries, "Activity"),
-                    education: serializeEducationEntries(educationEntries),
-                }),
-            });
-
-            if (!response.ok) {
-                throw new Error("Could not save professional settings");
+        if (!response.ok) {
+            if (responsePayload?.error === "validation_error") {
+                throw new Error("Review required professional fields and try again.");
             }
 
-            const refreshed = await fetch("/api/shared/settings").then((res) => res.json());
-            setProfile((refreshed?.data as ProfessionalProfileData) || null);
-            notify("success", "Profile settings saved.");
-        } catch (error) {
-            console.error(error);
-            notify("error", "Failed to save profile settings.");
-        } finally {
-            setIsSaving(false);
+            throw new Error(responsePayload?.error || "Could not save professional settings");
         }
+
+        await loadData();
+        setCorporateEmail(payload.corporateEmail);
+        notify("success", "Profile settings saved.");
     };
 
     const handleConnectStripe = async () => {
         clear();
         try {
-            const res = await fetch("/api/professional/onboarding", { method: "POST" });
+            const res = await fetch("/api/professional/onboarding", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ context: "settings" }),
+            });
             const data = await res.json();
             if (data.data?.url) {
                 window.location.href = data.data.url;
@@ -274,53 +214,15 @@ function ProfessionalSettingsPageContent() {
                     </Button>
                 </section>
 
-                <form onSubmit={handleSave} className="space-y-8 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                    <section>
-                        <h2 className="text-xl font-semibold text-gray-900 mb-4">Profile Details</h2>
-                        {profile?.title || profile?.employer ? (
-                            <p className="text-sm text-gray-600 mb-4">
-                                Current role: {profile.title || "Unknown title"}
-                                {profile.employer ? ` at ${profile.employer}` : ""}
-                            </p>
-                        ) : null}
-
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium mb-1" htmlFor="timezone">
-                                Timezone
-                            </label>
-                            <input
-                                id="timezone"
-                                type="text"
-                                value={timezone}
-                                onChange={(e) => setTimezone(e.target.value)}
-                                className="w-full p-2 border rounded-md"
-                                placeholder="America/New_York"
-                                disabled={isSaving}
-                            />
-                        </div>
-
-                        <ProfessionalProfileFields
-                            bio={bio}
-                            onBioChange={setBio}
-                            price={price}
-                            onPriceChange={setPrice}
-                            corporateEmail={corporateEmail}
-                            onCorporateEmailChange={setCorporateEmail}
-                            interests={professionalInterests}
-                            onInterestsChange={setProfessionalInterests}
-                            disabled={isSaving}
-                        />
-                    </section>
-
-                    <TimelineSectionsEditor
-                        experienceEntries={experienceEntries}
-                        setExperienceEntries={setExperienceEntries}
-                        activityEntries={activityEntries}
-                        setActivityEntries={setActivityEntries}
-                        educationEntries={educationEntries}
-                        setEducationEntries={setEducationEntries}
-                        enforceSingleCurrentExperience
-                        disabled={isSaving}
+                <section className="space-y-8 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                    <h2 className="text-xl font-semibold text-gray-900">Profile Details</h2>
+                    <ProfessionalProfileEditor
+                        mode="settings"
+                        initialData={profile || undefined}
+                        submitLabel="Save settings"
+                        submittingLabel="Saving..."
+                        onSubmit={handleProfileSave}
+                        onCorporateEmailDraftChange={setCorporateEmail}
                     />
 
                     <section className="pt-6 border-t">
@@ -334,12 +236,11 @@ function ProfessionalSettingsPageContent() {
                                     id="corporate-email-verification"
                                     type="email"
                                     value={corporateEmail}
-                                    onChange={(e) => setCorporateEmail(e.target.value)}
+                                    onChange={(event) => setCorporateEmail(event.target.value)}
                                     className="w-full p-2 border rounded-md"
-                                    disabled={isSaving}
                                 />
                             </div>
-                            <Button type="button" onClick={handleVerifyEmail} disabled={verificationSent || isSaving}>
+                            <Button type="button" onClick={handleVerifyEmail} disabled={verificationSent}>
                                 {verificationSent ? "Sent" : "Send Code"}
                             </Button>
                         </div>
@@ -358,15 +259,14 @@ function ProfessionalSettingsPageContent() {
                                         id="verification-code"
                                         type="text"
                                         value={verificationCode}
-                                        onChange={(e) => setVerificationCode(e.target.value)}
+                                        onChange={(event) => setVerificationCode(event.target.value)}
                                         className="flex-1 p-2 border rounded-md"
                                         placeholder="XXXXXX"
-                                        disabled={isSaving}
                                     />
                                     <Button
                                         type="button"
                                         onClick={handleConfirmVerification}
-                                        disabled={verifying || !verificationCode || isSaving}
+                                        disabled={verifying || !verificationCode}
                                     >
                                         {verifying ? "Verifying..." : "Confirm"}
                                     </Button>
@@ -376,13 +276,7 @@ function ProfessionalSettingsPageContent() {
                             <p className="text-sm text-gray-500 mt-3">Email is not verified yet.</p>
                         )}
                     </section>
-
-                    <div className="pt-6 border-t flex justify-end">
-                        <Button type="submit" disabled={isSaving}>
-                            {isSaving ? "Saving..." : "Save settings"}
-                        </Button>
-                    </div>
-                </form>
+                </section>
 
                 <div className="mt-8">
                     <ProviderConnections />

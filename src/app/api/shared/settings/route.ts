@@ -1,88 +1,89 @@
-import { auth } from "@/auth"
-import { Role } from "@prisma/client"
-import { prisma } from "@/lib/core/db"
+import { auth } from "@/auth";
+import { Role } from "@prisma/client";
+import { prisma } from "@/lib/core/db";
+import { ProfileService } from "@/lib/domain/users/profile-service";
 import {
-    ProfileService,
-    candidateProfileSchema,
-    professionalProfileSchema
-} from "@/lib/domain/users/profile-service"
-import { createResumeUrlSigner } from "@/lib/integrations/resume-storage"
+    buildResumeRequiredValidationError,
+    candidateProfilePayloadSchema,
+    getCandidateProfileForSettings,
+    professionalProfilePayloadSchema,
+    upsertCandidateProfileFromPayload,
+    upsertProfessionalProfileFromPayload,
+} from "@/lib/domain/users/profile-upsert-service";
 
 export async function PUT(request: Request) {
-    const session = await auth()
+    const session = await auth();
     if (!session?.user) {
-        return Response.json({ error: "unauthorized" }, { status: 401 })
+        return Response.json({ error: "unauthorized" }, { status: 401 });
     }
 
     try {
-        const body = await request.json()
-        const role = session.user.role as Role
-        const timezone =
-            typeof body?.timezone === "string" && body.timezone.trim().length > 0
-                ? body.timezone.trim()
-                : undefined
+        const body = await request.json();
+        const role = session.user.role as Role;
 
         if (role === Role.CANDIDATE) {
-            const parsed = candidateProfileSchema.safeParse(body)
-            if (!parsed.success) return Response.json({ error: "validation_error" }, { status: 400 })
+            const parsed = candidateProfilePayloadSchema.safeParse(body);
+            if (!parsed.success) {
+                return Response.json({ error: "validation_error", details: parsed.error.flatten() }, { status: 400 });
+            }
 
-            await ProfileService.updateCandidateProfile(session.user.id, parsed.data)
+            const result = await upsertCandidateProfileFromPayload(session.user.id, parsed.data);
+            if (!result.success && result.error === "resume_required") {
+                return Response.json(buildResumeRequiredValidationError(), { status: 400 });
+            }
         } else if (role === Role.PROFESSIONAL) {
-            const parsed = professionalProfileSchema.safeParse(body)
-            if (!parsed.success) return Response.json({ error: "validation_error" }, { status: 400 })
+            const parsed = professionalProfilePayloadSchema.safeParse(body);
+            if (!parsed.success) {
+                return Response.json({ error: "validation_error", details: parsed.error.flatten() }, { status: 400 });
+            }
 
-            await ProfileService.updateProfessionalProfile(session.user.id, parsed.data)
+            await upsertProfessionalProfileFromPayload(session.user.id, parsed.data);
         }
 
-        if (timezone) {
-            await prisma.user.update({
-                where: { id: session.user.id },
-                data: { timezone },
-            })
-        }
-
-        return Response.json({ data: { success: true } })
+        return Response.json({ data: { success: true } });
     } catch (error) {
-        console.error("Error updating settings:", error)
-        return Response.json({ error: "internal_error" }, { status: 500 })
+        console.error("Error updating settings:", error);
+        return Response.json({ error: "internal_error" }, { status: 500 });
     }
 }
 
 export async function GET() {
-    const session = await auth()
+    const session = await auth();
     if (!session?.user) {
-        return Response.json({ error: "unauthorized" }, { status: 401 })
+        return Response.json({ error: "unauthorized" }, { status: 401 });
     }
 
     try {
-        const role = session.user.role as Role
-        const [profile, user] = await Promise.all([
-            ProfileService.getProfileByUserId(
-                session.user.id,
-                role
-            ),
-            prisma.user.findUnique({
-                where: { id: session.user.id },
-                select: { timezone: true },
-            }),
-        ])
+        const role = session.user.role as Role;
+        const user = await prisma.user.findUnique({
+            where: { id: session.user.id },
+            select: { timezone: true },
+        });
 
-        if (role === Role.CANDIDATE && profile) {
-            const signResumeUrl = createResumeUrlSigner()
-            const candidateProfile = profile as { resumeUrl?: string | null }
-            candidateProfile.resumeUrl = (await signResumeUrl(candidateProfile.resumeUrl)) ?? null
+        if (role === Role.CANDIDATE) {
+            const profile = await getCandidateProfileForSettings(session.user.id);
+            return Response.json({
+                data: profile
+                    ? {
+                          ...profile,
+                          timezone: user?.timezone || "UTC",
+                      }
+                    : profile,
+            });
         }
 
-        const profileWithTimezone = profile
-            ? {
-                ...profile,
-                timezone: user?.timezone || "UTC",
-            }
-            : profile
+        const profile = await ProfileService.getProfileByUserId(session.user.id, role);
 
-        return Response.json({ data: profileWithTimezone })
+        return Response.json({
+            data: profile
+                ? {
+                      ...profile,
+                      timezone: user?.timezone || "UTC",
+                  }
+                : profile,
+        });
     } catch (error) {
-        console.error("Error fetching settings:", error)
-        return Response.json({ error: "internal_error" }, { status: 500 })
+        console.error("Error fetching settings:", error);
+        return Response.json({ error: "internal_error" }, { status: 500 });
     }
 }

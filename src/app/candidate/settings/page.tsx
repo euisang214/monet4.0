@@ -1,133 +1,91 @@
 "use client";
 
 import Link from "next/link";
-import React, { useEffect, useState } from "react";
-import { Button } from "@/components/ui/primitives/Button";
+import { useCallback, useEffect, useState } from "react";
 import { useNotification } from "@/components/ui/hooks/useNotification";
 import { NotificationBanner } from "@/components/ui/composites/NotificationBanner";
 import { ProviderConnections } from "@/components/auth/ProviderConnections";
-
-interface CandidateProfileData {
-    resumeUrl?: string | null;
-    interests?: string[] | null;
-    timezone?: string | null;
-}
-
-const MAX_RESUME_SIZE_BYTES = 4 * 1024 * 1024;
+import {
+    CandidateProfileEditor,
+    CandidateProfileEditorInitialData,
+    CandidateProfileSubmitPayload,
+} from "@/components/profile/CandidateProfileEditor";
 
 export default function CandidateSettingsPage() {
-    const [profile, setProfile] = useState<CandidateProfileData | null>(null);
+    const [profile, setProfile] = useState<CandidateProfileEditorInitialData | null>(null);
     const [loading, setLoading] = useState(true);
-    const [uploading, setUploading] = useState(false);
-    const [interests, setInterests] = useState("");
-    const [timezone, setTimezone] = useState("");
     const { notification, notify, clear } = useNotification();
 
+    const fetchSettings = useCallback(async () => {
+        const response = await fetch("/api/shared/settings");
+        const payload = (await response.json().catch(() => null)) as
+            | { data?: CandidateProfileEditorInitialData | null }
+            | null;
+
+        if (!response.ok) {
+            throw new Error("Could not load profile settings");
+        }
+
+        return payload?.data || null;
+    }, []);
+
     useEffect(() => {
-        fetch("/api/shared/settings")
-            .then((res) => res.json())
-            .then((data: { data?: CandidateProfileData | null }) => {
-                if (data.data) {
-                    setProfile(data.data);
-                    setInterests(data.data.interests?.join(", ") || "");
-                    setTimezone(data.data.timezone || "UTC");
+        let isMounted = true;
+
+        const initialize = async () => {
+            try {
+                const initialSettings = await fetchSettings();
+                if (isMounted) {
+                    setProfile(initialSettings);
                 }
-            })
-            .catch(() => {
-                notify("error", "Could not load profile settings.");
-            })
-            .finally(() => setLoading(false));
-    }, [notify]);
+            } catch {
+                if (isMounted) {
+                    notify("error", "Could not load profile settings.");
+                }
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
+        };
 
-    const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+        void initialize();
 
-        if (file.size > MAX_RESUME_SIZE_BYTES) {
-            notify("error", "File too large. Max size is 4MB.");
-            return;
-        }
+        return () => {
+            isMounted = false;
+        };
+    }, [fetchSettings, notify]);
 
-        const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
-        if (!isPdf) {
-            notify("error", "Resume must be uploaded as a PDF.");
-            return;
-        }
-
-        setUploading(true);
+    const handleSave = async (payload: CandidateProfileSubmitPayload) => {
         clear();
 
-        try {
-            const formData = new FormData();
-            formData.append("file", file);
+        const response = await fetch("/api/shared/settings", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
 
-            const res = await fetch("/api/candidate/upload/resume", {
-                method: "POST",
-                body: formData,
-            });
+        const responsePayload = (await response.json().catch(() => null)) as
+            | { error?: string; details?: { fieldErrors?: Record<string, string[]> } }
+            | null;
 
-            const payload = (await res.json().catch(() => null)) as
-                | { data?: { storageUrl?: string; viewUrl?: string }; error?: string }
-                | null;
-
-            if (!res.ok) {
-                throw new Error(payload?.error || "Failed to upload resume");
+        if (!response.ok) {
+            if (responsePayload?.error === "validation_error") {
+                throw new Error("Review required candidate fields and try again.");
             }
 
-            const storageUrl = payload?.data?.storageUrl;
-            const viewUrl = payload?.data?.viewUrl;
-
-            if (!storageUrl || !viewUrl) {
-                throw new Error("Failed to prepare resume URL");
-            }
-
-            await fetch("/api/shared/settings", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ resumeUrl: storageUrl }),
-            });
-
-            setProfile((prev) => ({ ...(prev || {}), resumeUrl: viewUrl }));
-            notify("success", "Resume uploaded successfully.");
-        } catch (error) {
-            console.error(error);
-            notify("error", "Resume upload failed.");
-        } finally {
-            setUploading(false);
+            throw new Error(responsePayload?.error || "Could not save candidate settings");
         }
-    };
 
-    const handleSave = async (e: React.FormEvent) => {
-        e.preventDefault();
-        clear();
-
-        try {
-            const response = await fetch("/api/shared/settings", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    interests: interests
-                        .split(",")
-                        .map((value) => value.trim())
-                        .filter(Boolean),
-                    timezone: timezone.trim() || "UTC",
-                }),
-            });
-
-            if (!response.ok) {
-                throw new Error("Could not save candidate settings");
-            }
-            notify("success", "Settings saved.");
-        } catch (error) {
-            console.error(error);
-            notify("error", "Failed to save settings.");
-        }
+        const refreshedSettings = await fetchSettings();
+        setProfile(refreshedSettings);
+        notify("success", "Settings saved.");
     };
 
     if (loading) {
         return (
             <main className="container py-8">
-                <div className="max-w-3xl mx-auto bg-white p-8 rounded-xl border border-gray-200 shadow-sm">
+                <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl border border-gray-200 shadow-sm">
                     <p className="text-sm text-gray-600">Loading candidate settings...</p>
                 </div>
             </main>
@@ -136,104 +94,32 @@ export default function CandidateSettingsPage() {
 
     return (
         <main className="container py-8">
-            <div className="max-w-3xl mx-auto">
+            <div className="max-w-4xl mx-auto">
                 <header className="mb-8">
                     <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Candidate Settings</p>
                     <h1 className="text-3xl font-bold text-gray-900 mb-2">Profile and preferences</h1>
                     <p className="text-gray-600">
-                        Keep your resume and interests up to date so professionals can better tailor sessions.
+                        Keep your profile updated so professionals can tailor sessions to your background and goals.
                     </p>
                 </header>
 
                 <NotificationBanner notification={notification} />
 
-                <section className="mb-8 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-2">Resume</h2>
-                    <p className="text-sm text-gray-600 mb-5">
-                        Upload your latest resume to make your background easy to review before consultations.
-                    </p>
+                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <CandidateProfileEditor
+                        mode="settings"
+                        initialData={profile || undefined}
+                        submitLabel="Save changes"
+                        submittingLabel="Saving..."
+                        onSubmit={handleSave}
+                    />
+                </div>
 
-                    {profile?.resumeUrl ? (
-                        <div className="mb-5 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                            <p className="text-xs uppercase tracking-wide text-gray-500 mb-2">Current resume</p>
-                            <a
-                                href={profile.resumeUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-sm font-medium text-blue-600 hover:underline"
-                            >
-                                Open uploaded resume
-                            </a>
-                        </div>
-                    ) : (
-                        <div className="mb-5 p-4 bg-gray-50 border border-dashed border-gray-300 rounded-lg">
-                            <p className="text-sm text-gray-600">No resume uploaded yet.</p>
-                        </div>
-                    )}
-
-                    <label className="block">
-                        <span className="sr-only">Upload resume</span>
-                        <input
-                            type="file"
-                            accept=".pdf,application/pdf"
-                            onChange={handleResumeUpload}
-                            disabled={uploading}
-                            className="block w-full text-sm text-gray-500
-                                    file:mr-4 file:py-2 file:px-4
-                                    file:rounded-md file:border-0
-                                    file:text-sm file:font-semibold
-                                    file:bg-blue-50 file:text-blue-700
-                                    hover:file:bg-blue-100"
-                        />
-                    </label>
-                    {uploading && <p className="text-sm text-gray-500 mt-2">Uploading resume...</p>}
-                </section>
-
-                <form onSubmit={handleSave} className="space-y-6 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                    <section>
-                        <h2 className="text-xl font-semibold text-gray-900 mb-2">Interests</h2>
-                        <p className="text-sm text-gray-600 mb-4">
-                            Separate topics with commas so we can improve matching and recommendations.
-                        </p>
-                        <label htmlFor="interests" className="block text-sm font-medium mb-1">
-                            Interests
-                        </label>
-                        <input
-                            id="interests"
-                            type="text"
-                            value={interests}
-                            onChange={(e) => setInterests(e.target.value)}
-                            className="w-full p-2 border rounded-md"
-                            placeholder="Technology, Product, Career transitions"
-                        />
-                    </section>
-
-                    <section>
-                        <h2 className="text-xl font-semibold text-gray-900 mb-2">Timezone</h2>
-                        <p className="text-sm text-gray-600 mb-4">
-                            We use this timezone for booking and scheduling displays.
-                        </p>
-                        <label htmlFor="timezone" className="block text-sm font-medium mb-1">
-                            Timezone
-                        </label>
-                        <input
-                            id="timezone"
-                            type="text"
-                            required
-                            value={timezone}
-                            onChange={(e) => setTimezone(e.target.value)}
-                            className="w-full p-2 border rounded-md"
-                            placeholder="America/New_York"
-                        />
-                    </section>
-
-                    <div className="pt-4 border-t flex justify-between items-center">
-                        <Link href="/candidate/availability" className="text-sm font-medium text-gray-600 hover:text-black">
-                            Manage availability
-                        </Link>
-                        <Button type="submit">Save changes</Button>
-                    </div>
-                </form>
+                <div className="mt-4">
+                    <Link href="/candidate/availability" className="text-sm font-medium text-gray-600 hover:text-black">
+                        Manage availability
+                    </Link>
+                </div>
 
                 <div className="mt-8">
                     <ProviderConnections />
