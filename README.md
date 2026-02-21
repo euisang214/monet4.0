@@ -39,7 +39,7 @@ Edit `.env` with your configuration values. At minimum, you need:
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:password@localhost:5432/monet` |
+| `STORAGE_POSTGRES_PRISMA_URL` | PostgreSQL connection string | `postgresql://user:password@localhost:5432/monet` |
 | `REDIS_URL` | Redis connection string (for BullMQ) | `redis://localhost:6379` |
 | `AUTH_SECRET` | NextAuth secret key | Generate with `openssl rand -base64 32` |
 | `STRIPE_SECRET_KEY` | Stripe secret key | `sk_test_...` |
@@ -137,8 +137,8 @@ The queue worker handles background jobs including:
 ## Supabase Setup (Local + Production)
 
 Use this section if you want Supabase for:
-- PostgreSQL (`DATABASE_URL`)
-- Resume storage (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_RESUME_BUCKET`)
+- PostgreSQL (`STORAGE_POSTGRES_PRISMA_URL`)
+- Resume storage (`STORAGE_SUPABASE_URL`, `STORAGE_SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_RESUME_BUCKET`)
 
 ### Local Supabase (No Cloud Usage Costs)
 
@@ -149,15 +149,15 @@ Use this section if you want Supabase for:
    npx supabase status -o env
    ```
 2. Map CLI output into `.env`:
-   - `API_URL` -> `SUPABASE_URL`
-   - `SERVICE_ROLE_KEY` -> `SUPABASE_SERVICE_ROLE_KEY`
-   - `DB_URL` -> `DATABASE_URL` (if you want Prisma to use local Supabase Postgres)
+   - `API_URL` -> `STORAGE_SUPABASE_URL`
+   - `SERVICE_ROLE_KEY` -> `STORAGE_SUPABASE_SERVICE_ROLE_KEY`
+   - `DB_URL` -> `STORAGE_POSTGRES_PRISMA_URL` (if you want Prisma to use local Supabase Postgres)
 3. Set/update `.env`:
    ```env
-   SUPABASE_URL="http://127.0.0.1:54321"
-   SUPABASE_SERVICE_ROLE_KEY="..."
+   STORAGE_SUPABASE_URL="http://127.0.0.1:54321"
+   STORAGE_SUPABASE_SERVICE_ROLE_KEY="..."
    SUPABASE_RESUME_BUCKET="candidate-resumes"
-   DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+   STORAGE_POSTGRES_PRISMA_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres"
    ```
 4. Create the storage bucket in local Supabase Studio:
    - Open `STUDIO_URL` from `npx supabase status -o env`
@@ -173,22 +173,22 @@ Use this section if you want Supabase for:
 ### Production Supabase (Cloud)
 
 1. In Supabase project dashboard:
-   - Copy Postgres connection string -> use for `DATABASE_URL`
-   - Copy Project URL -> use for `SUPABASE_URL`
-   - Copy `service_role` API key -> use for `SUPABASE_SERVICE_ROLE_KEY`
+   - Copy Postgres connection string -> use for `STORAGE_POSTGRES_PRISMA_URL`
+   - Copy Project URL -> use for `STORAGE_SUPABASE_URL`
+   - Copy `service_role` API key -> use for `STORAGE_SUPABASE_SERVICE_ROLE_KEY`
    - Create private storage bucket `candidate-resumes` (or set matching `SUPABASE_RESUME_BUCKET`)
 2. In Vercel (or your host), set:
    ```env
-   DATABASE_URL="postgresql://...supabase..."
-   SUPABASE_URL="https://<project-ref>.supabase.co"
-   SUPABASE_SERVICE_ROLE_KEY="..."
+   STORAGE_POSTGRES_PRISMA_URL="postgresql://...supabase..."
+   STORAGE_SUPABASE_URL="https://<project-ref>.supabase.co"
+   STORAGE_SUPABASE_SERVICE_ROLE_KEY="..."
    SUPABASE_RESUME_BUCKET="candidate-resumes"
    ```
 3. Run production migrations against production DB:
    ```bash
    npx prisma migrate deploy
    ```
-4. Ensure your separate queue worker uses the same production `DATABASE_URL` and `SUPABASE_*` values.
+4. Ensure your separate queue worker uses the same production `STORAGE_POSTGRES_PRISMA_URL`, `STORAGE_SUPABASE_*`, and `SUPABASE_RESUME_BUCKET` values.
 
 ### Environment Separation (Important)
 
@@ -216,7 +216,7 @@ Use this section if you want Supabase for:
 1. **Supabase Database**
    - Create a new project at [supabase.com](https://supabase.com)
    - Copy the connection string from Settings → Database → Connection String
-   - Use the "URI" format for `DATABASE_URL`
+   - Use the "URI" format for `STORAGE_POSTGRES_PRISMA_URL`
 
 2. **Upstash Redis**
    - Create a Redis database at [upstash.com](https://upstash.com)
@@ -254,7 +254,7 @@ Use this section if you want Supabase for:
 
    ```plaintext
    # Required
-   DATABASE_URL=postgresql://...@supabase.co:5432/postgres
+   STORAGE_POSTGRES_PRISMA_URL=postgresql://...@supabase.co:5432/postgres
    REDIS_URL=rediss://...@upstash.io:6379
    AUTH_SECRET=<generate-secure-secret>
    NEXTAUTH_SECRET=<same-as-AUTH_SECRET>
@@ -279,8 +279,8 @@ Use this section if you want Supabase for:
    EMAIL_FROM="Monet Platform <your-sender@gmail.com>"
    
    # Supabase Storage (Resume PDFs)
-   SUPABASE_URL=https://<project-ref>.supabase.co
-   SUPABASE_SERVICE_ROLE_KEY=...
+   STORAGE_SUPABASE_URL=https://<project-ref>.supabase.co
+   STORAGE_SUPABASE_SERVICE_ROLE_KEY=...
    SUPABASE_RESUME_BUCKET=candidate-resumes
    
    # Optional Configuration
@@ -304,7 +304,7 @@ Use this section if you want Supabase for:
 After first deployment, run migrations against your production database:
 
 ```bash
-# Set production DATABASE_URL locally, then:
+# Set production STORAGE_POSTGRES_PRISMA_URL locally, then:
 npx prisma migrate deploy
 ```
 
@@ -327,7 +327,7 @@ Or use Vercel's build command to run migrations automatically by updating `packa
 **Option B: Separate Worker Process (Recommended)**
 - Deploy `npm run dev:queue` as a separate service
 - Use Railway, Render, or a dedicated VPS
-- Ensure the worker has access to the same `REDIS_URL` and `DATABASE_URL`
+- Ensure the worker has access to the same `REDIS_URL` and `STORAGE_POSTGRES_PRISMA_URL`
 
 ### Email Cutover Checklist (SES -> Gmail OAuth2)
 

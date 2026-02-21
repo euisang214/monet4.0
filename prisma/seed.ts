@@ -14,6 +14,21 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { uploadResume, RESUME_CONTENT_TYPE } from '../lib/integrations/resume-storage'
 
+function normalizeEnvValue(rawValue: string | undefined): string | undefined {
+    const trimmed = rawValue?.trim()
+    if (!trimmed) return undefined
+
+    if (
+        (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+        (trimmed.startsWith("'") && trimmed.endsWith("'"))
+    ) {
+        const unquoted = trimmed.slice(1, -1).trim()
+        return unquoted || undefined
+    }
+
+    return trimmed
+}
+
 const prisma = new PrismaClient()
 type SeedPopulationMode = 'lite' | 'full'
 const CANDIDATE_COUNT = 7
@@ -150,11 +165,11 @@ function getUserNumbersForMode(mode: SeedPopulationMode) {
 }
 
 function assertResumeUploadEnv() {
-    const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']
-    const missing = requiredEnvVars.filter((envVar) => !process.env[envVar]?.trim())
+    const requiredEnvVars = ['STORAGE_SUPABASE_URL', 'STORAGE_SUPABASE_SERVICE_ROLE_KEY']
+    const missing = requiredEnvVars.filter((envVar) => !normalizeEnvValue(process.env[envVar]))
 
     if (missing.length > 0) {
-        throw new Error(`Missing required environment variable(s) for resume uploads: ${missing.join(', ')}`)
+        throw new Error(`Missing required environment variable(s) for resume uploads: ${missing.join(', ')}.`)
     }
 }
 

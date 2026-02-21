@@ -13,24 +13,12 @@ strip_wrapping_quotes() {
     printf '%s' "${value}"
 }
 
-if [[ -z "${DATABASE_URL:-}" || "${DATABASE_URL:-}" == "STORAGE_POSTGRES_PRISMA_URL" ]]; then
-    export DATABASE_URL="${STORAGE_POSTGRES_PRISMA_URL:-}"
-fi
+export STORAGE_POSTGRES_PRISMA_URL="$(strip_wrapping_quotes "${STORAGE_POSTGRES_PRISMA_URL:-}")"
+export STORAGE_SUPABASE_URL="$(strip_wrapping_quotes "${STORAGE_SUPABASE_URL:-}")"
+export STORAGE_SUPABASE_SERVICE_ROLE_KEY="$(strip_wrapping_quotes "${STORAGE_SUPABASE_SERVICE_ROLE_KEY:-}")"
 
-if [[ -z "${SUPABASE_URL:-}" || "${SUPABASE_URL:-}" == "STORAGE_SUPABASE_URL" ]]; then
-    export SUPABASE_URL="${STORAGE_SUPABASE_URL:-}"
-fi
-
-if [[ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" || "${SUPABASE_SERVICE_ROLE_KEY:-}" == "STORAGE_SUPABASE_SERVICE_ROLE_KEY" ]]; then
-    export SUPABASE_SERVICE_ROLE_KEY="${STORAGE_SUPABASE_SERVICE_ROLE_KEY:-}"
-fi
-
-export DATABASE_URL="$(strip_wrapping_quotes "${DATABASE_URL:-}")"
-export SUPABASE_URL="$(strip_wrapping_quotes "${SUPABASE_URL:-}")"
-export SUPABASE_SERVICE_ROLE_KEY="$(strip_wrapping_quotes "${SUPABASE_SERVICE_ROLE_KEY:-}")"
-
-if [[ -z "${DATABASE_URL}" ]]; then
-    echo "DATABASE_URL is missing. Set DATABASE_URL or STORAGE_POSTGRES_PRISMA_URL in Vercel."
+if [[ -z "${STORAGE_POSTGRES_PRISMA_URL}" ]]; then
+    echo "STORAGE_POSTGRES_PRISMA_URL is missing."
     exit 1
 fi
 
@@ -38,8 +26,8 @@ npx prisma generate
 npx prisma migrate deploy
 
 if [[ "${VERCEL_ENV:-}" == "preview" ]]; then
-    if [[ -z "${SUPABASE_URL}" || -z "${SUPABASE_SERVICE_ROLE_KEY}" ]]; then
-        echo "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required for preview seed."
+    if [[ -z "${STORAGE_SUPABASE_URL}" || -z "${STORAGE_SUPABASE_SERVICE_ROLE_KEY}" ]]; then
+        echo "STORAGE_SUPABASE_URL and STORAGE_SUPABASE_SERVICE_ROLE_KEY are required for preview seed."
         exit 1
     fi
 

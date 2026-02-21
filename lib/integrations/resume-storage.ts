@@ -14,19 +14,34 @@ interface ResumeStorageConfig {
     supabaseUrl: string;
 }
 
+function normalizeEnvValue(rawValue: string | undefined): string | null {
+    const trimmed = rawValue?.trim();
+    if (!trimmed) return null;
+
+    if (
+        (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+        (trimmed.startsWith("'") && trimmed.endsWith("'"))
+    ) {
+        const unquoted = trimmed.slice(1, -1).trim();
+        return unquoted || null;
+    }
+
+    return trimmed;
+}
+
 function getBucketName(): string {
     return process.env.SUPABASE_RESUME_BUCKET?.trim() || DEFAULT_RESUME_BUCKET;
 }
 
 function getSupabaseUrl(): string | null {
-    const raw = process.env.SUPABASE_URL?.trim();
+    const raw = normalizeEnvValue(process.env.STORAGE_SUPABASE_URL);
     if (!raw) return null;
     return raw.replace(/\/+$/, "");
 }
 
 function getResumeStorageConfig(): ResumeStorageConfig {
     const supabaseUrl = getSupabaseUrl();
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+    const serviceRoleKey = normalizeEnvValue(process.env.STORAGE_SUPABASE_SERVICE_ROLE_KEY);
     const bucket = getBucketName();
 
     if (!supabaseUrl || !serviceRoleKey) {
@@ -78,7 +93,7 @@ function getPathFromSupabaseUrl(storageUrl: string): string | null {
 function buildCanonicalStorageUrl(path: string): string {
     const supabaseUrl = getSupabaseUrl();
     if (!supabaseUrl) {
-        throw new Error("SUPABASE_URL is missing");
+        throw new Error("STORAGE_SUPABASE_URL is missing");
     }
 
     const bucket = getBucketName();
