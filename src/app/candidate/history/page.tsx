@@ -9,6 +9,7 @@ import {
 } from '@/lib/role/candidate/chats';
 import { appRoutes } from '@/lib/shared/routes';
 import { EmptyState } from '@/components/ui/composites/EmptyState';
+import { CandidateHistoryActions } from '@/components/bookings/CandidateHistoryActions';
 
 const CHAT_SECTION_KEYS: CandidateChatSection[] = ['upcoming', 'pending', 'expired', 'past', 'other'];
 const DEFAULT_VIEW: CandidateChatSection = 'upcoming';
@@ -202,23 +203,29 @@ export default async function CandidateChatsPage({
                                             </span>
                                         </div>
 
-                                        <div className="mt-3 flex items-center justify-between gap-3">
-                                            {booking.feedback ? (
-                                                <p className="text-sm text-gray-500">
-                                                    Feedback submitted and attached to this booking.
-                                                </p>
+                                        <div className="mt-3">
+                                            {booking.status === BookingStatus.completed ? (
+                                                booking.feedback ? (
+                                                    <p className="text-sm text-gray-500">
+                                                        Feedback submitted and available in booking details.
+                                                    </p>
+                                                ) : (
+                                                    <p className="text-sm text-gray-500">
+                                                        Feedback is not available yet for this completed booking.
+                                                    </p>
+                                                )
                                             ) : (
                                                 <p className="text-sm text-gray-500">
-                                                    No feedback submitted for this conversation yet.
+                                                    Use the actions below to manage this booking.
                                                 </p>
                                             )}
 
-                                            <Link
-                                                href={appRoutes.candidate.bookingDetails(booking.id)}
-                                                className="text-sm font-semibold text-blue-600 hover:text-blue-700"
-                                            >
-                                                Open chat
-                                            </Link>
+                                            <CandidateHistoryActions
+                                                bookingId={booking.id}
+                                                status={booking.status}
+                                                joinUrl={booking.candidateZoomJoinUrl || booking.zoomJoinUrl}
+                                                hasFeedback={Boolean(booking.feedback)}
+                                            />
                                         </div>
                                     </li>
                                 ))}

@@ -3,7 +3,7 @@ import { requireRole } from '@/lib/core/api-helpers';
 import { getCandidateBookingDetails } from '@/lib/role/candidate/chats';
 import { notFound } from 'next/navigation';
 import { BookingActions } from './BookingActions';
-import { Role } from '@prisma/client';
+import { BookingStatus, Role } from '@prisma/client';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { appRoutes } from '@/lib/shared/routes';
@@ -26,6 +26,8 @@ export default async function BookingDetailsPage(props: {
         notFound();
     }
 
+    const isCompleted = booking.status === BookingStatus.completed;
+
     return (
         <main className="container py-8 max-w-3xl">
             <div className="mb-6">
@@ -42,6 +44,61 @@ export default async function BookingDetailsPage(props: {
                     </span>
                 </div>
             </div>
+
+            {isCompleted ? (
+                <section className="bg-white shadow rounded-lg border border-gray-200 overflow-hidden mb-6">
+                    <div className="p-6 border-b border-gray-100">
+                        <h2 className="text-xl font-semibold text-gray-900">Professional Feedback</h2>
+                        {booking.feedback?.submittedAt ? (
+                            <p className="text-sm text-gray-500 mt-1">
+                                Submitted {format(new Date(booking.feedback.submittedAt), 'PPP p')}
+                            </p>
+                        ) : null}
+                    </div>
+
+                    {booking.feedback ? (
+                        <div className="p-6 space-y-6">
+                            <div>
+                                <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-2">Written Feedback</h3>
+                                <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">{booking.feedback.text}</p>
+                            </div>
+
+                            <div>
+                                <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-2">Action Items</h3>
+                                <ul className="list-disc pl-5 space-y-1 text-gray-800">
+                                    {booking.feedback.actions.map((action, idx) => (
+                                        <li key={`${booking.id}-feedback-action-${idx}`}>{action}</li>
+                                    ))}
+                                </ul>
+                            </div>
+
+                            <div>
+                                <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-2">Ratings</h3>
+                                <div className="grid gap-3 sm:grid-cols-3">
+                                    <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                                        <p className="text-xs text-gray-500">Content</p>
+                                        <p className="text-lg font-semibold text-gray-900">{booking.feedback.contentRating}/5</p>
+                                    </div>
+                                    <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                                        <p className="text-xs text-gray-500">Delivery</p>
+                                        <p className="text-lg font-semibold text-gray-900">{booking.feedback.deliveryRating}/5</p>
+                                    </div>
+                                    <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                                        <p className="text-xs text-gray-500">Value</p>
+                                        <p className="text-lg font-semibold text-gray-900">{booking.feedback.valueRating}/5</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="p-6">
+                            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                                Feedback is not available yet for this completed booking.
+                            </div>
+                        </div>
+                    )}
+                </section>
+            ) : null}
 
             <section className="bg-white shadow rounded-lg border border-gray-200 overflow-hidden mb-6">
                 <div className="p-6 border-b border-gray-100">

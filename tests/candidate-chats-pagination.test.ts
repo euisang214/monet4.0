@@ -14,6 +14,7 @@ vi.mock("@/lib/core/db", () => ({
 }));
 
 import {
+    getCandidateBookingDetails,
     getCandidateChatSectionCounts,
     getCandidateChatSectionFromStatus,
     getCandidateChatSectionPage,
@@ -126,5 +127,23 @@ describe("candidate chat pagination", () => {
 
     it("maps unknown status to other section", () => {
         expect(getCandidateChatSectionFromStatus("made_up_status" as BookingStatus)).toBe("other");
+    });
+
+    it("includes feedback when fetching booking details", async () => {
+        mockPrisma.booking.findUnique.mockResolvedValue(null);
+
+        await getCandidateBookingDetails("booking-1", "cand-1");
+
+        expect(mockPrisma.booking.findUnique).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: {
+                    id: "booking-1",
+                    candidateId: "cand-1",
+                },
+                include: expect.objectContaining({
+                    feedback: true,
+                }),
+            }),
+        );
     });
 });
