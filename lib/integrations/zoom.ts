@@ -78,7 +78,7 @@ interface ZoomMeetingResponse {
 }
 
 interface ZoomRegistrantResponse {
-    id?: string;
+    id?: string | number;
     join_url?: string;
 }
 
@@ -136,7 +136,8 @@ async function createRegistrant({
 
     return {
         joinUrl: registrant.join_url,
-        registrantId: registrant.id,
+        // Zoom can return numeric IDs for registrants; normalize for Prisma string fields.
+        registrantId: String(registrant.id),
     };
 }
 

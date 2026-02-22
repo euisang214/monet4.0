@@ -280,7 +280,7 @@ async function main() {
     // Create candidates with varied profiles
     const candidates: { id: string; email: string; timezone: string }[] = []
     for (const i of candidateNumbers) {
-        const email = `cand${i}@monet.local`
+        const email = i === 3 ? 'victoriageh312@gmail.com' : `cand${i}@monet.local`
         const { firstName, lastName } = getMockName('candidate', i)
         const school = SCHOOLS[(i - 1) % SCHOOLS.length]
         const schoolSecondary = SCHOOLS[(i + 2) % SCHOOLS.length]
@@ -387,7 +387,7 @@ async function main() {
     // Create professionals with Stripe account IDs and varied profiles
     const professionals: { id: string; email: string; stripeAccountId: string; timezone: string }[] = []
     for (const i of professionalNumbers) {
-        const email = `pro${i}@monet.local`
+        const email = i === 2 ? 'euisangss@gmail.com' : `pro${i}@monet.local`
         const { firstName, lastName } = getMockName('professional', i)
         const stripeAccountId = generateStripeId('acct', i)
         const company = COMPANIES[(i - 1) % COMPANIES.length]
