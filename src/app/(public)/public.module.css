@@ -96,7 +96,7 @@
 .hero {
   border-radius: 28px;
   border: 1px solid var(--border);
-  padding: 4rem 2.1rem;
+  padding: 2rem;
   background: #ffffff;
   backdrop-filter: blur(8px);
   box-shadow: 0 24px 56px rgba(24, 78, 119, 0.18);
@@ -138,6 +138,7 @@
   font-size: 0.9rem;
   font-weight: 650;
   line-height: 1;
+  font-family: var(--font-body, "Manrope", "Segoe UI", sans-serif);
 }
 
 .audienceOption:hover {
@@ -171,6 +172,7 @@
   font-size: clamp(2.2rem, 5.3vw, 4rem);
   line-height: 1.05;
   margin-bottom: 1rem;
+  white-space: pre-line;
 }
 
 .heroSubtitle {
@@ -179,6 +181,7 @@
   font-size: clamp(1rem, 2.2vw, 1.24rem);
   color: var(--muted);
   line-height: 1.58;
+  white-space: pre-line;
 }
 
 .heroButtons {
@@ -222,7 +225,7 @@
 
 .statLabel {
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: 1rem;
 }
 
 .section {
