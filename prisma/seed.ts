@@ -111,6 +111,10 @@ const SCHOOLS = [
 
 const CANDIDATE_TIMEZONES = ['America/New_York', 'America/Los_Angeles', 'America/Chicago', 'Europe/London', 'Asia/Tokyo']
 const PROFESSIONAL_TIMEZONES = ['America/New_York', 'America/Los_Angeles', 'America/Chicago', 'Europe/London', 'Asia/Singapore']
+const CANDIDATE_FIRST_NAMES = ['Alex', 'Taylor', 'Jordan', 'Casey', 'Riley', 'Morgan', 'Quinn', 'Avery', 'Parker', 'Hayden']
+const CANDIDATE_LAST_NAMES = ['Nguyen', 'Patel', 'Kim', 'Garcia', 'Johnson', 'Brown', 'Lee', 'Martinez', 'Davis', 'Clark']
+const PROFESSIONAL_FIRST_NAMES = ['Cameron', 'Blake', 'Skyler', 'Drew', 'Rowan', 'Kendall', 'Reese', 'Sage', 'Peyton', 'Emerson']
+const PROFESSIONAL_LAST_NAMES = ['Anderson', 'Bennett', 'Collins', 'Diaz', 'Edwards', 'Foster', 'Griffin', 'Hughes', 'Jenkins', 'Russell']
 const ALL_BOOKING_STATUSES: BookingStatus[] = [
     BookingStatus.draft,
     BookingStatus.requested,
@@ -170,6 +174,21 @@ function getUserNumbersForMode(mode: SeedPopulationMode) {
         candidateNumbers: LITE_CANDIDATE_NUMBERS,
         professionalNumbers: LITE_PROFESSIONAL_NUMBERS,
     }
+}
+
+function getMockName(
+    role: 'candidate' | 'professional',
+    index: number
+): { firstName: string; lastName: string } {
+    if (role === 'candidate') {
+        const firstName = CANDIDATE_FIRST_NAMES[(index - 1) % CANDIDATE_FIRST_NAMES.length]
+        const lastName = CANDIDATE_LAST_NAMES[((index - 1) * 2) % CANDIDATE_LAST_NAMES.length]
+        return { firstName, lastName }
+    }
+
+    const firstName = PROFESSIONAL_FIRST_NAMES[(index - 1) % PROFESSIONAL_FIRST_NAMES.length]
+    const lastName = PROFESSIONAL_LAST_NAMES[((index - 1) * 3) % PROFESSIONAL_LAST_NAMES.length]
+    return { firstName, lastName }
 }
 
 function assertResumeUploadEnv() {
@@ -249,6 +268,8 @@ async function main() {
         update: {},
         create: {
             email: 'admin@monet.local',
+            firstName: 'Admin',
+            lastName: 'Monet',
             hashedPassword: adminPassword,
             role: Role.ADMIN,
             timezone: 'America/New_York',
@@ -260,6 +281,7 @@ async function main() {
     const candidates: { id: string; email: string; timezone: string }[] = []
     for (const i of candidateNumbers) {
         const email = `cand${i}@monet.local`
+        const { firstName, lastName } = getMockName('candidate', i)
         const school = SCHOOLS[(i - 1) % SCHOOLS.length]
         const schoolSecondary = SCHOOLS[(i + 2) % SCHOOLS.length]
         const timezone = CANDIDATE_TIMEZONES[(i - 1) % CANDIDATE_TIMEZONES.length]
@@ -274,6 +296,8 @@ async function main() {
             update: {},
             create: {
                 email,
+                firstName,
+                lastName,
                 hashedPassword: candidatePassword,
                 role: Role.CANDIDATE,
                 timezone,
@@ -364,6 +388,7 @@ async function main() {
     const professionals: { id: string; email: string; stripeAccountId: string; timezone: string }[] = []
     for (const i of professionalNumbers) {
         const email = `pro${i}@monet.local`
+        const { firstName, lastName } = getMockName('professional', i)
         const stripeAccountId = generateStripeId('acct', i)
         const company = COMPANIES[(i - 1) % COMPANIES.length]
         const bio = BIOS[(i - 1) % BIOS.length]
@@ -376,6 +401,8 @@ async function main() {
             update: {},
             create: {
                 email,
+                firstName,
+                lastName,
                 hashedPassword: professionalPassword,
                 role: Role.PROFESSIONAL,
                 timezone,
