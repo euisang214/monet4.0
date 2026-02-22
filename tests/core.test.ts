@@ -13,7 +13,7 @@ vi.mock('next/headers', () => ({
 }));
 
 import { auth } from '@/auth';
-import { withRole } from '@/lib/core/api-helpers';
+import { withRole, withRoleContext, jsonError, jsonValidationError } from '@/lib/core/api-helpers';
 import { checkRateLimit } from '@/lib/core/rate-limit';
 import { Role } from '@prisma/client';
 
@@ -67,6 +67,79 @@ describe('Core Utilities', () => {
 
             expect(handler).toHaveBeenCalledWith(mockRequest);
             expect(response).toBe(mockResponse);
+        });
+
+        it('should pass authenticated user context with withRoleContext', async () => {
+            vi.mocked(auth).mockResolvedValue({
+                user: {
+                    id: 'pro-1',
+                    email: 'pro@test.com',
+                    role: Role.PROFESSIONAL,
+                    onboardingRequired: false,
+                    onboardingCompleted: true,
+                },
+                expires: '2026-01-01',
+            });
+
+            const mockResponse = new Response(JSON.stringify({ success: true }));
+            const handler = vi.fn().mockResolvedValue(mockResponse);
+            const wrappedHandler = withRoleContext(Role.PROFESSIONAL, handler);
+
+            const mockRequest = new Request('http://localhost/api/test');
+            const params = Promise.resolve({ id: 'booking-1' });
+            const response = await wrappedHandler(mockRequest, { params } as any);
+
+            expect(handler).toHaveBeenCalledWith(
+                mockRequest,
+                expect.objectContaining({
+                    user: expect.objectContaining({
+                        id: 'pro-1',
+                        role: Role.PROFESSIONAL,
+                    }),
+                }),
+                expect.objectContaining({
+                    params: { id: 'booking-1' },
+                }),
+            );
+            expect(response).toBe(mockResponse);
+        });
+
+        it('should block onboarding-required users in withRoleContext', async () => {
+            vi.mocked(auth).mockResolvedValue({
+                user: {
+                    id: 'cand-1',
+                    email: 'cand@test.com',
+                    role: Role.CANDIDATE,
+                    onboardingRequired: true,
+                    onboardingCompleted: false,
+                },
+                expires: '2026-01-01',
+            });
+
+            const handler = vi.fn();
+            const wrappedHandler = withRoleContext(Role.CANDIDATE, handler);
+
+            const mockRequest = new Request('http://localhost/api/test');
+            const response = await wrappedHandler(mockRequest);
+
+            expect(response.status).toBe(403);
+            expect(handler).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('json helpers', () => {
+        it('returns standardized json errors', async () => {
+            const basic = jsonError('boom', 418);
+            const validation = jsonValidationError({ fieldErrors: { email: ['Required'] } });
+
+            expect(basic.status).toBe(418);
+            expect(await basic.json()).toEqual({ error: 'boom' });
+
+            expect(validation.status).toBe(400);
+            expect(await validation.json()).toEqual({
+                error: 'validation_error',
+                details: { fieldErrors: { email: ['Required'] } },
+            });
         });
     });
 

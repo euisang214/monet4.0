@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/primitives/Button';
+import { appRoutes } from '@/lib/shared/routes';
 
 interface FeedbackFormProps {
     bookingId: string;
@@ -39,7 +40,7 @@ export function FeedbackForm({ bookingId, initialData }: FeedbackFormProps) {
 
         try {
             setIsSubmitting(true);
-            const res = await fetch(`/api/professional/feedback/${bookingId}`, {
+            const res = await fetch(appRoutes.api.professional.feedback(bookingId), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -57,7 +58,7 @@ export function FeedbackForm({ bookingId, initialData }: FeedbackFormProps) {
             }
 
             // Success
-            router.push('/professional/dashboard');
+            router.push(appRoutes.professional.dashboard);
             router.refresh();
         } catch (err: any) {
             setError(err.message);

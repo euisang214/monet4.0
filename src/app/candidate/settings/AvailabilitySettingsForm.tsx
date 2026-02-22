@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Availability } from '@prisma/client';
 import { useRouter } from 'next/navigation';
+import { appRoutes } from '@/lib/shared/routes';
 
 interface Props {
     initialAvailability: Availability[];
@@ -95,7 +96,7 @@ export function AvailabilitySettingsForm({ initialAvailability }: Props) {
                 cursor.setDate(cursor.getDate() + 1);
             }
 
-            const res = await fetch('/api/candidate/availability', {
+            const res = await fetch(appRoutes.api.candidate.availability, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ slots })

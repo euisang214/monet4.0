@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { DisputeReason } from '@prisma/client';
+import { appRoutes } from '@/lib/shared/routes';
 
 export default function DisputePage({ params }: { params: { id: string } }) {
     const router = useRouter();
@@ -21,7 +22,7 @@ export default function DisputePage({ params }: { params: { id: string } }) {
         setError(null);
 
         try {
-            const res = await fetch(`/api/candidate/bookings/${params.id}/dispute`, {
+            const res = await fetch(appRoutes.api.candidate.bookingDispute(params.id), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ reason, description }),
@@ -32,7 +33,7 @@ export default function DisputePage({ params }: { params: { id: string } }) {
                 throw new Error(data.error || 'Failed to submit dispute');
             }
 
-            router.push(`/candidate/bookings/${params.id}`);
+            router.push(appRoutes.candidate.bookingDetails(params.id));
             router.refresh();
         } catch (err: any) {
             setError(err.message);

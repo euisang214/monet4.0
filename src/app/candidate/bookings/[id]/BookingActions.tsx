@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Booking } from '@prisma/client';
 import { useRouter } from 'next/navigation';
 import { getBookingActionVisibility } from '@/lib/shared/booking-actions';
+import { appRoutes } from '@/lib/shared/routes';
 
 interface BookingActionsProps {
     booking: Booking;
@@ -23,7 +24,7 @@ export function BookingActions({ booking }: BookingActionsProps) {
         setMessage(null);
 
         try {
-            const res = await fetch(`/api/shared/bookings/${booking.id}/cancel`, {
+            const res = await fetch(appRoutes.api.shared.bookingCancel(booking.id), {
                 method: 'POST',
             });
 
@@ -46,7 +47,7 @@ export function BookingActions({ booking }: BookingActionsProps) {
     };
 
     const handleReschedule = () => {
-        router.push(`/candidate/bookings/${booking.id}/reschedule`);
+        router.push(appRoutes.candidate.bookingReschedule(booking.id));
     };
 
     const joinUrl = booking.candidateZoomJoinUrl || booking.zoomJoinUrl;
@@ -58,11 +59,11 @@ export function BookingActions({ booking }: BookingActionsProps) {
     };
 
     const handleDispute = () => {
-        router.push(`/candidate/bookings/${booking.id}/dispute`);
+        router.push(appRoutes.candidate.bookingDispute(booking.id));
     };
 
     const handleReview = () => {
-        router.push(`/candidate/bookings/${booking.id}/review`);
+        router.push(appRoutes.candidate.bookingReview(booking.id));
     };
 
     // Use centralized visibility logic

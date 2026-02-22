@@ -1,4 +1,4 @@
-import { withRole } from '@/lib/core/api-helpers';
+import { withRoleContext } from '@/lib/core/api-helpers';
 import { updateZoomDetails } from '@/lib/domain/bookings/transitions';
 import { Role } from '@prisma/client';
 import { z } from 'zod';
@@ -29,8 +29,10 @@ const zoomLinkSchema = z.object({
  * Admin fallback for manually updating Zoom meeting details.
  * Delegates to updateZoomDetails from booking transitions.
  */
-export const PUT = withRole(Role.ADMIN, async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
-    const { id } = await params;
+export const PUT = withRoleContext(
+    Role.ADMIN,
+    async (req: Request, { user }, { params }: { params: { id: string } }) => {
+    const { id } = params;
 
     try {
         const body = await req.json();
@@ -38,15 +40,6 @@ export const PUT = withRole(Role.ADMIN, async (req: Request, { params }: { param
 
         if (!result.success) {
             return Response.json({ error: 'validation_error', details: result.error.issues }, { status: 400 });
-        }
-
-        // Get the authenticated user from the withRole wrapper
-        // Note: withRole ensures we have an admin user
-        const { auth } = await import('@/auth');
-        const session = await auth();
-
-        if (!session?.user) {
-            return Response.json({ error: 'unauthorized' }, { status: 401 });
         }
 
         await updateZoomDetails(
@@ -57,7 +50,7 @@ export const PUT = withRole(Role.ADMIN, async (req: Request, { params }: { param
                 candidateZoomJoinUrl: result.data.candidateZoomJoinUrl,
                 professionalZoomJoinUrl: result.data.professionalZoomJoinUrl,
             },
-            { userId: session.user.id, role: Role.ADMIN }
+            { userId: user.id, role: Role.ADMIN }
         );
 
         return Response.json({ success: true });

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Role } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { appRoutes } from "@/lib/shared/routes";
 import {
     CandidateProfileEditor,
     CandidateProfileEditorInitialData,
@@ -26,7 +27,7 @@ interface OnboardingFormProps {
 type OnboardingSubmitPayload = CandidateProfileSubmitPayload | ProfessionalProfileSubmitPayload;
 
 function postOnboardingPath(role: Role) {
-    return role === Role.PROFESSIONAL ? "/professional/dashboard" : "/candidate/browse";
+    return role === Role.PROFESSIONAL ? appRoutes.professional.dashboard : appRoutes.candidate.browse;
 }
 
 export function OnboardingForm({
@@ -46,7 +47,7 @@ export function OnboardingForm({
             if (role !== Role.PROFESSIONAL) return;
 
             try {
-                const response = await fetch("/api/shared/stripe/account");
+                const response = await fetch(appRoutes.api.shared.stripeAccount);
                 const payload = (await response.json().catch(() => null)) as ProfessionalStripeStatus | null;
                 const status = response.ok && payload ? payload : null;
                 if (isMounted && status) {
@@ -65,7 +66,7 @@ export function OnboardingForm({
     }, [role]);
 
     const submitOnboarding = async (payload: OnboardingSubmitPayload) => {
-        const response = await fetch("/api/auth/onboarding", {
+        const response = await fetch(appRoutes.api.auth.onboarding, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
@@ -99,7 +100,7 @@ export function OnboardingForm({
     };
 
     const handleConnectStripe = async () => {
-        const response = await fetch("/api/professional/onboarding", {
+        const response = await fetch(appRoutes.api.professional.onboarding, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ context: "onboarding" }),

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
+import { appRoutes } from '@/lib/shared/routes';
 
 type ResetStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -52,7 +53,7 @@ function ResetPasswordForm() {
         setErrorMessage('');
 
         try {
-            const res = await fetch('/api/auth/reset-password', {
+            const res = await fetch(appRoutes.api.auth.resetPassword, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ token, password }),

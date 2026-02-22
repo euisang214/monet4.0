@@ -4,6 +4,7 @@ import { AdminDisputeService } from '@/lib/role/admin/disputes';
 import { format } from 'date-fns';
 import { AdminDataTable, type Column } from '@/components/ui/composites/AdminDataTable';
 import { StatusBadge } from '@/components/ui/composites/StatusBadge';
+import { appRoutes } from '@/lib/shared/routes';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,7 +45,7 @@ const columns: Column<DisputeRow>[] = [
     {
         header: '',
         accessor: (dispute) => (
-            <Link href={`/admin/disputes/${dispute.id}`} className="text-indigo-600 hover:text-indigo-900">
+            <Link href={appRoutes.admin.disputeDetails(dispute.id)} className="text-indigo-600 hover:text-indigo-900">
                 View
             </Link>
         ),

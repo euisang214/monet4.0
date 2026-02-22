@@ -42,7 +42,30 @@ export async function requireRole(role: Role, callbackUrl?: string) {
 
 type ApiHandler<TArgs extends unknown[] = unknown[]> = (req: Request, ...args: TArgs) => Promise<Response> | Response
 
-export function withRole<TArgs extends unknown[]>(role: Role, handler: ApiHandler<TArgs>) {
+type AuthenticatedUser = NonNullable<Awaited<ReturnType<typeof currentUser>>>
+type WithRoleHandler<TArgs extends unknown[] = unknown[]> = (
+    req: Request,
+    context: { user: AuthenticatedUser },
+    ...args: TArgs
+) => Promise<Response> | Response
+
+function normalizeRouteArgs<TArgs extends unknown[]>(args: TArgs): Promise<TArgs> {
+    return Promise.all(
+        args.map(async (arg) => {
+            if (!arg || typeof arg !== "object" || !("params" in arg)) {
+                return arg
+            }
+
+            const context = arg as { params?: unknown }
+            return {
+                ...context,
+                params: await Promise.resolve(context.params),
+            }
+        })
+    ) as Promise<TArgs>
+}
+
+export function withRoleContext<TArgs extends unknown[]>(role: Role, handler: WithRoleHandler<TArgs>) {
     return async (req: Request, ...args: TArgs): Promise<Response> => {
         const session = await auth()
         const user = session?.user
@@ -54,22 +77,24 @@ export function withRole<TArgs extends unknown[]>(role: Role, handler: ApiHandle
             return NextResponse.json({ error: "onboarding_required" }, { status: 403 })
         }
 
-        const normalizedArgs = await Promise.all(
-            args.map(async (arg) => {
-                if (!arg || typeof arg !== "object" || !("params" in arg)) {
-                    return arg
-                }
+        const normalizedArgs = await normalizeRouteArgs(args)
 
-                const context = arg as { params?: unknown }
-                return {
-                    ...context,
-                    params: await Promise.resolve(context.params),
-                }
-            })
-        ) as TArgs
-
-        return handler(req, ...normalizedArgs)
+        return handler(req, { user }, ...normalizedArgs)
     }
+}
+
+export function withRole<TArgs extends unknown[]>(role: Role, handler: ApiHandler<TArgs>) {
+    return withRoleContext(role, async (req, _context, ...args) => {
+        return handler(req, ...args)
+    })
+}
+
+export function jsonError(error: string, status: number, details?: unknown): Response {
+    return NextResponse.json(details ? { error, details } : { error }, { status })
+}
+
+export function jsonValidationError(details: unknown, error = "validation_error"): Response {
+    return jsonError(error, 400, details)
 }
 
 export function getErrorStatus(error: unknown, fallbackStatus: number) {

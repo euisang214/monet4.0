@@ -91,11 +91,17 @@ describe("ProfessionalDashboardService resume signing", () => {
             "https://legacy-storage.example.com/resumes/cand-2/resume.pdf"
         );
         expect(mockPrisma.booking.findMany).toHaveBeenNthCalledWith(
-            2,
+            1,
             expect.objectContaining({
-                select: expect.objectContaining({
-                    professionalZoomJoinUrl: true,
-                    zoomJoinUrl: true,
+                where: expect.objectContaining({
+                    status: BookingStatus.requested,
+                }),
+                include: expect.objectContaining({
+                    candidate: expect.objectContaining({
+                        include: expect.objectContaining({
+                            candidateProfile: true,
+                        }),
+                    }),
                 }),
             })
         );

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { OAuthProviderIcon } from "@/components/auth/OAuthProviderIcon";
+import { appRoutes } from "@/lib/shared/routes";
 
 type Provider = "google" | "linkedin";
 
@@ -35,7 +36,7 @@ export function ProviderConnections() {
         setLoading(true);
         setError("");
         try {
-            const response = await fetch("/api/auth/linked-providers", { cache: "no-store" });
+            const response = await fetch(appRoutes.api.auth.linkedProviders, { cache: "no-store" });
             const payload = (await response.json().catch(() => null)) as
                 | { data?: ProviderStatus; error?: string }
                 | null;
@@ -63,14 +64,14 @@ export function ProviderConnections() {
     const connectProvider = async (provider: Provider) => {
         setBusyProvider(provider);
         setError("");
-        await signIn(provider, { callbackUrl: pathname || "/api/auth/callback-redirect" });
+        await signIn(provider, { callbackUrl: pathname || appRoutes.api.auth.callbackRedirect });
     };
 
     const disconnectProvider = async (provider: Provider) => {
         setBusyProvider(provider);
         setError("");
         try {
-            const response = await fetch(`/api/auth/linked-providers/${provider}`, {
+            const response = await fetch(appRoutes.api.auth.linkedProvider(provider), {
                 method: "DELETE",
             });
 

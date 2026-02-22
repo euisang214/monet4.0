@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { PublicNavbar } from "@/components/layout/PublicNavbar";
+import { appRoutes } from "@/lib/shared/routes";
 
 type RequestStatus = "idle" | "loading" | "success" | "error";
 
@@ -17,7 +18,7 @@ export default function ForgotPasswordPage() {
         setMessage("");
 
         try {
-            const res = await fetch("/api/auth/forgot-password", {
+            const res = await fetch(appRoutes.api.auth.forgotPassword, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email }),

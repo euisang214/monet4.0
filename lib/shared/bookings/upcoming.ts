@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/core/db';
 import { BookingStatus } from '@prisma/client';
-import { createResumeUrlSigner } from '@/lib/integrations/resume-storage';
+import { signCandidateResumeUrls } from '@/lib/shared/resume-signing';
 
 /**
  * Upcoming Booking Queries
@@ -13,27 +13,6 @@ type UpcomingBookingsOptions = {
 };
 
 const DEFAULT_LIMIT = 10;
-
-type BookingWithCandidateResume = {
-    candidate: {
-        candidateProfile?: {
-            resumeUrl?: string | null;
-        } | null;
-    };
-};
-
-async function signCandidateResumeUrls(bookings: BookingWithCandidateResume[]) {
-    const signResumeUrl = createResumeUrlSigner();
-
-    await Promise.all(
-        bookings.map(async (booking) => {
-            const candidateProfile = booking.candidate.candidateProfile;
-            if (!candidateProfile?.resumeUrl) return;
-
-            candidateProfile.resumeUrl = (await signResumeUrl(candidateProfile.resumeUrl)) ?? null;
-        })
-    );
-}
 
 /**
  * Get upcoming bookings for a user (accepted, pending states)

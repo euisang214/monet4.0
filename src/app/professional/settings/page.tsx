@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/primitives/Button";
 import { useNotification } from "@/components/ui/hooks/useNotification";
 import { NotificationBanner } from "@/components/ui/composites/NotificationBanner";
 import { ProviderConnections } from "@/components/auth/ProviderConnections";
+import { appRoutes } from "@/lib/shared/routes";
 import {
     ProfessionalProfileEditor,
     ProfessionalProfileEditorInitialData,
@@ -38,8 +39,8 @@ function ProfessionalSettingsPageContent() {
 
     const loadData = useCallback(async () => {
         const [settingsPayload, stripePayload] = await Promise.all([
-            fetch("/api/shared/settings").then((res) => res.json()),
-            fetch("/api/shared/stripe/account").then((res) => res.json()),
+            fetch(appRoutes.api.shared.settings).then((res) => res.json()),
+            fetch(appRoutes.api.shared.stripeAccount).then((res) => res.json()),
         ]);
 
         const settingsData = settingsPayload?.data as ProfessionalProfileEditorInitialData | null | undefined;
@@ -73,13 +74,13 @@ function ProfessionalSettingsPageContent() {
             notify("error", "Stripe connection failed. Please try again.");
         }
 
-        router.replace("/professional/settings");
+        router.replace(appRoutes.professional.settings);
     }, [successParam, errorParam, router, notify, loadData]);
 
     const handleProfileSave = async (payload: ProfessionalProfileSubmitPayload) => {
         clear();
 
-        const response = await fetch("/api/shared/settings", {
+        const response = await fetch(appRoutes.api.shared.settings, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
@@ -105,7 +106,7 @@ function ProfessionalSettingsPageContent() {
     const handleConnectStripe = async () => {
         clear();
         try {
-            const res = await fetch("/api/professional/onboarding", {
+            const res = await fetch(appRoutes.api.professional.onboarding, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ context: "settings" }),
@@ -129,7 +130,7 @@ function ProfessionalSettingsPageContent() {
         }
 
         try {
-            const res = await fetch("/api/shared/verification/request", {
+            const res = await fetch(appRoutes.api.shared.verificationRequest, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email: corporateEmail }),
@@ -153,7 +154,7 @@ function ProfessionalSettingsPageContent() {
         setVerifying(true);
         clear();
         try {
-            const res = await fetch("/api/shared/verification/confirm", {
+            const res = await fetch(appRoutes.api.shared.verificationConfirm, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ token: verificationCode }),

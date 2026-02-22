@@ -1,15 +1,14 @@
 import { PaymentsService } from '@/lib/domain/payments/services';
-import { withRole } from '@/lib/core/api-helpers';
+import { withRoleContext } from '@/lib/core/api-helpers';
 import { Role } from '@prisma/client';
 import { z } from 'zod';
-import { auth } from '@/auth';
 
 const refundSchema = z.object({
     bookingId: z.string().min(1),
     amountCents: z.number().int().positive().optional(),
 });
 
-export const POST = withRole(Role.ADMIN, async (req: Request) => {
+export const POST = withRoleContext(Role.ADMIN, async (req: Request, { user }) => {
     try {
         const body = await req.json();
         const result = refundSchema.safeParse(body);
@@ -19,12 +18,7 @@ export const POST = withRole(Role.ADMIN, async (req: Request) => {
         }
 
         const { bookingId, amountCents } = result.data;
-
-        // Get admin user ID for audit log
-        const session = await auth();
-        const adminUserId = session?.user?.id;
-
-        await PaymentsService.processManualRefund(bookingId, amountCents, adminUserId);
+        await PaymentsService.processManualRefund(bookingId, amountCents, user.id);
 
         return Response.json({ success: true });
     } catch (error: unknown) {

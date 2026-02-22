@@ -1,4 +1,4 @@
-import { AvailabilityService } from '@/lib/shared/availability';
+import { AvailabilityService } from '@/lib/domain/availability/service';
 import { prisma } from '@/lib/core/db';
 
 export type SavedAvailabilitySeed = {

@@ -5,8 +5,9 @@ import { signIn } from "next-auth/react";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { OAuthProviderIcon } from "@/components/auth/OAuthProviderIcon";
+import { appRoutes } from "@/lib/shared/routes";
 
-const ROLE_REDIRECT_PATH = "/api/auth/callback-redirect";
+const ROLE_REDIRECT_PATH = appRoutes.api.auth.callbackRedirect;
 
 function normalizeCallbackUrl(callbackUrl: string | null): string {
     if (!callbackUrl) return ROLE_REDIRECT_PATH;

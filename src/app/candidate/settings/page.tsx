@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNotification } from "@/components/ui/hooks/useNotification";
 import { NotificationBanner } from "@/components/ui/composites/NotificationBanner";
 import { ProviderConnections } from "@/components/auth/ProviderConnections";
+import { appRoutes } from "@/lib/shared/routes";
 import {
     CandidateProfileEditor,
     CandidateProfileEditorInitialData,
@@ -17,7 +18,7 @@ export default function CandidateSettingsPage() {
     const { notification, notify, clear } = useNotification();
 
     const fetchSettings = useCallback(async () => {
-        const response = await fetch("/api/shared/settings");
+        const response = await fetch(appRoutes.api.shared.settings);
         const payload = (await response.json().catch(() => null)) as
             | { data?: CandidateProfileEditorInitialData | null }
             | null;
@@ -59,7 +60,7 @@ export default function CandidateSettingsPage() {
     const handleSave = async (payload: CandidateProfileSubmitPayload) => {
         clear();
 
-        const response = await fetch("/api/shared/settings", {
+        const response = await fetch(appRoutes.api.shared.settings, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
@@ -116,7 +117,7 @@ export default function CandidateSettingsPage() {
                 </div>
 
                 <div className="mt-4">
-                    <Link href="/candidate/availability" className="text-sm font-medium text-gray-600 hover:text-black">
+                    <Link href={appRoutes.candidate.availability} className="text-sm font-medium text-gray-600 hover:text-black">
                         Manage availability
                     </Link>
                 </div>

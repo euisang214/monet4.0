@@ -9,6 +9,8 @@ import { createNotificationsWorker } from '@/lib/queues/notifications';
 import { createPaymentsWorker } from '@/lib/queues/payments';
 import { createBookingsWorker } from '@/lib/queues/bookings';
 
+const shouldRegisterRepeatableJobs = process.env.ENABLE_LOCAL_REPEAT_JOBS !== 'false';
+
 console.log('🚀 Starting Background Workers...');
 console.log(`🔗 Redis URL: ${process.env.REDIS_URL || 'localhost:6379'}`);
 
@@ -38,7 +40,11 @@ const setupRepeatableJobs = async () => {
 
 // Main entry point wrapped in async IIFE to avoid top-level await
 (async () => {
-    await setupRepeatableJobs();
+    if (shouldRegisterRepeatableJobs) {
+        await setupRepeatableJobs();
+    } else {
+        console.log('⏭️  Skipping repeatable bookings jobs (ENABLE_LOCAL_REPEAT_JOBS=false).');
+    }
 
     // Initialize Workers
     const workers = [

@@ -11,8 +11,8 @@ describe("resume-storage helpers", () => {
     const originalEnv = { ...process.env };
 
     beforeEach(() => {
-        process.env.SUPABASE_URL = "https://project-ref.supabase.co";
-        process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-key";
+        process.env.STORAGE_SUPABASE_URL = "https://project-ref.supabase.co";
+        process.env.STORAGE_SUPABASE_SERVICE_ROLE_KEY = "service-role-key";
         process.env.SUPABASE_RESUME_BUCKET = "candidate-resumes";
     });
 

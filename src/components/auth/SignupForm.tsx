@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { signIn } from "next-auth/react";
 import { OAuthProviderIcon } from "@/components/auth/OAuthProviderIcon";
+import { appRoutes } from "@/lib/shared/routes";
 
 const MAX_RESUME_SIZE_BYTES = 4 * 1024 * 1024;
 const PDF_CONTENT_TYPE = "application/pdf";
@@ -36,7 +37,7 @@ export function SignupForm() {
         setIsLoading(true);
         try {
             setOAuthIntent(role);
-            await signIn(provider, { callbackUrl: "/api/auth/callback-redirect" });
+            await signIn(provider, { callbackUrl: appRoutes.api.auth.callbackRedirect });
         } catch {
             setError("Unable to start social signup.");
             setIsLoading(false);
@@ -47,7 +48,7 @@ export function SignupForm() {
         const formData = new FormData();
         formData.append("file", file);
 
-        const uploadResponse = await fetch("/api/auth/signup/resume", {
+        const uploadResponse = await fetch(appRoutes.api.auth.signupResume, {
             method: "POST",
             body: formData,
         });
@@ -97,7 +98,7 @@ export function SignupForm() {
                 setIsUploadingResume(false);
             }
 
-            const res = await fetch("/api/auth/signup", {
+            const res = await fetch(appRoutes.api.auth.signup, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ name, email, password, role, resumeUrl }),

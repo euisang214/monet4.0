@@ -2,7 +2,7 @@ import { createBookingRequest, requestReschedule as transitionReschedule, initia
 import { CreateBookingRequestInput } from '@/lib/types/booking-schemas';
 import { Role } from '@prisma/client';
 import { ReviewsService } from '@/lib/domain/reviews/service';
-import { AvailabilityService } from '@/lib/shared/availability';
+import { AvailabilityService } from '@/lib/domain/availability/service';
 
 export const CandidateBookings = {
     requestBooking: async (candidateId: string, data: CreateBookingRequestInput) => {

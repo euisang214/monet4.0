@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { appRoutes } from '@/lib/shared/routes';
 
 interface DisputeResolutionFormProps {
     disputeId: string;
@@ -36,7 +37,7 @@ export default function DisputeResolutionForm({ disputeId, maxRefundAmount }: Di
                 body.refundAmountCents = cents;
             }
 
-            const res = await fetch(`/api/admin/disputes/${disputeId}/resolve`, {
+            const res = await fetch(appRoutes.api.admin.disputeResolve(disputeId), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body),

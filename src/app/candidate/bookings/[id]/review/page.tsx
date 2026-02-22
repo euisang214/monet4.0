@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { appRoutes } from '@/lib/shared/routes';
 
 export default function ReviewPage({ params }: { params: { id: string } }) {
     const router = useRouter();
@@ -22,7 +23,7 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
         try {
             // POST /api/candidate/reviews
             // Body: { bookingId, rating (1-5), text (min 50 chars), timezone }
-            const res = await fetch(`/api/candidate/reviews`, {
+            const res = await fetch(appRoutes.api.candidate.reviews, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -38,7 +39,7 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
                 throw new Error(data.error || 'Failed to submit review');
             }
 
-            router.push(`/candidate/bookings/${params.id}`);
+            router.push(appRoutes.candidate.bookingDetails(params.id));
             router.refresh();
         } catch (err: any) {
             setError(err.message);

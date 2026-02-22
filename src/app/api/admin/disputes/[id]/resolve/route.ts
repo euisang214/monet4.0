@@ -1,5 +1,5 @@
 import { resolveDispute } from '@/lib/domain/admin/disputes';
-import { getErrorMessage, getErrorStatus, withRole } from '@/lib/core/api-helpers';
+import { getErrorMessage, getErrorStatus, withRoleContext } from '@/lib/core/api-helpers';
 import { Role } from '@prisma/client';
 import { z } from 'zod';
 
@@ -17,8 +17,10 @@ const resolveSchema = z.object({
     path: ["refundAmountCents"]
 });
 
-export const PUT = withRole(Role.ADMIN, async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
-    const { id } = await params;
+export const PUT = withRoleContext(
+    Role.ADMIN,
+    async (req: Request, { user }, { params }: { params: { id: string } }) => {
+    const { id } = params;
 
     try {
         const body = await req.json();
@@ -29,32 +31,7 @@ export const PUT = withRole(Role.ADMIN, async (req: Request, { params }: { param
         }
 
         const { resolution, action, refundAmountCents } = result.data;
-
-        // Use a placeholder or actual admin ID from session?
-        // withRole endpoint wrapper verifies role but inside handler we might need the ID.
-        // withRole doesn't pass session user down directly in the wrapper signature I see in CLAUDE.md?
-        // Wait, the `withRole` signature in CLAUDE.md was:
-        // `export const GET = withRole(['ADMIN'], async (session, req) => { ... });`
-        // BUT the snippet I read in `api-helpers.ts` was:
-        // `export function withRole(role: Role, handler: ApiHandler) { return async (req, ...args) => { ... } }`
-        // It does NOT pass session to handler! It just calls `handler(req, ...args)`.
-        // So I need to call `auth()` again or modify `withRole` to pass it? 
-        // `currentUser()` creates overhead. `auth()` is cached?
-        // Let's call `auth()`/`currentUser()` again inside since `withRole` is just a guard.
-
-        // Actually, `lib/core/api-helpers.ts` snippet (Line 38) calls `return handler(req, ...args)`.
-        // It does NOT modify arguments.
-        // So I must fetch user again.
-
-        const { auth } = await import('@/auth');
-        const session = await auth();
-        const adminUserId = session?.user?.id;
-
-        if (!adminUserId) {
-            return Response.json({ error: 'unauthorized' }, { status: 401 });
-        }
-
-        await resolveDispute(id, resolution, action, adminUserId, refundAmountCents);
+        await resolveDispute(id, resolution, action, user.id, refundAmountCents);
 
         return Response.json({ success: true });
     } catch (error: unknown) {

@@ -144,6 +144,9 @@ describe("shared settings route", () => {
             expect.objectContaining({
                 bio: "Experienced mentor",
                 corporateEmail: "pro@example.com",
+            }),
+            expect.objectContaining({
+                markOnboardingCompleted: false,
             })
         );
     });

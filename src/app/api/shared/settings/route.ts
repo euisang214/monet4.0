@@ -3,13 +3,9 @@ import { Role } from "@prisma/client";
 import { prisma } from "@/lib/core/db";
 import { ProfileService } from "@/lib/domain/users/profile-service";
 import {
-    buildResumeRequiredValidationError,
-    candidateProfilePayloadSchema,
     getCandidateProfileForSettings,
-    professionalProfilePayloadSchema,
-    upsertCandidateProfileFromPayload,
-    upsertProfessionalProfileFromPayload,
 } from "@/lib/domain/users/profile-upsert-service";
+import { submitProfilePayload } from "@/lib/domain/users/profile-submit-service";
 
 export async function PUT(request: Request) {
     const session = await auth();
@@ -20,24 +16,18 @@ export async function PUT(request: Request) {
     try {
         const body = await request.json();
         const role = session.user.role as Role;
+        const submission = await submitProfilePayload({
+            userId: session.user.id,
+            role,
+            body,
+            mode: "settings",
+        });
 
-        if (role === Role.CANDIDATE) {
-            const parsed = candidateProfilePayloadSchema.safeParse(body);
-            if (!parsed.success) {
-                return Response.json({ error: "validation_error", details: parsed.error.flatten() }, { status: 400 });
-            }
-
-            const result = await upsertCandidateProfileFromPayload(session.user.id, parsed.data);
-            if (!result.success && result.error === "resume_required") {
-                return Response.json(buildResumeRequiredValidationError(), { status: 400 });
-            }
-        } else if (role === Role.PROFESSIONAL) {
-            const parsed = professionalProfilePayloadSchema.safeParse(body);
-            if (!parsed.success) {
-                return Response.json({ error: "validation_error", details: parsed.error.flatten() }, { status: 400 });
-            }
-
-            await upsertProfessionalProfileFromPayload(session.user.id, parsed.data);
+        if (!submission.success) {
+            return Response.json(
+                submission.details ? { error: submission.error, details: submission.details } : { error: submission.error },
+                { status: submission.status }
+            );
         }
 
         return Response.json({ data: { success: true } });

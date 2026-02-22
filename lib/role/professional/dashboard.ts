@@ -1,17 +1,9 @@
 import { prisma } from '@/lib/core/db';
 import { BookingStatus, Prisma } from '@prisma/client';
 import { ReviewsService } from '@/lib/domain/reviews/service';
-import { createResumeUrlSigner } from '@/lib/integrations/resume-storage';
+import { signCandidateResumeUrls } from '@/lib/shared/resume-signing';
 
 export type ProfessionalDashboardView = 'upcoming' | 'requested' | 'reschedule' | 'pending_feedback';
-
-type BookingWithCandidateResume = {
-    candidate: {
-        candidateProfile?: {
-            resumeUrl?: string | null;
-        } | null;
-    };
-};
 
 type UpcomingBooking = Prisma.BookingGetPayload<{
     select: {
@@ -90,19 +82,6 @@ function pendingFeedbackWhere(professionalId: string): Prisma.BookingWhereInput 
     };
 }
 
-async function signActionRequiredResumeUrls(bookings: BookingWithCandidateResume[]) {
-    const signResumeUrl = createResumeUrlSigner();
-
-    await Promise.all(
-        bookings.map(async (booking) => {
-            const candidateProfile = booking.candidate.candidateProfile;
-            if (!candidateProfile?.resumeUrl) return;
-
-            candidateProfile.resumeUrl = (await signResumeUrl(candidateProfile.resumeUrl)) ?? null;
-        }),
-    );
-}
-
 function nextCursorFromPage<T extends { id: string }>(items: T[], take: number) {
     const hasMore = items.length > take;
     const pageItems = hasMore ? items.slice(0, take) : items;
@@ -161,7 +140,7 @@ async function getActiveViewPage(
         });
 
         const page = nextCursorFromPage(items, take);
-        await signActionRequiredResumeUrls(page.pageItems);
+        await signCandidateResumeUrls(page.pageItems);
         return page;
     }
 
@@ -184,7 +163,7 @@ async function getActiveViewPage(
         });
 
         const page = nextCursorFromPage(items, take);
-        await signActionRequiredResumeUrls(page.pageItems);
+        await signCandidateResumeUrls(page.pageItems);
         return page;
     }
 

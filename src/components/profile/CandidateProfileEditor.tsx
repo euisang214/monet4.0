@@ -3,6 +3,7 @@
 import { ReactNode, useEffect, useState } from "react";
 import { TimelineEntriesEditor } from "@/components/profile/shared/TimelineEntriesEditor";
 import { EducationEntriesEditor } from "@/components/profile/shared/EducationEntriesEditor";
+import { appRoutes } from "@/lib/shared/routes";
 import { SUPPORTED_TIMEZONES, normalizeTimezone } from "@/lib/utils/supported-timezones";
 import {
     EducationEntry,
@@ -54,7 +55,7 @@ async function uploadCandidateResume(file: File) {
     const formData = new FormData();
     formData.append("file", file);
 
-    const response = await fetch("/api/candidate/upload/resume", {
+    const response = await fetch(appRoutes.api.candidate.uploadResume, {
         method: "POST",
         body: formData,
     });

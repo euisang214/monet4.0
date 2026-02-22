@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { appRoutes } from '@/lib/shared/routes';
 
 export function ZoomLinkForm({
     bookingId,
@@ -34,7 +35,7 @@ export function ZoomLinkForm({
                 throw new Error('Enter a shared URL or at least one role-specific URL');
             }
 
-            const res = await fetch(`/api/admin/bookings/${bookingId}/zoom-link`, {
+            const res = await fetch(appRoutes.api.admin.bookingZoomLink(bookingId), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

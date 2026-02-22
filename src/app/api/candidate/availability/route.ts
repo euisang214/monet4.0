@@ -1,5 +1,5 @@
 import { auth } from "@/auth"
-import { AvailabilityService } from "@/lib/shared/availability"
+import { AvailabilityService } from "@/lib/domain/availability/service"
 import { z } from "zod"
 
 const slotSchema = z.object({

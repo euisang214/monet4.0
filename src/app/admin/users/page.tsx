@@ -1,6 +1,7 @@
 import { AdminUserService } from '@/lib/role/admin/users';
 import { AdminDataTable, type Column } from '@/components/ui/composites/AdminDataTable';
 import { StatusBadge } from '@/components/ui/composites/StatusBadge';
+import { appRoutes } from '@/lib/shared/routes';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +41,7 @@ export default async function UsersPage() {
             <div className="flex justify-between items-center">
                 <h1 className="text-2xl font-bold text-gray-800">Users</h1>
                 <a
-                    href="/api/admin/export/users"
+                    href={appRoutes.api.admin.usersExport}
                     className="px-4 py-2 bg-white border border-gray-300 rounded shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
                 >
                     Export CSV

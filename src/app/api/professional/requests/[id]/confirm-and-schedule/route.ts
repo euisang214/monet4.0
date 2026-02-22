@@ -1,19 +1,16 @@
-import { getErrorMessage, getErrorStatus, withRole } from '@/lib/core/api-helpers';
+import { getErrorMessage, getErrorStatus, withRoleContext } from '@/lib/core/api-helpers';
 import { z } from 'zod';
 import { ProfessionalRequestService } from '@/lib/role/professional/requests';
 import { Role } from '@prisma/client';
-
-import { auth } from '@/auth';
-
-export const GET = withRole(Role.PROFESSIONAL, async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
+export const GET = withRoleContext(
+    Role.PROFESSIONAL,
+    async (req: Request, { user }, { params }: { params: { id: string } }) => {
     try {
-        const session = await auth();
-        if (!session?.user?.id) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-        const { id } = await params;
+        const { id } = params;
 
         const slots = await ProfessionalRequestService.getBookingCandidateAvailability(
             id,
-            session.user.id
+            user.id
         );
         return Response.json({ data: slots });
     } catch (error: unknown) {
@@ -27,18 +24,18 @@ const confirmSchema = z.object({
     startAt: z.string().datetime()
 });
 
-export const POST = withRole(Role.PROFESSIONAL, async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
+export const POST = withRoleContext(
+    Role.PROFESSIONAL,
+    async (req: Request, { user }, { params }: { params: { id: string } }) => {
     try {
-        const session = await auth();
-        if (!session?.user?.id) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-        const { id } = await params;
+        const { id } = params;
 
         const body = await req.json();
         const { startAt } = confirmSchema.parse(body);
 
         const booking = await ProfessionalRequestService.confirmAndSchedule(
             id,
-            session.user.id,
+            user.id,
             new Date(startAt)
         );
 

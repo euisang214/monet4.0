@@ -1,17 +1,16 @@
-import { auth } from '@/auth';
-import { withRole } from '@/lib/core/api-helpers';
+import { withRoleContext } from '@/lib/core/api-helpers';
 import { ProfessionalRescheduleService } from '@/lib/role/professional/reschedule';
 import { Role } from '@prisma/client';
 
-export const GET = withRole(Role.PROFESSIONAL, async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
+export const GET = withRoleContext(
+    Role.PROFESSIONAL,
+    async (req: Request, { user }, { params }: { params: { id: string } }) => {
     try {
-        const session = await auth();
-        if (!session?.user?.id) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-        const { id } = await params;
+        const { id } = params;
 
         const slots = await ProfessionalRescheduleService.getRescheduleAvailability(
             id,
-            session.user.id
+            user.id
         );
 
         return Response.json({ data: slots });

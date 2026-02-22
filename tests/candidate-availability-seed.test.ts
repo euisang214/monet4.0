@@ -13,7 +13,7 @@ vi.mock('@/lib/core/db', () => ({
     },
 }));
 
-vi.mock('@/lib/shared/availability', () => ({
+vi.mock('@/lib/domain/availability/service', () => ({
     AvailabilityService: {
         getCandidateBusyTimes: getCandidateBusyTimesMock,
         setAvailability: setAvailabilityMock,
