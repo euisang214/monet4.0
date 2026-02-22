@@ -2,7 +2,30 @@ import { stripe } from '@/lib/integrations/stripe';
 import { confirmPaymentInDb, handlePaymentFailure } from '@/lib/integrations/stripe/confirm';
 import Stripe from 'stripe';
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+function resolveWebhookSecret(): string {
+    const testSecret = process.env.STRIPE_TEST_WEBHOOK_SECRET?.trim();
+    const liveSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
+    const isTestEnv = process.env.NODE_ENV === 'test';
+
+    if (isTestEnv) {
+        if (!testSecret) {
+            throw new Error('STRIPE_TEST_WEBHOOK_SECRET is missing');
+        }
+        return testSecret;
+    }
+
+    if (liveSecret) {
+        return liveSecret;
+    }
+
+    if (testSecret) {
+        return testSecret;
+    }
+
+    throw new Error('STRIPE_WEBHOOK_SECRET is missing');
+}
+
+const webhookSecret = resolveWebhookSecret();
 
 export async function POST(request: Request) {
     const body = await request.text();

@@ -1,12 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { prisma } from '@/lib/core/db';
 import { CandidateBookings } from '@/lib/role/candidate/bookings';
-import { ProfessionalRequestService } from '@/lib/role/professional/requests';
-import { cancelBooking as transitionCancel, completeIntegrations } from '@/lib/domain/bookings/transitions';
+import { cancelBooking as transitionCancel } from '@/lib/domain/bookings/transitions';
 import { BookingStatus, PaymentStatus, Role } from '@prisma/client';
-import { addDays, addMinutes } from 'date-fns';
-import { configureE2EMocks, createE2EActors, cleanupE2EData } from './fixtures';
-import { confirmPaymentIntentForCapture, stripeTest } from '../helpers/stripe-live';
+import { addHours } from 'date-fns';
+import { configureE2EMocks, createAcceptedBooking, createE2EActors, cleanupE2EData } from './fixtures';
+import { stripeTest } from '../helpers/stripe-live';
 
 vi.mock('@/lib/integrations/zoom', () => import('../mocks/zoom'));
 
@@ -41,48 +40,11 @@ describe('Cancellation Flow E2E', () => {
         await cleanupE2EData(candidateId, professionalId);
     });
 
-    async function createAcceptedBooking(dayOffset: number, meetingId: string) {
-        const proposedStart = addDays(new Date(), dayOffset);
-        proposedStart.setMinutes(0, 0, 0);
-        const proposedEnd = addMinutes(proposedStart, 30);
-
-        const requestResult = await CandidateBookings.requestBooking(candidateId, {
-            professionalId,
-            weeks: 2,
-            availabilitySlots: [{ start: proposedStart.toISOString(), end: proposedEnd.toISOString() }],
-            timezone: 'UTC',
-        });
-        await confirmPaymentIntentForCapture(requestResult.stripePaymentIntentId);
-
-        const bookingId = requestResult.booking.id;
-        const startAt = addDays(new Date(), dayOffset);
-        const acceptResult = await ProfessionalRequestService.confirmAndSchedule(
-            bookingId,
-            professionalId,
-            startAt
-        );
-        expect(acceptResult.status).toBe(BookingStatus.accepted_pending_integrations);
-
-        await completeIntegrations(bookingId, {
-            joinUrl: `https://zoom.us/j/${meetingId}`,
-            meetingId,
-        });
-
-        const acceptedBooking = await prisma.booking.findUnique({
-            where: { id: bookingId },
-            include: { payment: true },
-        });
-        expect(acceptedBooking?.status).toBe(BookingStatus.accepted);
-        expect(acceptedBooking?.payment?.status).toBe(PaymentStatus.held);
-
-        return {
-            bookingId,
-            paymentIntentId: requestResult.stripePaymentIntentId,
-        };
-    }
-
     it('should complete candidate-initiated cancellation flow from accepted booking to refund', async () => {
-        const { bookingId, paymentIntentId } = await createAcceptedBooking(3, 'candidate-cancel-flow');
+        const { bookingId, paymentIntentId } = await createAcceptedBooking(candidateId, professionalId, {
+            dayOffset: 3,
+            meetingId: 'candidate-cancel-flow',
+        });
 
         const cancelResult = await CandidateBookings.cancelBooking(candidateId, bookingId, 'Schedule conflict');
         expect(cancelResult.status).toBe(BookingStatus.cancelled);
@@ -104,7 +66,10 @@ describe('Cancellation Flow E2E', () => {
     });
 
     it('should complete professional-initiated cancellation flow from accepted booking to refund', async () => {
-        const { bookingId, paymentIntentId } = await createAcceptedBooking(3, 'professional-cancel-flow');
+        const { bookingId, paymentIntentId } = await createAcceptedBooking(candidateId, professionalId, {
+            dayOffset: 3,
+            meetingId: 'professional-cancel-flow',
+        });
 
         const cancelResult = await transitionCancel(
             bookingId,
@@ -122,6 +87,36 @@ describe('Cancellation Flow E2E', () => {
         expect(bookingAfterCancel?.candidateLateCancellation).toBe(false);
         expect(bookingAfterCancel?.payment?.status).toBe(PaymentStatus.refunded);
         expect(bookingAfterCancel?.payment?.refundedAmountCents).toBe(10000);
+        expect(bookingAfterCancel?.payout).toBeNull();
+
+        const refunds = await stripeTest.refunds.list({ payment_intent: paymentIntentId, limit: 5 });
+        expect(refunds.data.length).toBeGreaterThan(0);
+        expect(refunds.data[0].amount).toBe(10_000);
+    });
+
+    it('should keep professional-initiated late cancellation on refund path (no late payout)', async () => {
+        const startAt = addHours(new Date(), 2);
+        const { bookingId, paymentIntentId } = await createAcceptedBooking(candidateId, professionalId, {
+            scheduledStartAt: startAt,
+            meetingId: 'professional-late-cancel-flow',
+        });
+
+        const cancelResult = await transitionCancel(
+            bookingId,
+            { userId: professionalId, role: Role.PROFESSIONAL },
+            'Professional conflict (late)'
+        );
+        expect(cancelResult.status).toBe(BookingStatus.cancelled);
+
+        const bookingAfterCancel = await prisma.booking.findUnique({
+            where: { id: bookingId },
+            include: { payment: true, payout: true },
+        });
+
+        expect(bookingAfterCancel?.status).toBe(BookingStatus.cancelled);
+        expect(bookingAfterCancel?.candidateLateCancellation).toBe(false);
+        expect(bookingAfterCancel?.payment?.status).toBe(PaymentStatus.refunded);
+        expect(bookingAfterCancel?.payment?.refundedAmountCents).toBe(10_000);
         expect(bookingAfterCancel?.payout).toBeNull();
 
         const refunds = await stripeTest.refunds.list({ payment_intent: paymentIntentId, limit: 5 });

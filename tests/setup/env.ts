@@ -11,5 +11,6 @@ if (missing.length > 0) {
     );
 }
 
-process.env.STRIPE_SECRET_KEY = process.env.STRIPE_TEST_SECRET_KEY;
-process.env.STRIPE_WEBHOOK_SECRET = process.env.STRIPE_TEST_WEBHOOK_SECRET;
+if (!process.env.STRIPE_TEST_SECRET_KEY?.startsWith('sk_test_')) {
+    throw new Error('[tests/setup/env] STRIPE_TEST_SECRET_KEY must be a Stripe test key (sk_test_...)');
+}

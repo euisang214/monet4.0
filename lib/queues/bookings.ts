@@ -125,6 +125,7 @@ async function applyFinalNoShowDecision({
 }: {
     booking: {
         id: string;
+        candidateId: string;
     };
     candidateJoined: boolean;
     professionalJoined: boolean;
@@ -138,9 +139,9 @@ async function applyFinalNoShowDecision({
     if (hasUnknownJoinEvidence) {
         await initiateDispute(
             booking.id,
-            { userId: 'system', role: 'ADMIN' },
+            { userId: booking.candidateId, role: 'CANDIDATE' },
             'no_show',
-            'Automated: Ambiguous attendance evidence from Zoom events.',
+            'Automated no-show decision (automated=true,outcome=both_no_show): Ambiguous attendance evidence from Zoom events.',
             undefined,
             { attendanceOutcome: AttendanceOutcome.both_no_show }
         );
@@ -160,9 +161,9 @@ async function applyFinalNoShowDecision({
     if (candidateJoined && !professionalJoined) {
         await initiateDispute(
             booking.id,
-            { userId: 'system', role: 'ADMIN' },
+            { userId: booking.candidateId, role: 'CANDIDATE' },
             'no_show',
-            'Automated: Professional failed to join.',
+            'Automated no-show decision (automated=true,outcome=professional_no_show): Professional failed to join.',
             undefined,
             { attendanceOutcome: AttendanceOutcome.professional_no_show }
         );
@@ -171,9 +172,9 @@ async function applyFinalNoShowDecision({
 
     await initiateDispute(
         booking.id,
-        { userId: 'system', role: 'ADMIN' },
+        { userId: booking.candidateId, role: 'CANDIDATE' },
         'no_show',
-        'Automated: Both parties failed to join.',
+        'Automated no-show decision (automated=true,outcome=both_no_show): Both parties failed to join.',
         undefined,
         { attendanceOutcome: AttendanceOutcome.both_no_show }
     );
@@ -629,6 +630,7 @@ export async function processNoShowCheck() {
     });
 
     console.log(`[BOOKINGS] Found ${staleBookings.length} potential no-show bookings`);
+    const failedBookingIds: string[] = [];
 
     for (const booking of staleBookings) {
         try {
@@ -712,7 +714,7 @@ export async function processNoShowCheck() {
             }
 
             const applied = await applyFinalNoShowDecision({
-                booking: { id: booking.id },
+                booking: { id: booking.id, candidateId: booking.candidateId },
                 candidateJoined,
                 professionalJoined: proJoined,
                 hasUnknownJoinEvidence,
@@ -730,8 +732,9 @@ export async function processNoShowCheck() {
             });
         } catch (error) {
             console.error(`[BOOKINGS] Failed to process no-show for booking ${booking.id}`, error);
+            failedBookingIds.push(booking.id);
         }
     }
 
-    return { processed: true, count: staleBookings.length };
+    return { processed: true, count: staleBookings.length, failedBookingIds };
 }

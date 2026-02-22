@@ -1,10 +1,34 @@
 import Stripe from 'stripe';
 
-if (!process.env.STRIPE_SECRET_KEY) {
+function resolveStripeSecretKey(): string {
+    const testKey = process.env.STRIPE_TEST_SECRET_KEY?.trim();
+    const liveKey = process.env.STRIPE_SECRET_KEY?.trim();
+    const isTestEnv = process.env.NODE_ENV === 'test';
+
+    if (isTestEnv) {
+        if (!testKey) {
+            throw new Error('STRIPE_TEST_SECRET_KEY is missing');
+        }
+        if (!testKey.startsWith('sk_test_')) {
+            throw new Error('STRIPE_TEST_SECRET_KEY must be a Stripe test key (sk_test_...)');
+        }
+        return testKey;
+    }
+
+    if (liveKey) {
+        return liveKey;
+    }
+
+    if (testKey) {
+        return testKey;
+    }
+
     throw new Error('STRIPE_SECRET_KEY is missing');
 }
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+const stripeSecretKey = resolveStripeSecretKey();
+
+export const stripe = new Stripe(stripeSecretKey, {
     // apiVersion: '2025-01-27.acacia', // Using SDK default
     typescript: true,
 });

@@ -276,6 +276,7 @@ describe('Booking Queue Workers', () => {
                 })
             );
             expect(result.count).toBe(0);
+            expect(result.failedBookingIds).toEqual([]);
         });
 
         it('should complete call when both parties joined', async () => {
@@ -283,6 +284,7 @@ describe('Booking Queue Workers', () => {
                 id: 'both_joined',
                 status: BookingStatus.accepted,
                 startAt: new Date(Date.now() - 20 * 60 * 1000),
+                candidateId: 'cand_both_joined',
                 candidateJoinedAt: new Date(),
                 professionalJoinedAt: new Date(),
             };
@@ -303,6 +305,7 @@ describe('Booking Queue Workers', () => {
                 id: 'cand_noshow',
                 status: BookingStatus.accepted,
                 startAt: new Date(Date.now() - 20 * 60 * 1000),
+                candidateId: 'cand_noshow_user',
                 candidateJoinedAt: null,
                 professionalJoinedAt: new Date(),
             };
@@ -326,6 +329,7 @@ describe('Booking Queue Workers', () => {
                 id: 'pro_noshow',
                 status: BookingStatus.accepted,
                 startAt: new Date(Date.now() - 20 * 60 * 1000),
+                candidateId: 'cand_pro_noshow',
                 candidateJoinedAt: new Date(),
                 professionalJoinedAt: null,
             };
@@ -338,7 +342,7 @@ describe('Booking Queue Workers', () => {
 
             expect(initiateDispute).toHaveBeenCalledWith(
                 'pro_noshow',
-                expect.objectContaining({ role: 'ADMIN' }),
+                { userId: 'cand_pro_noshow', role: 'CANDIDATE' },
                 'no_show',
                 expect.stringContaining('Professional'),
                 undefined,
@@ -351,6 +355,7 @@ describe('Booking Queue Workers', () => {
                 id: 'ambiguous_noshow',
                 status: BookingStatus.accepted,
                 startAt: new Date(Date.now() - 25 * 60 * 1000),
+                candidateId: 'cand_ambiguous',
                 candidateJoinedAt: null,
                 professionalJoinedAt: null,
             };
@@ -363,7 +368,7 @@ describe('Booking Queue Workers', () => {
 
             expect(initiateDispute).toHaveBeenCalledWith(
                 'ambiguous_noshow',
-                expect.objectContaining({ role: 'ADMIN' }),
+                { userId: 'cand_ambiguous', role: 'CANDIDATE' },
                 'no_show',
                 expect.stringContaining('Ambiguous attendance evidence'),
                 undefined,
@@ -378,6 +383,7 @@ describe('Booking Queue Workers', () => {
                 id: 'pending_final',
                 status: BookingStatus.accepted,
                 startAt: new Date(Date.now() - 12 * 60 * 1000),
+                candidateId: 'cand_pending_final',
                 candidateJoinedAt: null,
                 professionalJoinedAt: null,
             };
@@ -390,6 +396,26 @@ describe('Booking Queue Workers', () => {
             expect(completeCall).not.toHaveBeenCalled();
             expect(cancelBooking).not.toHaveBeenCalled();
             expect(initiateDispute).not.toHaveBeenCalled();
+        });
+
+        it('should return failed booking ids when a transition throws', async () => {
+            const booking = {
+                id: 'pro_noshow_failing',
+                status: BookingStatus.accepted,
+                startAt: new Date(Date.now() - 20 * 60 * 1000),
+                candidateId: 'cand_pro_noshow_failing',
+                candidateJoinedAt: new Date(),
+                professionalJoinedAt: null,
+            };
+
+            vi.mocked(prisma.booking.findMany).mockResolvedValue([booking] as any);
+            vi.mocked(prisma.zoomAttendanceEvent.count).mockResolvedValue(0);
+            vi.mocked(initiateDispute).mockRejectedValue(new Error('forced transition failure'));
+
+            const result = await processNoShowCheck();
+
+            expect(result.count).toBe(1);
+            expect(result.failedBookingIds).toEqual(['pro_noshow_failing']);
         });
     });
 

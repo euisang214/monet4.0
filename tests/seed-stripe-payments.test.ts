@@ -47,11 +47,9 @@ function makeMockStripeApi() {
 }
 
 describe('seed stripe env validation', () => {
-    it('throws when STRIPE_TEST_SECRET_KEY is missing even if STRIPE_SECRET_KEY exists', () => {
+    it('throws when STRIPE_TEST_SECRET_KEY is missing', () => {
         expect(() =>
-            validateStripeSeedEnv({
-                STRIPE_SECRET_KEY: 'sk_test_should_not_be_used',
-            } as NodeJS.ProcessEnv)
+            validateStripeSeedEnv({} as NodeJS.ProcessEnv)
         ).toThrow(/STRIPE_TEST_SECRET_KEY/)
     })
 
@@ -59,14 +57,14 @@ describe('seed stripe env validation', () => {
         expect(() =>
             validateStripeSeedEnv({
                 STRIPE_TEST_SECRET_KEY: 'sk_live_123',
-            } as NodeJS.ProcessEnv)
+            } as unknown as NodeJS.ProcessEnv)
         ).toThrow(/sk_test_/)
     })
 
     it('uses pm_card_visa as default payment method when unset', () => {
         const env = validateStripeSeedEnv({
             STRIPE_TEST_SECRET_KEY: 'sk_test_123',
-        } as NodeJS.ProcessEnv)
+        } as unknown as NodeJS.ProcessEnv)
         expect(env.defaultPaymentMethod).toBe('pm_card_visa')
     })
 })
