@@ -50,7 +50,33 @@ describe("ProfessionalDashboardService.getDashboardData", () => {
                 startAt: new Date(),
                 timezone: "America/New_York",
                 zoomJoinUrl: "https://zoom.us/j/1",
-                candidate: { email: "cand1@example.com" },
+                professionalZoomJoinUrl: "https://zoom.us/wc/1",
+                candidate: {
+                    firstName: "John",
+                    lastName: "Doe",
+                    candidateProfile: {
+                        resumeUrl: null,
+                        experience: [
+                            {
+                                id: "exp-1",
+                                title: "Intern",
+                                company: "Blackstone",
+                                startDate: new Date("2025-01-01"),
+                                endDate: null,
+                                isCurrent: true,
+                            },
+                        ],
+                        education: [
+                            {
+                                id: "edu-1",
+                                school: "Columbia University",
+                                startDate: new Date("2022-09-01"),
+                                endDate: null,
+                                isCurrent: true,
+                            },
+                        ],
+                    },
+                },
             },
         ]);
 
@@ -70,12 +96,50 @@ describe("ProfessionalDashboardService.getDashboardData", () => {
             upcomingBookingsCount: 4,
             pendingFeedbackCount: 3,
         });
+        expect((data.items[0] as { candidateLabel: string }).candidateLabel).toBe(
+            "John Doe - Columbia University, Intern @ Blackstone"
+        );
     });
 
     it("paginates pending feedback section", async () => {
         mockPrisma.booking.findMany.mockResolvedValue([
-            { id: "f1", candidate: { id: "cand-1", email: "cand1@example.com" }, feedback: null },
-            { id: "f2", candidate: { id: "cand-2", email: "cand2@example.com" }, feedback: null },
+            {
+                id: "f1",
+                endAt: new Date("2026-02-20T00:00:00Z"),
+                candidate: {
+                    firstName: "Casey",
+                    lastName: "Lee",
+                    candidateProfile: {
+                        resumeUrl: null,
+                        experience: [
+                            {
+                                id: "exp-2",
+                                title: "Analyst",
+                                company: "Centerview",
+                                startDate: new Date("2024-01-01"),
+                                endDate: null,
+                                isCurrent: true,
+                            },
+                        ],
+                        education: [],
+                    },
+                },
+                feedback: null,
+            },
+            {
+                id: "f2",
+                endAt: new Date("2026-02-19T00:00:00Z"),
+                candidate: {
+                    firstName: "Jamie",
+                    lastName: "Park",
+                    candidateProfile: {
+                        resumeUrl: null,
+                        experience: [],
+                        education: [],
+                    },
+                },
+                feedback: null,
+            },
         ]);
 
         const data = await ProfessionalDashboardService.getDashboardData("pro-1", {
@@ -91,5 +155,6 @@ describe("ProfessionalDashboardService.getDashboardData", () => {
                 orderBy: [{ endAt: "desc" }, { id: "desc" }],
             }),
         );
+        expect((data.items[0] as { candidateLabel: string }).candidateLabel).toBe("Casey Lee - Analyst @ Centerview");
     });
 });

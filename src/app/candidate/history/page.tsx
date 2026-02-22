@@ -10,6 +10,10 @@ import {
 import { appRoutes } from '@/lib/shared/routes';
 import { EmptyState } from '@/components/ui/composites/EmptyState';
 import { CandidateHistoryActions } from '@/components/bookings/CandidateHistoryActions';
+import {
+    formatProfessionalForCandidateView,
+    shouldRevealProfessionalNameForCandidateStatus,
+} from '@/lib/domain/users/identity-labels';
 
 const CHAT_SECTION_KEYS: CandidateChatSection[] = ['upcoming', 'pending', 'expired', 'past', 'other'];
 const DEFAULT_VIEW: CandidateChatSection = 'upcoming';
@@ -183,17 +187,15 @@ export default async function CandidateChatsPage({
                                     <li key={booking.id} className="p-5 bg-white border border-gray-200 rounded-xl shadow-sm">
                                         <div className="flex justify-between items-start gap-4">
                                             <div>
-                                                <p className="font-semibold text-gray-900 mb-1">
-                                                    {booking.professional.email}
+                                                <p className="font-semibold text-gray-900 mb-2">
+                                                    {formatProfessionalForCandidateView({
+                                                        firstName: booking.professional.firstName,
+                                                        lastName: booking.professional.lastName,
+                                                        title: booking.professional.professionalProfile?.title,
+                                                        company: booking.professional.professionalProfile?.employer,
+                                                        revealName: shouldRevealProfessionalNameForCandidateStatus(booking.status),
+                                                    })}
                                                 </p>
-                                                {booking.professional.professionalProfile?.title && (
-                                                    <p className="text-xs text-gray-500 mb-2">
-                                                        {booking.professional.professionalProfile.title}
-                                                        {booking.professional.professionalProfile.employer
-                                                            ? ` at ${booking.professional.professionalProfile.employer}`
-                                                            : ''}
-                                                    </p>
-                                                )}
                                                 <p className="text-sm text-gray-600">
                                                     {scheduleLabel(booking)}
                                                 </p>

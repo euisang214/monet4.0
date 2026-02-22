@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
+import { formatRoleAtCompany } from "@/lib/domain/users/identity-labels";
 
 interface ListingCardProps {
     professional: {
@@ -15,6 +16,7 @@ interface ListingCardProps {
 
 export function ListingCard({ professional }: ListingCardProps) {
     const router = useRouter();
+    const professionalLabel = formatRoleAtCompany(professional.title, professional.employer, "Professional");
 
     const formattedPrice = new Intl.NumberFormat("en-US", {
         style: "currency",
@@ -27,8 +29,7 @@ export function ListingCard({ professional }: ListingCardProps) {
         <article className="h-full bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-lg transition-shadow flex flex-col">
             <div className="mb-4">
                 <div>
-                    <h4 className="text-base font-semibold text-gray-900">{professional.title}</h4>
-                    <p className="text-sm text-gray-600 italic">{professional.employer}</p>
+                    <h4 className="text-base font-semibold text-gray-900">{professionalLabel}</h4>
                 </div>
             </div>
 

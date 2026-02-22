@@ -6,6 +6,7 @@ import { FeedbackForm } from '@/components/feedback/FeedbackForm';
 import { Role } from '@prisma/client';
 import Link from 'next/link';
 import { EmptyState } from '@/components/ui/composites/EmptyState';
+import { formatCandidateForProfessionalView } from '@/lib/domain/users/identity-labels';
 
 export default async function FeedbackPage({
     params
@@ -19,7 +20,36 @@ export default async function FeedbackPage({
         where: { id: bookingId },
         include: {
             candidate: {
-                select: { email: true }
+                select: {
+                    firstName: true,
+                    lastName: true,
+                    candidateProfile: {
+                        select: {
+                            experience: {
+                                where: { type: 'EXPERIENCE' },
+                                orderBy: [{ isCurrent: 'desc' }, { startDate: 'desc' }, { id: 'desc' }],
+                                select: {
+                                    id: true,
+                                    title: true,
+                                    company: true,
+                                    startDate: true,
+                                    endDate: true,
+                                    isCurrent: true,
+                                },
+                            },
+                            education: {
+                                orderBy: [{ isCurrent: 'desc' }, { startDate: 'desc' }, { id: 'desc' }],
+                                select: {
+                                    id: true,
+                                    school: true,
+                                    startDate: true,
+                                    endDate: true,
+                                    isCurrent: true,
+                                },
+                            },
+                        },
+                    },
+                },
             },
             feedback: true
         }
@@ -65,6 +95,12 @@ export default async function FeedbackPage({
         text: booking.feedback.text,
         actions: booking.feedback.actions,
     } : undefined;
+    const candidateLabel = formatCandidateForProfessionalView({
+        firstName: booking.candidate.firstName,
+        lastName: booking.candidate.lastName,
+        experience: booking.candidate.candidateProfile?.experience,
+        education: booking.candidate.candidateProfile?.education,
+    });
 
     return (
         <main className="container py-8">
@@ -75,7 +111,7 @@ export default async function FeedbackPage({
                 <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Professional Feedback</p>
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">Submit consultation feedback</h1>
                 <p className="text-sm text-gray-500">
-                    For your session with {booking.candidate.email}.
+                    For your session with {candidateLabel}.
                 </p>
                 <div className="mt-2 text-sm text-amber-800 bg-amber-50 p-3 rounded-md border border-amber-200">
                     <strong>Important:</strong> Your payment will be released only after your feedback passes our Quality Control check.

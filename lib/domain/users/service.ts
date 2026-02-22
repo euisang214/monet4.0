@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/core/db";
-import { Prisma } from "@prisma/client";
+import { BookingStatus, Prisma } from "@prisma/client";
 import {
     ProfessionalProfileUpsertInput,
     CandidateProfileUpsertInput,
 } from "@/lib/types/profile-schemas";
 import { deriveCurrentRoleFromExperiences } from "@/lib/domain/users/current-role";
+import { PROFESSIONAL_NAME_REVEAL_STATUS_LIST } from "@/lib/domain/users/identity-labels";
 
 function assertExactlyOneCurrentExperience(entries: ProfessionalProfileUpsertInput["experience"]) {
     const currentCount = entries.filter((entry) => entry.isCurrent).length;
@@ -12,6 +13,8 @@ function assertExactlyOneCurrentExperience(entries: ProfessionalProfileUpsertInp
         throw new Error("Professional profile must include exactly one current experience");
     }
 }
+
+const professionalNameRevealStatuses = [...PROFESSIONAL_NAME_REVEAL_STATUS_LIST] as BookingStatus[];
 
 /**
  * Upserts a Professional Profile and replaces all related (owned) experience/education/activities.
@@ -234,7 +237,7 @@ export async function getProfessionalProfile(
             where: {
                 professionalId: userId,
                 candidateId: viewerId,
-                status: { in: ["accepted", "completed", "completed_pending_feedback"] },
+                status: { in: professionalNameRevealStatuses },
             },
         });
         if (booking) {
@@ -248,6 +251,8 @@ export async function getProfessionalProfile(
             user: {
                 ...profile.user,
                 email: "REDACTED",
+                firstName: null,
+                lastName: null,
             },
             corporateEmail: "REDACTED",
             title: currentRole.title,

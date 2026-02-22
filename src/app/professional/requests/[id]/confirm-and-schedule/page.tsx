@@ -7,6 +7,7 @@ import { ConfirmBookingForm } from "@/components/bookings/ConfirmBookingForm";
 import { Role } from "@prisma/client";
 import Link from "next/link";
 import { appRoutes } from "@/lib/shared/routes";
+import { formatCandidateForProfessionalView } from "@/lib/domain/users/identity-labels";
 
 interface PageProps {
     params: Promise<{ id: string }>;
@@ -18,7 +19,43 @@ export default async function ConfirmAndSchedulePage({ params }: PageProps) {
 
     const booking = await prisma.booking.findUnique({
         where: { id },
-        include: { candidate: true, professional: true }
+        include: {
+            candidate: {
+                select: {
+                    firstName: true,
+                    lastName: true,
+                    candidateProfile: {
+                        select: {
+                            experience: {
+                                where: { type: "EXPERIENCE" },
+                                orderBy: [{ isCurrent: "desc" }, { startDate: "desc" }, { id: "desc" }],
+                                select: {
+                                    id: true,
+                                    title: true,
+                                    company: true,
+                                    startDate: true,
+                                    endDate: true,
+                                    isCurrent: true,
+                                },
+                            },
+                            education: {
+                                orderBy: [{ isCurrent: "desc" }, { startDate: "desc" }, { id: "desc" }],
+                                select: {
+                                    id: true,
+                                    school: true,
+                                    startDate: true,
+                                    endDate: true,
+                                    isCurrent: true,
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+            professional: {
+                select: { timezone: true },
+            },
+        },
     });
 
     if (!booking) notFound();
@@ -26,6 +63,13 @@ export default async function ConfirmAndSchedulePage({ params }: PageProps) {
     if (booking.status !== "requested") {
         redirect(appRoutes.professional.requests);
     }
+
+    const candidateLabel = formatCandidateForProfessionalView({
+        firstName: booking.candidate.firstName,
+        lastName: booking.candidate.lastName,
+        experience: booking.candidate.candidateProfile?.experience,
+        education: booking.candidate.candidateProfile?.education,
+    });
 
     const slots = await ProfessionalRequestService.getBookingCandidateAvailability(id, user.id);
 
@@ -38,7 +82,7 @@ export default async function ConfirmAndSchedulePage({ params }: PageProps) {
                 <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Confirm Booking</p>
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">Schedule candidate request</h1>
                 <p className="text-gray-600">
-                    Request from {booking.candidate.email}. Choose a matching slot to finalize scheduling and payment capture.
+                    Request from {candidateLabel}. Choose a matching slot to finalize scheduling and payment capture.
                 </p>
             </header>
 

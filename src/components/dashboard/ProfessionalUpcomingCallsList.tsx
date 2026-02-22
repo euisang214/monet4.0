@@ -10,9 +10,7 @@ interface UpcomingCall {
     timezone: string;
     zoomJoinUrl: string | null;
     professionalZoomJoinUrl: string | null;
-    candidate: {
-        email: string;
-    };
+    candidateLabel: string;
 }
 
 interface ProfessionalUpcomingCallsListProps {
@@ -128,7 +126,7 @@ export function ProfessionalUpcomingCallsList({ bookings }: ProfessionalUpcoming
                     <article key={booking.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <div>
-                                <p className="font-semibold text-gray-900">{booking.candidate.email}</p>
+                                <p className="font-semibold text-gray-900">{booking.candidateLabel}</p>
                                 <p className="text-sm text-gray-600">{formatCallTime(booking.startAt, booking.timezone)}</p>
                             </div>
 

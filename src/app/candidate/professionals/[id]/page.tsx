@@ -5,6 +5,10 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { EmptyState } from '@/components/ui/composites/EmptyState';
 import { appRoutes } from '@/lib/shared/routes';
+import {
+    formatProfessionalForCandidateView,
+    formatRoleAtCompany,
+} from '@/lib/domain/users/identity-labels';
 
 type DateLike = Date | string | null | undefined;
 type TimelineItem = {
@@ -76,8 +80,14 @@ export default async function ProfessionalProfilePage(props: {
     if (!profile) {
         notFound();
     }
-    const roleTitle = profile.title || 'Professional';
-    const roleEmployer = profile.employer || '';
+    const professionalHeader = formatProfessionalForCandidateView({
+        firstName: profile.user.firstName,
+        lastName: profile.user.lastName,
+        title: profile.title,
+        company: profile.employer,
+        revealName: !profile.isRedacted,
+    });
+    const roleLabel = formatRoleAtCompany(profile.title, profile.employer, 'Professional');
     const experienceItems = [...(profile.experience || [])].sort(compareTimelineItems);
     const educationItems = [...(profile.education || [])].sort(compareTimelineItems);
     const activityItems = [...(profile.activities || [])].sort(compareTimelineItems);
@@ -99,11 +109,8 @@ export default async function ProfessionalProfilePage(props: {
                         <div className="flex items-start justify-between mb-6 gap-4">
                             <div>
                                 <h1 className="text-3xl font-bold text-gray-900 mb-1">
-                                    {roleTitle}
+                                    {professionalHeader}
                                 </h1>
-                                <p className="text-lg text-gray-600 font-medium">
-                                    {roleEmployer || 'Employer not provided'}
-                                </p>
                             </div>
                             <div className="text-xl font-bold text-green-700 bg-green-50 px-4 py-2 rounded-lg">
                                 {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((profile.priceCents || 0) / 100)}
@@ -215,7 +222,7 @@ export default async function ProfessionalProfilePage(props: {
                             <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Next Steps</p>
                             <h3 className="text-lg font-semibold mb-3">Ready to book?</h3>
                             <p className="text-gray-600 mb-6 text-sm">
-                                Schedule a consultation with {roleTitle} to discuss your career goals.
+                                Schedule a consultation with {roleLabel} to discuss your career goals.
                             </p>
 
                             <Link

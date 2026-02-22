@@ -211,7 +211,7 @@ export default async function ProfessionalDashboardPage({
                         {recentFeedback.map((review) => (
                             <article key={review.bookingId} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
                                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                                    <h4 className="font-semibold text-gray-900">{review.candidateEmail || "Candidate"}</h4>
+                                    <h4 className="font-semibold text-gray-900">{review.candidateLabel || "Candidate"}</h4>
                                     <p className="text-sm text-gray-500">
                                         {review.submittedAt.toLocaleDateString()} · {review.rating}/5
                                     </p>

@@ -28,6 +28,8 @@ const baseBooking = {
     timezone: "America/New_York",
     professional: {
         email: "pro@example.com",
+        firstName: "Alex",
+        lastName: "Morgan",
         professionalProfile: {
             title: "Engagement Manager",
             employer: "Acme Consulting",
@@ -73,6 +75,7 @@ describe("Candidate booking details feedback section", () => {
         expect(html).toContain("Refine your opening pitch for 90 seconds.");
         expect(html).toContain("5/5");
         expect(html).toContain("4/5");
+        expect(html).toContain("Alex Morgan - Engagement Manager @ Acme Consulting");
     });
 
     it("renders empty feedback notice for completed bookings without feedback", async () => {
@@ -89,6 +92,7 @@ describe("Candidate booking details feedback section", () => {
 
         expect(html).toContain("Professional Feedback");
         expect(html).toContain("Feedback is not available yet for this completed booking.");
+        expect(html).toContain("Alex Morgan - Engagement Manager @ Acme Consulting");
     });
 
     it("does not render feedback section for non-completed bookings", async () => {
@@ -106,5 +110,23 @@ describe("Candidate booking details feedback section", () => {
 
         expect(html).not.toContain("Professional Feedback");
         expect(html).not.toContain("Feedback is not available yet for this completed booking.");
+        expect(html).toContain("Alex Morgan - Engagement Manager @ Acme Consulting");
+    });
+
+    it("keeps professional header anonymized before acceptance lifecycle", async () => {
+        getCandidateBookingDetailsMock.mockResolvedValue({
+            ...baseBooking,
+            status: BookingStatus.requested,
+            feedback: null,
+        });
+
+        const html = renderToStaticMarkup(
+            await BookingDetailsPage({
+                params: Promise.resolve({ id: "booking-1" }),
+            })
+        );
+
+        expect(html).toContain("Engagement Manager @ Acme Consulting");
+        expect(html).not.toContain("Alex Morgan - Engagement Manager @ Acme Consulting");
     });
 });

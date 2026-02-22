@@ -1,50 +1,78 @@
 import { prisma } from '@/lib/core/db';
 import { BookingStatus, Prisma } from '@prisma/client';
 import { ReviewsService } from '@/lib/domain/reviews/service';
+import { formatCandidateForProfessionalView } from '@/lib/domain/users/identity-labels';
 import { signCandidateResumeUrls } from '@/lib/shared/resume-signing';
 
 export type ProfessionalDashboardView = 'upcoming' | 'requested' | 'reschedule' | 'pending_feedback';
 
-type UpcomingBooking = Prisma.BookingGetPayload<{
-    select: {
-        id: true;
-        startAt: true;
-        timezone: true;
-        zoomJoinUrl: true;
-        candidate: {
-            select: {
-                email: true;
-            };
-        };
-    };
+const candidateIdentitySelect = {
+    firstName: true,
+    lastName: true,
+    candidateProfile: {
+        select: {
+            resumeUrl: true,
+            experience: {
+                where: { type: 'EXPERIENCE' },
+                orderBy: [{ isCurrent: 'desc' }, { startDate: 'desc' }, { id: 'desc' }],
+                select: {
+                    id: true,
+                    title: true,
+                    company: true,
+                    startDate: true,
+                    endDate: true,
+                    isCurrent: true,
+                },
+            },
+            education: {
+                orderBy: [{ isCurrent: 'desc' }, { startDate: 'desc' }, { id: 'desc' }],
+                select: {
+                    id: true,
+                    school: true,
+                    startDate: true,
+                    endDate: true,
+                    isCurrent: true,
+                },
+            },
+        },
+    },
+} satisfies Prisma.UserSelect;
+
+type CandidateIdentity = Prisma.UserGetPayload<{
+    select: typeof candidateIdentitySelect;
 }>;
 
-type RequestBooking = Prisma.BookingGetPayload<{
-    include: {
-        candidate: {
-            include: {
-                candidateProfile: true;
-            };
-        };
-    };
-}>;
+export type UpcomingBooking = {
+    id: string;
+    startAt: Date | null;
+    timezone: string;
+    zoomJoinUrl: string | null;
+    professionalZoomJoinUrl: string | null;
+    candidateLabel: string;
+};
 
-type PendingFeedbackBooking = Prisma.BookingGetPayload<{
-    include: {
-        candidate: {
-            select: {
-                id: true;
-                email: true;
-            };
-        };
-        feedback: {
-            select: {
-                qcStatus: true;
-                actions: true;
-            };
-        };
+export type RequestBooking = {
+    id: string;
+    status: BookingStatus;
+    priceCents: number | null;
+    expiresAt: Date | null;
+    candidateLabel: string;
+    candidate: {
+        candidateProfile: {
+            resumeUrl: string | null;
+        } | null;
     };
-}>;
+};
+
+export type PendingFeedbackBooking = {
+    id: string;
+    endAt: Date | null;
+    candidateLabel: string;
+    feedback: {
+        qcStatus: string;
+        actions: string[];
+    } | null;
+};
 
 export type ProfessionalDashboardItem = UpcomingBooking | RequestBooking | PendingFeedbackBooking;
 
@@ -90,6 +118,15 @@ function nextCursorFromPage<T extends { id: string }>(items: T[], take: number) 
     return { hasMore, pageItems, nextCursor };
 }
 
+function formatCandidateLabel(candidate: CandidateIdentity) {
+    return formatCandidateForProfessionalView({
+        firstName: candidate.firstName,
+        lastName: candidate.lastName,
+        experience: candidate.candidateProfile?.experience ?? [],
+        education: candidate.candidateProfile?.education ?? [],
+    });
+}
+
 async function getActiveViewPage(
     professionalId: string,
     view: ProfessionalDashboardView,
@@ -107,10 +144,9 @@ async function getActiveViewPage(
                 startAt: true,
                 timezone: true,
                 zoomJoinUrl: true,
+                professionalZoomJoinUrl: true,
                 candidate: {
-                    select: {
-                        email: true,
-                    },
+                    select: candidateIdentitySelect,
                 },
             },
             orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
@@ -118,7 +154,19 @@ async function getActiveViewPage(
             ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
         });
 
-        return nextCursorFromPage(items, take);
+        const page = nextCursorFromPage(items, take);
+        return {
+            hasMore: page.hasMore,
+            nextCursor: page.nextCursor,
+            pageItems: page.pageItems.map((item) => ({
+                id: item.id,
+                startAt: item.startAt,
+                timezone: item.timezone,
+                zoomJoinUrl: item.zoomJoinUrl,
+                professionalZoomJoinUrl: item.professionalZoomJoinUrl,
+                candidateLabel: formatCandidateLabel(item.candidate),
+            })),
+        };
     }
 
     if (view === 'requested') {
@@ -127,11 +175,13 @@ async function getActiveViewPage(
                 professionalId,
                 status: BookingStatus.requested,
             },
-            include: {
+            select: {
+                id: true,
+                status: true,
+                priceCents: true,
+                expiresAt: true,
                 candidate: {
-                    include: {
-                        candidateProfile: true,
-                    },
+                    select: candidateIdentitySelect,
                 },
             },
             orderBy: [{ expiresAt: 'asc' }, { id: 'asc' }],
@@ -141,7 +191,22 @@ async function getActiveViewPage(
 
         const page = nextCursorFromPage(items, take);
         await signCandidateResumeUrls(page.pageItems);
-        return page;
+        return {
+            hasMore: page.hasMore,
+            nextCursor: page.nextCursor,
+            pageItems: page.pageItems.map((item) => ({
+                id: item.id,
+                status: item.status,
+                priceCents: item.priceCents,
+                expiresAt: item.expiresAt,
+                candidateLabel: formatCandidateLabel(item.candidate),
+                candidate: {
+                    candidateProfile: item.candidate.candidateProfile
+                        ? { resumeUrl: item.candidate.candidateProfile.resumeUrl }
+                        : null,
+                },
+            })),
+        };
     }
 
     if (view === 'reschedule') {
@@ -150,11 +215,13 @@ async function getActiveViewPage(
                 professionalId,
                 status: BookingStatus.reschedule_pending,
             },
-            include: {
+            select: {
+                id: true,
+                status: true,
+                priceCents: true,
+                expiresAt: true,
                 candidate: {
-                    include: {
-                        candidateProfile: true,
-                    },
+                    select: candidateIdentitySelect,
                 },
             },
             orderBy: [{ expiresAt: 'asc' }, { id: 'asc' }],
@@ -164,17 +231,31 @@ async function getActiveViewPage(
 
         const page = nextCursorFromPage(items, take);
         await signCandidateResumeUrls(page.pageItems);
-        return page;
+        return {
+            hasMore: page.hasMore,
+            nextCursor: page.nextCursor,
+            pageItems: page.pageItems.map((item) => ({
+                id: item.id,
+                status: item.status,
+                priceCents: item.priceCents,
+                expiresAt: item.expiresAt,
+                candidateLabel: formatCandidateLabel(item.candidate),
+                candidate: {
+                    candidateProfile: item.candidate.candidateProfile
+                        ? { resumeUrl: item.candidate.candidateProfile.resumeUrl }
+                        : null,
+                },
+            })),
+        };
     }
 
     const items = await prisma.booking.findMany({
         where: pendingFeedbackWhere(professionalId),
-        include: {
+        select: {
+            id: true,
+            endAt: true,
             candidate: {
-                select: {
-                    id: true,
-                    email: true,
-                },
+                select: candidateIdentitySelect,
             },
             feedback: {
                 select: {
@@ -188,7 +269,17 @@ async function getActiveViewPage(
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     });
 
-    return nextCursorFromPage(items, take);
+    const page = nextCursorFromPage(items, take);
+    return {
+        hasMore: page.hasMore,
+        nextCursor: page.nextCursor,
+        pageItems: page.pageItems.map((item) => ({
+            id: item.id,
+            endAt: item.endAt,
+            candidateLabel: formatCandidateLabel(item.candidate),
+            feedback: item.feedback,
+        })),
+    };
 }
 
 export const ProfessionalDashboardService = {

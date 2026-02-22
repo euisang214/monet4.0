@@ -7,6 +7,10 @@ import { BookingStatus, Role } from '@prisma/client';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { appRoutes } from '@/lib/shared/routes';
+import {
+    formatProfessionalForCandidateView,
+    shouldRevealProfessionalNameForCandidateStatus,
+} from '@/lib/domain/users/identity-labels';
 
 function statusTone(status: string) {
     if (status === 'accepted' || status === 'completed') return 'bg-green-50 text-green-800';
@@ -27,6 +31,13 @@ export default async function BookingDetailsPage(props: {
     }
 
     const isCompleted = booking.status === BookingStatus.completed;
+    const professionalLabel = formatProfessionalForCandidateView({
+        firstName: booking.professional.firstName,
+        lastName: booking.professional.lastName,
+        title: booking.professional.professionalProfile?.title,
+        company: booking.professional.professionalProfile?.employer,
+        revealName: shouldRevealProfessionalNameForCandidateStatus(booking.status),
+    });
 
     return (
         <main className="container py-8 max-w-3xl">
@@ -106,17 +117,7 @@ export default async function BookingDetailsPage(props: {
                     <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
                             <p className="block text-gray-500 mb-1">Profile</p>
-                            <p className="font-medium text-gray-900">
-                                {booking.professional.professionalProfile?.title || booking.professional.email}
-                            </p>
-                            {booking.professional.professionalProfile?.title ? (
-                                <p className="text-gray-500 text-xs mt-1">
-                                    {booking.professional.professionalProfile.title}
-                                    {booking.professional.professionalProfile.employer
-                                        ? ` at ${booking.professional.professionalProfile.employer}`
-                                        : ''}
-                                </p>
-                            ) : null}
+                            <p className="font-medium text-gray-900">{professionalLabel}</p>
                         </div>
                         <div>
                             <p className="block text-gray-500 mb-1">Rate</p>

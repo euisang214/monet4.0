@@ -48,6 +48,11 @@ describe('BookingRequestPage preload wiring', () => {
             employer: 'Acme',
             priceCents: 25000,
             timezone: 'America/New_York',
+            isRedacted: false,
+            user: {
+                firstName: 'Taylor',
+                lastName: 'Smith',
+            },
         });
         getSavedAvailabilitySeedMock.mockResolvedValue({
             candidateTimezone: 'America/Chicago',
@@ -61,6 +66,7 @@ describe('BookingRequestPage preload wiring', () => {
         const page = await BookingRequestPage({ params: Promise.resolve({ id: 'pro-1' }) });
         renderToStaticMarkup(page);
 
+        expect(getProfessionalDetailsMock).toHaveBeenCalledWith('pro-1', 'cand-1');
         expect(getSavedAvailabilitySeedMock).toHaveBeenCalledWith('cand-1');
         expect(latestFormProps.current).toMatchObject({
             professionalId: 'pro-1',

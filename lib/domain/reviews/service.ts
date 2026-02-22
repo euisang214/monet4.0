@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/core/db';
 import { BookingStatus } from '@prisma/client';
+import { formatCandidateForProfessionalView } from '@/lib/domain/users/identity-labels';
 
 export const ReviewsService = {
     async createReview(candidateId: string, data: {
@@ -62,6 +63,7 @@ export const ReviewsService = {
             text: string | null;
             submittedAt: Date;
             candidateEmail: string | null;
+            candidateLabel: string;
         }[];
         stats: {
             count: number;
@@ -89,6 +91,34 @@ export const ReviewsService = {
                             candidate: {
                                 select: {
                                     email: true,
+                                    firstName: true,
+                                    lastName: true,
+                                    candidateProfile: {
+                                        select: {
+                                            experience: {
+                                                where: { type: 'EXPERIENCE' },
+                                                orderBy: [{ isCurrent: 'desc' }, { startDate: 'desc' }, { id: 'desc' }],
+                                                select: {
+                                                    id: true,
+                                                    title: true,
+                                                    company: true,
+                                                    startDate: true,
+                                                    endDate: true,
+                                                    isCurrent: true,
+                                                },
+                                            },
+                                            education: {
+                                                orderBy: [{ isCurrent: 'desc' }, { startDate: 'desc' }, { id: 'desc' }],
+                                                select: {
+                                                    id: true,
+                                                    school: true,
+                                                    startDate: true,
+                                                    endDate: true,
+                                                    isCurrent: true,
+                                                },
+                                            },
+                                        },
+                                    },
                                 },
                             },
                         },
@@ -118,6 +148,12 @@ export const ReviewsService = {
                 text: review.text,
                 submittedAt: review.submittedAt,
                 candidateEmail: review.booking.candidate.email,
+                candidateLabel: formatCandidateForProfessionalView({
+                    firstName: review.booking.candidate.firstName,
+                    lastName: review.booking.candidate.lastName,
+                    experience: review.booking.candidate.candidateProfile?.experience,
+                    education: review.booking.candidate.candidateProfile?.education,
+                }),
             })),
             stats,
         };

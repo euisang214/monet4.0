@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/core/db';
-import { BookingStatus } from '@prisma/client';
+import { BookingStatus, Prisma } from '@prisma/client';
+import { formatCandidateForProfessionalView } from '@/lib/domain/users/identity-labels';
 import { signCandidateResumeUrls } from '@/lib/shared/resume-signing';
 
 /**
@@ -13,6 +14,38 @@ type UpcomingBookingsOptions = {
 };
 
 const DEFAULT_LIMIT = 10;
+
+const candidateDescriptorSelect = {
+    firstName: true,
+    lastName: true,
+    candidateProfile: {
+        select: {
+            resumeUrl: true,
+            experience: {
+                where: { type: 'EXPERIENCE' },
+                orderBy: [{ isCurrent: 'desc' }, { startDate: 'desc' }, { id: 'desc' }],
+                select: {
+                    id: true,
+                    title: true,
+                    company: true,
+                    startDate: true,
+                    endDate: true,
+                    isCurrent: true,
+                },
+            },
+            education: {
+                orderBy: [{ isCurrent: 'desc' }, { startDate: 'desc' }, { id: 'desc' }],
+                select: {
+                    id: true,
+                    school: true,
+                    startDate: true,
+                    endDate: true,
+                    isCurrent: true,
+                },
+            },
+        },
+    },
+} satisfies Prisma.UserSelect;
 
 /**
  * Get upcoming bookings for a user (accepted, pending states)
@@ -42,7 +75,7 @@ export async function getUpcomingBookings(
         },
         include: {
             candidate: {
-                include: { candidateProfile: true },
+                select: candidateDescriptorSelect,
             },
             professional: {
                 include: { professionalProfile: true },
@@ -54,6 +87,18 @@ export async function getUpcomingBookings(
     });
 
     await signCandidateResumeUrls(bookings);
+
+    if (role === 'PROFESSIONAL') {
+        return bookings.map((booking) => ({
+            ...booking,
+            candidateLabel: formatCandidateForProfessionalView({
+                firstName: booking.candidate.firstName,
+                lastName: booking.candidate.lastName,
+                experience: booking.candidate.candidateProfile?.experience,
+                education: booking.candidate.candidateProfile?.education,
+            }),
+        }));
+    }
 
     return bookings;
 }
@@ -85,7 +130,7 @@ export async function getPendingRequests(
         },
         include: {
             candidate: {
-                include: { candidateProfile: true },
+                select: candidateDescriptorSelect,
             },
             professional: {
                 include: { professionalProfile: true },
@@ -99,6 +144,18 @@ export async function getPendingRequests(
     });
 
     await signCandidateResumeUrls(bookings);
+
+    if (role === 'PROFESSIONAL') {
+        return bookings.map((booking) => ({
+            ...booking,
+            candidateLabel: formatCandidateForProfessionalView({
+                firstName: booking.candidate.firstName,
+                lastName: booking.candidate.lastName,
+                experience: booking.candidate.candidateProfile?.experience,
+                education: booking.candidate.candidateProfile?.education,
+            }),
+        }));
+    }
 
     return bookings;
 }
