@@ -47,7 +47,11 @@ export async function GET() {
         const role = session.user.role as Role;
         const user = await prisma.user.findUnique({
             where: { id: session.user.id },
-            select: { timezone: true },
+            select: {
+                firstName: true,
+                lastName: true,
+                timezone: true,
+            },
         });
 
         if (role === Role.CANDIDATE) {
@@ -56,6 +60,8 @@ export async function GET() {
                 data: profile
                     ? {
                           ...profile,
+                          firstName: user?.firstName ?? null,
+                          lastName: user?.lastName ?? null,
                           timezone: user?.timezone || "UTC",
                       }
                     : profile,
@@ -68,6 +74,8 @@ export async function GET() {
             data: profile
                 ? {
                       ...profile,
+                      firstName: user?.firstName ?? null,
+                      lastName: user?.lastName ?? null,
                       timezone: user?.timezone || "UTC",
                   }
                 : profile,

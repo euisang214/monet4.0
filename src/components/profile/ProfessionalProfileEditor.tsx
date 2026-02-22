@@ -21,6 +21,8 @@ import {
 type ProfessionalProfileEditorMode = "onboarding" | "settings";
 
 export type ProfessionalProfileEditorInitialData = {
+    firstName?: string | null;
+    lastName?: string | null;
     timezone?: string | null;
     bio?: string | null;
     price?: number | null;
@@ -35,6 +37,8 @@ export type ProfessionalProfileEditorInitialData = {
 };
 
 export type ProfessionalProfileSubmitPayload = {
+    firstName: string;
+    lastName: string;
     timezone: string;
     bio: string;
     price: number;
@@ -81,6 +85,8 @@ export function ProfessionalProfileEditor({
     onConnectStripe,
     onCorporateEmailDraftChange,
 }: ProfessionalProfileEditorProps) {
+    const [firstName, setFirstName] = useState(initialData?.firstName || "");
+    const [lastName, setLastName] = useState(initialData?.lastName || "");
     const [timezone, setTimezone] = useState(normalizeTimezone(initialData?.timezone));
     const [bio, setBio] = useState(initialData?.bio || "");
     const [price, setPrice] = useState(
@@ -98,6 +104,8 @@ export function ProfessionalProfileEditor({
     const [isConnectingStripe, setIsConnectingStripe] = useState(false);
 
     useEffect(() => {
+        setFirstName(initialData?.firstName || "");
+        setLastName(initialData?.lastName || "");
         setTimezone(normalizeTimezone(initialData?.timezone));
         setBio(initialData?.bio || "");
         setPrice(typeof initialData?.price === "number" ? initialData.price.toString() : "");
@@ -149,6 +157,16 @@ export function ProfessionalProfileEditor({
                 throw new Error("Select exactly one current role in your experience.");
             }
 
+            const trimmedFirstName = firstName.trim();
+            if (!trimmedFirstName) {
+                throw new Error("First name is required.");
+            }
+
+            const trimmedLastName = lastName.trim();
+            if (!trimmedLastName) {
+                throw new Error("Last name is required.");
+            }
+
             const parsedPrice = Number.parseFloat(price);
             if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
                 throw new Error("Enter a valid hourly rate greater than zero.");
@@ -170,6 +188,8 @@ export function ProfessionalProfileEditor({
             }
 
             await onSubmit({
+                firstName: trimmedFirstName,
+                lastName: trimmedLastName,
                 timezone: normalizeTimezone(timezone),
                 bio: trimmedBio,
                 price: parsedPrice,
@@ -231,6 +251,40 @@ export function ProfessionalProfileEditor({
 
             <section className="space-y-4 rounded-md border border-gray-200 p-4">
                 <h2 className="text-lg font-semibold text-gray-900">Account basics</h2>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                        <label htmlFor={`professional-first-name-${mode}`} className="block text-sm font-medium mb-1">
+                            First name
+                        </label>
+                        <input
+                            id={`professional-first-name-${mode}`}
+                            required
+                            disabled={effectiveDisabled}
+                            type="text"
+                            value={firstName}
+                            onChange={(event) => setFirstName(event.target.value)}
+                            className="w-full p-2 border rounded-md"
+                            placeholder="First name"
+                        />
+                    </div>
+
+                    <div>
+                        <label htmlFor={`professional-last-name-${mode}`} className="block text-sm font-medium mb-1">
+                            Last name
+                        </label>
+                        <input
+                            id={`professional-last-name-${mode}`}
+                            required
+                            disabled={effectiveDisabled}
+                            type="text"
+                            value={lastName}
+                            onChange={(event) => setLastName(event.target.value)}
+                            className="w-full p-2 border rounded-md"
+                            placeholder="Last name"
+                        />
+                    </div>
+                </div>
 
                 <div>
                     <label htmlFor={`professional-timezone-${mode}`} className="block text-sm font-medium mb-1">

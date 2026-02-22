@@ -4,6 +4,23 @@ import { Prisma, Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
+function splitDisplayName(name: string): { firstName: string | null; lastName: string | null } {
+    const normalized = name.trim().replace(/\s+/g, ' ');
+    if (!normalized) {
+        return { firstName: null, lastName: null };
+    }
+
+    const parts = normalized.split(' ');
+    if (parts.length === 1) {
+        return { firstName: parts[0], lastName: null };
+    }
+
+    return {
+        firstName: parts[0],
+        lastName: parts.slice(1).join(' '),
+    };
+}
+
 async function createRoleProfile(
     tx: Prisma.TransactionClient,
     userId: string,
@@ -42,7 +59,7 @@ export const AuthService = {
         email: string,
         password: string,
         role: Role,
-        _name: string,
+        name: string,
         resumeUrl?: string
     ) {
         const existingUser = await prisma.user.findUnique({
@@ -54,6 +71,7 @@ export const AuthService = {
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
+        const { firstName, lastName } = splitDisplayName(name);
 
         const user = await prisma.$transaction(async (tx) => {
             const newUser = await tx.user.create({
@@ -61,6 +79,8 @@ export const AuthService = {
                     email,
                     hashedPassword,
                     role,
+                    firstName,
+                    lastName,
                     onboardingRequired: true,
                     onboardingCompleted: false,
                 },

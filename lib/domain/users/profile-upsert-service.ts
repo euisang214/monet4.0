@@ -11,6 +11,8 @@ import { EducationSchema, ExperienceSchema } from "@/lib/types/profile-schemas";
 
 export const candidateProfilePayloadSchema = z
     .object({
+        firstName: z.string().trim().min(1, "First name is required"),
+        lastName: z.string().trim().min(1, "Last name is required"),
         resumeUrl: z.string().url("Invalid resume URL").optional(),
         interests: z.array(z.string().trim().min(1)).min(1, "At least one interest is required"),
         timezone: z.string().trim().refine(isSupportedTimezone, "Select a valid timezone"),
@@ -22,6 +24,8 @@ export const candidateProfilePayloadSchema = z
 
 export const professionalProfilePayloadSchema = z
     .object({
+        firstName: z.string().trim().min(1, "First name is required"),
+        lastName: z.string().trim().min(1, "Last name is required"),
         bio: z.string().trim().min(1, "Bio is required"),
         price: z.coerce.number().positive("Price must be greater than zero"),
         corporateEmail: z.string().email("Corporate email is invalid"),
@@ -122,6 +126,8 @@ export async function upsertCandidateProfileFromPayload(
     });
 
     const userUpdateData: Prisma.UserUpdateInput = {
+        firstName: payload.firstName,
+        lastName: payload.lastName,
         timezone: payload.timezone,
     };
 
@@ -163,6 +169,8 @@ export async function upsertProfessionalProfileFromPayload(
     });
 
     const userUpdateData: Prisma.UserUpdateInput = {
+        firstName: payload.firstName,
+        lastName: payload.lastName,
         timezone: payload.timezone,
     };
 

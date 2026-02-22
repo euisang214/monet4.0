@@ -57,6 +57,8 @@ function makeRequest(body: unknown) {
 }
 
 const validProfessionalPayload = {
+    firstName: "Morgan",
+    lastName: "Lee",
     bio: "Experienced mentor",
     price: 150,
     corporateEmail: "pro@example.com",
@@ -92,6 +94,8 @@ const validProfessionalPayload = {
 };
 
 const validCandidatePayload = {
+    firstName: "Casey",
+    lastName: "Jordan",
     timezone: "America/New_York",
     resumeUrl: "https://example.com/resume.pdf",
     interests: ["Interview Prep"],
@@ -126,7 +130,11 @@ const validCandidatePayload = {
 describe("shared settings route", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        prismaMock.user.findUnique.mockResolvedValue({ timezone: "America/New_York" });
+        prismaMock.user.findUnique.mockResolvedValue({
+            firstName: "Pat",
+            lastName: "Taylor",
+            timezone: "America/New_York",
+        });
     });
 
     it("accepts full professional timeline updates", async () => {
@@ -219,6 +227,8 @@ describe("shared settings route", () => {
         expect(response.status).toBe(200);
         expect(body.data.resumeUrl).toBe("https://storage.example.com/resume.pdf");
         expect(body.data.resumeViewUrl).toBe("https://signed.example.com/resume.pdf");
+        expect(body.data.firstName).toBe("Pat");
+        expect(body.data.lastName).toBe("Taylor");
         expect(body.data.timezone).toBe("America/New_York");
     });
 
@@ -241,6 +251,8 @@ describe("shared settings route", () => {
         expect(response.status).toBe(200);
         expect(body.data.employer).toBe("Test Corp");
         expect(body.data.title).toBe("Principal");
+        expect(body.data.firstName).toBe("Pat");
+        expect(body.data.lastName).toBe("Taylor");
         expect(body.data.timezone).toBe("America/New_York");
     });
 

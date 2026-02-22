@@ -46,6 +46,8 @@ function makeRequest(body: unknown) {
 }
 
 const validCandidatePayload = {
+    firstName: "Casey",
+    lastName: "Jordan",
     timezone: "America/New_York",
     interests: ["Interview Prep"],
     experience: [
@@ -78,6 +80,8 @@ const validCandidatePayload = {
 };
 
 const validProfessionalPayload = {
+    firstName: "Morgan",
+    lastName: "Lee",
     bio: "Guides candidates through case prep.",
     price: 200,
     corporateEmail: "pro@monet.com",

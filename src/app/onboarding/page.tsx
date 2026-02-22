@@ -27,6 +27,8 @@ export default async function OnboardingPage() {
         select: {
             id: true,
             role: true,
+            firstName: true,
+            lastName: true,
             timezone: true,
             onboardingRequired: true,
             onboardingCompleted: true,
@@ -141,6 +143,8 @@ export default async function OnboardingPage() {
                 initialCandidate={
                     user.candidateProfile
                         ? {
+                              firstName: user.firstName,
+                              lastName: user.lastName,
                               resumeUrl: user.candidateProfile.resumeUrl,
                               interests: user.candidateProfile.interests,
                               experience: user.candidateProfile.experience.map((entry) => ({
@@ -179,6 +183,8 @@ export default async function OnboardingPage() {
                 initialProfessional={
                     user.professionalProfile
                         ? {
+                              firstName: user.firstName,
+                              lastName: user.lastName,
                               bio: user.professionalProfile.bio,
                               price: user.professionalProfile.priceCents / 100,
                               corporateEmail: user.professionalProfile.corporateEmail,

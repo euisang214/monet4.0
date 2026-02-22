@@ -27,9 +27,7 @@ export default async function BookingRequestPage(props: {
         <div className="container mx-auto py-8 max-w-2xl">
             <h1 className="text-3xl font-bold mb-2">Request Booking</h1>
             <div className="mb-8 p-4 bg-white shadow rounded-lg">
-                {/* User name isn't on User model in Prisma schema, so we use Title/Employer 
-            which is consistent with anonymous browsing anyway. 
-        */}
+                {/* Show role context here to stay consistent with browse/detail cards. */}
                 <h2 className="text-xl font-semibold">{titleLabel} at {employerLabel}</h2>
                 <p className="text-lg font-medium mt-2">
                     Rate: {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(professional.priceCents / 100)} / session

@@ -23,6 +23,8 @@ const PDF_CONTENT_TYPE = "application/pdf";
 type CandidateProfileEditorMode = "onboarding" | "settings";
 
 export type CandidateProfileEditorInitialData = {
+    firstName?: string | null;
+    lastName?: string | null;
     timezone?: string | null;
     resumeUrl?: string | null;
     resumeViewUrl?: string | null;
@@ -33,6 +35,8 @@ export type CandidateProfileEditorInitialData = {
 };
 
 export type CandidateProfileSubmitPayload = {
+    firstName: string;
+    lastName: string;
     timezone: string;
     resumeUrl: string;
     interests: string[];
@@ -90,6 +94,8 @@ export function CandidateProfileEditor({
     disabled = false,
     footerContent,
 }: CandidateProfileEditorProps) {
+    const [firstName, setFirstName] = useState(initialData?.firstName || "");
+    const [lastName, setLastName] = useState(initialData?.lastName || "");
     const [timezone, setTimezone] = useState(normalizeTimezone(initialData?.timezone));
     const [candidateResumeUrl, setCandidateResumeUrl] = useState(initialData?.resumeUrl || "");
     const [candidateResumeViewUrl, setCandidateResumeViewUrl] = useState(
@@ -104,6 +110,8 @@ export function CandidateProfileEditor({
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
+        setFirstName(initialData?.firstName || "");
+        setLastName(initialData?.lastName || "");
         setTimezone(normalizeTimezone(initialData?.timezone));
         setCandidateResumeUrl(initialData?.resumeUrl || "");
         setCandidateResumeViewUrl(initialData?.resumeViewUrl || initialData?.resumeUrl || "");
@@ -147,12 +155,24 @@ export function CandidateProfileEditor({
                 throw new Error("Resume is required.");
             }
 
+            const trimmedFirstName = firstName.trim();
+            if (!trimmedFirstName) {
+                throw new Error("First name is required.");
+            }
+
+            const trimmedLastName = lastName.trim();
+            if (!trimmedLastName) {
+                throw new Error("Last name is required.");
+            }
+
             const interests = normalizeCommaSeparated(candidateInterests);
             if (interests.length === 0) {
                 throw new Error("At least one interest is required.");
             }
 
             await onSubmit({
+                firstName: trimmedFirstName,
+                lastName: trimmedLastName,
                 timezone: normalizeTimezone(timezone),
                 resumeUrl,
                 interests,
@@ -181,6 +201,39 @@ export function CandidateProfileEditor({
 
             <section className="space-y-4 rounded-md border border-gray-200 p-4">
                 <h2 className="text-lg font-semibold text-gray-900">Account basics</h2>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                        <label htmlFor={`candidate-first-name-${mode}`} className="block text-sm font-medium mb-1">
+                            First name
+                        </label>
+                        <input
+                            id={`candidate-first-name-${mode}`}
+                            required
+                            disabled={effectiveDisabled}
+                            type="text"
+                            value={firstName}
+                            onChange={(event) => setFirstName(event.target.value)}
+                            className="w-full p-2 border rounded-md"
+                            placeholder="First name"
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor={`candidate-last-name-${mode}`} className="block text-sm font-medium mb-1">
+                            Last name
+                        </label>
+                        <input
+                            id={`candidate-last-name-${mode}`}
+                            required
+                            disabled={effectiveDisabled}
+                            type="text"
+                            value={lastName}
+                            onChange={(event) => setLastName(event.target.value)}
+                            className="w-full p-2 border rounded-md"
+                            placeholder="Last name"
+                        />
+                    </div>
+                </div>
 
                 <div>
                     <label htmlFor="candidate-timezone" className="block text-sm font-medium mb-1">

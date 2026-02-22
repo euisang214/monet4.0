@@ -129,6 +129,8 @@ export function OnboardingForm({
                 <CandidateProfileEditor
                     mode="onboarding"
                     initialData={{
+                        firstName: initialCandidate?.firstName,
+                        lastName: initialCandidate?.lastName,
                         timezone: initialTimezone,
                         resumeUrl: initialCandidate?.resumeUrl,
                         interests: initialCandidate?.interests,
@@ -144,6 +146,8 @@ export function OnboardingForm({
                 <ProfessionalProfileEditor
                     mode="onboarding"
                     initialData={{
+                        firstName: initialProfessional?.firstName,
+                        lastName: initialProfessional?.lastName,
                         timezone: initialTimezone,
                         bio: initialProfessional?.bio,
                         price: initialProfessional?.price,

@@ -78,6 +78,8 @@ enum AttendanceOutcome {
 model User {
   id                      String   @id @default(cuid())
   email                   String   @unique
+  firstName               String?
+  lastName                String?
   hashedPassword          String?
   role                    Role
   onboardingRequired      Boolean  @default(false)

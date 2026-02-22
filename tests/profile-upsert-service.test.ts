@@ -45,6 +45,8 @@ describe("profile-upsert-service", () => {
         prismaMock.candidateProfile.findUnique.mockResolvedValue({ resumeUrl: null });
 
         const result = await upsertCandidateProfileFromPayload("cand-1", {
+            firstName: "Casey",
+            lastName: "Jordan",
             timezone: "America/New_York",
             interests: ["Interview Prep"],
             experience: [
@@ -92,6 +94,8 @@ describe("profile-upsert-service", () => {
         const result = await upsertCandidateProfileFromPayload(
             "cand-1",
             {
+                firstName: "Casey",
+                lastName: "Jordan",
                 timezone: "America/New_York",
                 interests: ["Interview Prep", "Interview Prep"],
                 experience: [
@@ -141,6 +145,8 @@ describe("profile-upsert-service", () => {
         expect(prismaMock.user.update).toHaveBeenCalledWith({
             where: { id: "cand-1" },
             data: {
+                firstName: "Casey",
+                lastName: "Jordan",
                 timezone: "America/New_York",
                 onboardingCompleted: true,
             },
@@ -155,6 +161,8 @@ describe("profile-upsert-service", () => {
         upsertProfessionalProfileMock.mockResolvedValue({ userId: "pro-1" });
 
         await upsertProfessionalProfileFromPayload("pro-1", {
+            firstName: "Morgan",
+            lastName: "Lee",
             bio: "Mentor",
             price: 120,
             corporateEmail: "pro@example.com",
@@ -202,6 +210,8 @@ describe("profile-upsert-service", () => {
         expect(prismaMock.user.update).toHaveBeenCalledWith({
             where: { id: "pro-1" },
             data: {
+                firstName: "Morgan",
+                lastName: "Lee",
                 timezone: "America/New_York",
             },
         });
