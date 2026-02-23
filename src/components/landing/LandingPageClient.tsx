@@ -55,9 +55,6 @@ export function LandingPageContent({ audience, onAudienceChange }: LandingPageCo
                         <Link href={content.hero.primaryCta.href} className="btn bg-blue-600 text-white hover:bg-blue-700">
                             {content.hero.primaryCta.label}
                         </Link>
-                        <Link href={content.hero.secondaryCta.href} className={`btn ${styles.professionalCta}`}>
-                            {content.hero.secondaryCta.label}
-                        </Link>
                     </div>
 
                     <div className={styles.statStrip}>
@@ -74,7 +71,7 @@ export function LandingPageContent({ audience, onAudienceChange }: LandingPageCo
             <section className={styles.section}>
                 <h2 className={styles.sectionTitle}>How It Works</h2>
                 <p className={styles.sectionLead}>
-                    Request, schedule, meet. We keep the logistics tight so both sides can focus on the conversation.
+                    Request, schedule, meet. We keep the logistics tight so you can focus on the conversation.
                 </p>
                 <div key={`steps-${audience}`} className={`${styles.steps} ${styles.roleContentSwap}`}>
                     {content.steps.map((step, index) => (

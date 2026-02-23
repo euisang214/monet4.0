@@ -306,7 +306,7 @@ export function CandidateProfileEditor({
                         value={candidateInterests}
                         onChange={(event) => setCandidateInterests(event.target.value)}
                         className="w-full p-2 border rounded-md"
-                        placeholder="Interview Prep, Networking, Career Advice"
+                        placeholder="Poker, Tennis, Reading"
                     />
                 </div>
             </section>

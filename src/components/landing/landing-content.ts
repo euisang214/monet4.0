@@ -9,7 +9,6 @@ export interface LandingHero {
     title: string;
     subtitle: string;
     primaryCta: LandingCta;
-    secondaryCta: LandingCta;
 }
 
 export interface LandingStat {
@@ -41,59 +40,54 @@ export const LANDING_AUDIENCE_STORAGE_KEY = "monet:landing:audience";
 export const LANDING_CONTENT: Record<LandingAudience, LandingContent> = {
     candidate: {
         hero: {
-            title: "Career Advice That Actually Moves the Needle",
+            title: "Structured recruiting prep. \nReal professionals.",
             subtitle:
-                "Book focused 1:1 calls with seasoned professionals in finance and consulting. Prepare for recruiting with clear feedback and next steps.",
+                "Connect with verified analysts and associates in finance and consulting. \nClear feedback. Actionable next steps. No cold DMs.",
             primaryCta: {
                 label: "Browse Professionals",
                 href: "/signup?role=candidate",
-            },
-            secondaryCta: {
-                label: "Become a Professional",
-                href: "/signup?role=professional",
             },
         },
         stats: [
             {
                 value: "30 Min",
-                label: "Focused 1:1 sessions",
+                label: "Focused 1:1 format",
             },
             {
-                value: "Real Insight",
-                label: "Advice from professionals who have hired and mentored",
+                value: "3 Actions",
+                label: "Concrete takeaways every call",
             },
             {
-                value: "Clear Next Steps",
-                label: "Leave every call with an actionable prep plan",
+                value: "Fast Setup",
+                label: "Secure payment & calendar sync",
             },
         ],
         steps: [
             {
-                title: "Find your match",
-                description: "Browse professionals aligned to your target role and goals.",
+                title: "Request Professional",
+                description: "Browse professionals aligned to your target role and goals. Submit a booking request.",
             },
             {
-                title: "Request and schedule",
-                description: "Submit a booking request and confirm a time that works.",
+                title: "Schedule Time",
+                description: "Choose an available slot once accepted. Monet handles the calendar and meeting link setup.",
             },
             {
-                title: "Execute your prep",
-                description: "Join the call and apply feedback to your interview and networking plan.",
+                title: "Join Chat",
+                description: "Join the call, get practical feedback, and leave with action items you can apply immediately.",
             },
         ],
         faq: [
             {
                 question: "What can I use a session for?",
-                answer:
-                    "Use sessions for interview prep, resume feedback, networking strategy, or candid role-specific career advice from experienced professionals.",
+                answer: "We encourage conversations to be open-ended and flow naturally, but many use sessions for interview prep, resume feedback, networking strategy, or role-specific career advice from experienced professionals.",
             },
             {
                 question: "When am I charged?",
-                answer: "Payment is authorized when you request a booking and charged after the session is completed.",
+                answer: "Payment is authorized when you request a booking and charged after the session is completed and the Professional has submitted their feedback for you.",
             },
             {
                 question: "Can I reschedule if needed?",
-                answer: "Yes. Monet supports reschedule requests for both candidates and professionals before the scheduled slot.",
+                answer: "Yes. Monet supports reschedule requests for both candidates and professionals six hours before the scheduled slot. Cancellations after six hours or no-shows will incur a fee.",
             },
             {
                 question: "Do I need a subscription?",
@@ -103,16 +97,12 @@ export const LANDING_CONTENT: Record<LandingAudience, LandingContent> = {
     },
     professional: {
         hero: {
-            title: "Turn Your Experience Into Impact and Income",
+            title: "Turn Your Experience Into \nImpact and Income",
             subtitle:
-                "Mentor high-intent candidates, set your rate, and accept sessions on your schedule while Monet handles booking flow and logistics.",
+                "Help candidates focus on the right things through structured, 30-minute chats. \nYou choose your rate and availability. We handle the logistics.",
             primaryCta: {
                 label: "Become a Professional",
                 href: "/signup?role=professional",
-            },
-            secondaryCta: {
-                label: "Browse Professionals",
-                href: "/signup?role=candidate",
             },
         },
         stats: [
@@ -125,29 +115,28 @@ export const LANDING_CONTENT: Record<LandingAudience, LandingContent> = {
                 label: "Accept requests that fit your availability",
             },
             {
-                value: "Built-In Operations",
-                label: "Booking, reminders, and session logistics in one flow",
+                value: "Logistics Handled",
+                label: "Scheduling, payment, reminders, and meeting links are managed for you",
             },
         ],
         steps: [
             {
-                title: "Create your profile",
-                description: "Showcase your background, focus areas, and session pricing.",
+                title: "Create Profile",
+                description: "List your background and role",
             },
             {
-                title: "Review requests",
-                description: "Accept candidate requests and confirm a suitable slot.",
+                title: "Review Request",
+                description: "Candidates submit availability and goals. Accept only what aligns",
             },
             {
-                title: "Run sessions",
-                description: "Deliver high-value calls and build trust through outcomes.",
+                title: "Join Chat",
+                description: "Join the call, submit structured feedback. Payout is released after feedback is complete",
             },
         ],
         faq: [
             {
                 question: "How do payments work for professionals?",
-                answer:
-                    "Candidates authorize at request time and are charged after completed sessions. Your earnings flow through your connected payout account after platform fees.",
+                answer: "Candidates authorize payment when they request you and are charged after you submit feedback. Your earnings flow through your connected payout account after platform fees.",
             },
             {
                 question: "Can I control when I’m available?",
@@ -155,7 +144,7 @@ export const LANDING_CONTENT: Record<LandingAudience, LandingContent> = {
             },
             {
                 question: "What happens if a session is rescheduled?",
-                answer: "Either side can request a reschedule before the slot, and Monet guides both sides through the updated scheduling flow.",
+                answer: "Either side can request a reschedule six hours before the slot, and Monet guides both sides through the updated scheduling flow. Cancellations after six hours or no-shows will incur a fee.",
             },
             {
                 question: "Is there a long-term commitment?",

@@ -56,13 +56,9 @@ describe("LANDING_CONTENT contract", () => {
             if (audience === "candidate") {
                 expect(content.hero.primaryCta.label).toBe("Browse Professionals");
                 expect(content.hero.primaryCta.href).toBe("/signup?role=candidate");
-                expect(content.hero.secondaryCta.label).toBe("Become a Professional");
-                expect(content.hero.secondaryCta.href).toBe("/signup?role=professional");
             } else {
                 expect(content.hero.primaryCta.label).toBe("Become a Professional");
                 expect(content.hero.primaryCta.href).toBe("/signup?role=professional");
-                expect(content.hero.secondaryCta.label).toBe("Browse Professionals");
-                expect(content.hero.secondaryCta.href).toBe("/signup?role=candidate");
             }
         }
     });
