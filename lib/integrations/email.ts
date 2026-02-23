@@ -57,6 +57,23 @@ interface SendEmailParams {
     }[];
 }
 
+function isValidEmailAddress(value: string | null | undefined): value is string {
+    if (!value) return false;
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+}
+
+function parseEmailAddress(value: string | null | undefined): string | null {
+    if (!value) return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    const angleBracketMatch = trimmed.match(/<([^<>]+)>/);
+    const candidate = (angleBracketMatch?.[1] || trimmed).trim();
+    return isValidEmailAddress(candidate) ? candidate : null;
+}
+
 export async function sendEmail({ to, subject, html, attachments }: SendEmailParams) {
     try {
         if (!hasGmailOAuthConfig || !gmailOAuthClient) {
@@ -106,7 +123,9 @@ type BookingWithRelations = Booking & {
 };
 
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-const organizerEmail = EMAIL_FROM || 'noreply@monet.local';
+const organizerEmailForIcs = parseEmailAddress(EMAIL_FROM)
+    || parseEmailAddress(GMAIL_OAUTH_USER)
+    || 'noreply@monet.ai';
 
 export function isValidAbsoluteHttpUrl(value: string | null | undefined): value is string {
     if (!value) return false;
@@ -163,7 +182,7 @@ export async function sendBookingAcceptedEmail(
         categories: ['Consultation', 'Monet'],
         status: 'CONFIRMED',
         busyStatus: 'BUSY',
-        organizer: { name: 'Monet Platform', email: organizerEmail },
+        organizer: { name: 'Monet Platform', email: organizerEmailForIcs },
         attendees: [
             { name: 'Professional', email: booking.professional.email, rsvp: true, partstat: 'ACCEPTED', role: 'REQ-PARTICIPANT' },
             { name: 'Candidate', email: booking.candidate.email, rsvp: true, partstat: 'ACCEPTED', role: 'REQ-PARTICIPANT' }
@@ -171,7 +190,23 @@ export async function sendBookingAcceptedEmail(
     });
 
     if (error) {
-        console.error('Error generating ICS file:', error);
+        const message = error instanceof Error
+            ? error.message
+            : (
+                typeof error === 'object'
+                && error !== null
+                && 'message' in error
+                && typeof (error as { message?: unknown }).message === 'string'
+            )
+                ? (error as { message: string }).message
+                : String(error);
+
+        console.error('[EMAIL][ICS] Failed to generate booking invite attachment', {
+            bookingId: booking.id,
+            role,
+            organizerEmailForIcs,
+            errorMessage: message,
+        });
     }
 
     const attachments = icsContent ? [{

@@ -115,7 +115,13 @@ describe('Integration transition notification semantics', () => {
         expect(notificationsQueue.add).toHaveBeenCalledWith(
             'notifications',
             { type: 'booking_accepted', bookingId: 'booking_2' },
-            { jobId: 'booking-accepted-booking_2-123456' },
+            {
+                jobId: 'booking-accepted-booking_2-123456',
+                attempts: 3,
+                backoff: { type: 'exponential', delay: 60_000 },
+                removeOnComplete: true,
+                removeOnFail: false,
+            },
         );
     });
 

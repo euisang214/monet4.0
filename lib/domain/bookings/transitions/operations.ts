@@ -552,6 +552,10 @@ export async function completeIntegrations(
     }, {
         // Guarantees at-most-once acceptance email dispatch per meeting provisioning.
         jobId: `booking-accepted-${bookingId}-${zoomData.meetingId}`,
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 60_000 },
+        removeOnComplete: true,
+        removeOnFail: false,
     });
 
     return result;

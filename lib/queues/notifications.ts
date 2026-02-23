@@ -62,9 +62,39 @@ export function createNotificationsWorker(connection: ConnectionOptions) {
                 return;
             }
 
-            await sendBookingAcceptedEmail(booking, 'CANDIDATE');
-            await sendBookingAcceptedEmail(booking, 'PROFESSIONAL');
-            console.log(`[NOTIFICATIONS] Sent acceptance emails for booking ${bookingId}`);
+            const [candidateResult, professionalResult] = await Promise.allSettled([
+                sendBookingAcceptedEmail(booking, 'CANDIDATE'),
+                sendBookingAcceptedEmail(booking, 'PROFESSIONAL'),
+            ]);
+
+            const failures: { recipient: 'CANDIDATE' | 'PROFESSIONAL'; reason: string }[] = [];
+            if (candidateResult.status === 'rejected') {
+                const reason = candidateResult.reason instanceof Error
+                    ? candidateResult.reason.message
+                    : String(candidateResult.reason);
+                failures.push({ recipient: 'CANDIDATE', reason });
+            }
+            if (professionalResult.status === 'rejected') {
+                const reason = professionalResult.reason instanceof Error
+                    ? professionalResult.reason.message
+                    : String(professionalResult.reason);
+                failures.push({ recipient: 'PROFESSIONAL', reason });
+            }
+
+            if (failures.length === 0) {
+                console.log(`[NOTIFICATIONS] Sent acceptance emails for booking ${bookingId}`);
+            } else if (failures.length === 1) {
+                console.error(`[NOTIFICATIONS] Partially failed acceptance emails for booking ${bookingId}`, {
+                    failures,
+                });
+            } else {
+                console.error(`[NOTIFICATIONS] Failed acceptance emails for booking ${bookingId}`, {
+                    failures,
+                });
+                throw new Error(
+                    `Both booking acceptance emails failed for booking ${bookingId}: ${failures.map((item) => `${item.recipient}: ${item.reason}`).join(' | ')}`
+                );
+            }
         }
         else if (type === 'booking_declined') {
             const booking = await prisma.booking.findUnique({

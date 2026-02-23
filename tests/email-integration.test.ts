@@ -85,6 +85,96 @@ describe.sequential('Email integration', () => {
         expect(eventArg.location).toBe('https://zoom.us/w/candidate123');
     });
 
+    it('normalizes EMAIL_FROM display name into organizer email for ICS', async () => {
+        process.env.EMAIL_FROM = 'Monet Platform <sender@example.com>';
+
+        const createEventMock = vi.fn().mockReturnValue({ error: null, value: 'BEGIN:VCALENDAR' });
+        vi.doMock('ics', () => ({
+            createEvent: createEventMock,
+        }));
+
+        const { sendBookingAcceptedEmail } = await import('@/lib/integrations/email');
+        await sendBookingAcceptedEmail({
+            id: 'booking_4',
+            startAt: new Date('2026-03-01T12:00:00Z'),
+            endAt: new Date('2026-03-01T12:30:00Z'),
+            zoomJoinUrl: 'https://zoom.us/j/123456',
+            candidate: { email: 'cand@example.com' },
+            professional: { email: 'pro@example.com' },
+        } as any, 'CANDIDATE');
+
+        const eventArg = createEventMock.mock.calls[0][0];
+        expect(eventArg.organizer.email).toBe('sender@example.com');
+    });
+
+    it('uses raw EMAIL_FROM email as organizer email for ICS', async () => {
+        process.env.EMAIL_FROM = 'sender@example.com';
+
+        const createEventMock = vi.fn().mockReturnValue({ error: null, value: 'BEGIN:VCALENDAR' });
+        vi.doMock('ics', () => ({
+            createEvent: createEventMock,
+        }));
+
+        const { sendBookingAcceptedEmail } = await import('@/lib/integrations/email');
+        await sendBookingAcceptedEmail({
+            id: 'booking_5',
+            startAt: new Date('2026-03-01T12:00:00Z'),
+            endAt: new Date('2026-03-01T12:30:00Z'),
+            zoomJoinUrl: 'https://zoom.us/j/123456',
+            candidate: { email: 'cand@example.com' },
+            professional: { email: 'pro@example.com' },
+        } as any, 'CANDIDATE');
+
+        const eventArg = createEventMock.mock.calls[0][0];
+        expect(eventArg.organizer.email).toBe('sender@example.com');
+    });
+
+    it('falls back to GMAIL_OAUTH_USER when EMAIL_FROM is invalid for ICS organizer email', async () => {
+        process.env.EMAIL_FROM = 'Monet Platform';
+        process.env.GMAIL_OAUTH_USER = 'oauth-sender@example.com';
+
+        const createEventMock = vi.fn().mockReturnValue({ error: null, value: 'BEGIN:VCALENDAR' });
+        vi.doMock('ics', () => ({
+            createEvent: createEventMock,
+        }));
+
+        const { sendBookingAcceptedEmail } = await import('@/lib/integrations/email');
+        await sendBookingAcceptedEmail({
+            id: 'booking_6',
+            startAt: new Date('2026-03-01T12:00:00Z'),
+            endAt: new Date('2026-03-01T12:30:00Z'),
+            zoomJoinUrl: 'https://zoom.us/j/123456',
+            candidate: { email: 'cand@example.com' },
+            professional: { email: 'pro@example.com' },
+        } as any, 'CANDIDATE');
+
+        const eventArg = createEventMock.mock.calls[0][0];
+        expect(eventArg.organizer.email).toBe('oauth-sender@example.com');
+    });
+
+    it('falls back to default organizer email when EMAIL_FROM and GMAIL_OAUTH_USER are invalid', async () => {
+        process.env.EMAIL_FROM = 'Monet Platform';
+        process.env.GMAIL_OAUTH_USER = 'invalid-email';
+
+        const createEventMock = vi.fn().mockReturnValue({ error: null, value: 'BEGIN:VCALENDAR' });
+        vi.doMock('ics', () => ({
+            createEvent: createEventMock,
+        }));
+
+        const { sendBookingAcceptedEmail } = await import('@/lib/integrations/email');
+        await sendBookingAcceptedEmail({
+            id: 'booking_7',
+            startAt: new Date('2026-03-01T12:00:00Z'),
+            endAt: new Date('2026-03-01T12:30:00Z'),
+            zoomJoinUrl: 'https://zoom.us/j/123456',
+            candidate: { email: 'cand@example.com' },
+            professional: { email: 'pro@example.com' },
+        } as any, 'CANDIDATE');
+
+        const eventArg = createEventMock.mock.calls[0][0];
+        expect(eventArg.organizer.email).toBe('noreply@monet.ai');
+    });
+
     it('fails fast in production when required Gmail OAuth configuration is missing', async () => {
         (process.env as Record<string, string | undefined>)['NODE_ENV'] = 'production';
         delete process.env.GMAIL_OAUTH_CLIENT_ID;
