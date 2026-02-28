@@ -9,14 +9,37 @@ import { appRoutes } from "@/lib/shared/routes";
 import { resolveNavLinksForSessionUser, type UserRole } from "@/components/layout/auth-navbar-links";
 
 const CANDIDATE_DASHBOARD_LEGACY_PATH = "/candidate/dashboard";
+const AUTH_NAV_HIDDEN_EXACT_PATHS = new Set([
+    "/",
+    "/pricing",
+    "/login",
+    "/signup",
+    "/forgot-password",
+    "/auth/reset",
+]);
+const AUTH_NAV_HIDDEN_PREFIXES = ["/pricing/"];
+
+function shouldHideAuthNavbar(pathname: string) {
+    if (AUTH_NAV_HIDDEN_EXACT_PATHS.has(pathname)) {
+        return true;
+    }
+
+    return AUTH_NAV_HIDDEN_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
 
 export function AuthNavbar() {
-    const { data: session, status } = useSession();
-    const [isPending, startTransition] = useTransition();
     const pathname = usePathname();
 
+    if (shouldHideAuthNavbar(pathname)) return null;
+
+    return <AuthenticatedNavbar pathname={pathname} />;
+}
+
+function AuthenticatedNavbar({ pathname }: { pathname: string }) {
+    const { data: session, status } = useSession();
+    const [isPending, startTransition] = useTransition();
+
     if (status === "loading") return null;
-    if (pathname === "/forgot-password") return null;
     if (!session?.user) return null;
 
     const handleLogout = () => {
@@ -38,7 +61,10 @@ export function AuthNavbar() {
             <div className="bg-white border border-gray-200 shadow-sm rounded-lg px-4 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex flex-wrap items-center gap-2">
-                        <Link href={homeLink} className="flex items-center gap-2 font-semibold text-gray-900 px-2 py-1 rounded-md hover:bg-blue-100 auth-navbar-pressable">
+                        <Link
+                            href={homeLink}
+                            className="flex items-center gap-2 font-semibold text-gray-900 px-2 py-1 rounded-md hover:bg-blue-100 auth-navbar-pressable"
+                        >
                             <span
                                 style={{
                                     width: "24px",

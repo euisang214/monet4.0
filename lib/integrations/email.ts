@@ -2,8 +2,10 @@
 import nodemailer from 'nodemailer';
 import { google } from 'googleapis';
 import { createEvent, DateArray } from 'ics';
+import { formatInTimeZone } from 'date-fns-tz';
 import { Booking, User, ProfessionalProfile, Payout } from '@prisma/client';
 import { appRoutes } from '@/lib/shared/routes';
+import { normalizeTimezone } from '@/lib/utils/supported-timezones';
 
 const GMAIL_OAUTH_CLIENT_ID = process.env.GMAIL_OAUTH_CLIENT_ID?.trim();
 const GMAIL_OAUTH_CLIENT_SECRET = process.env.GMAIL_OAUTH_CLIENT_SECRET?.trim();
@@ -169,10 +171,14 @@ function buildInviteDescription({
     booking,
     role,
     zoomInviteText,
+    canonicalDateTime,
+    canonicalTimezone,
 }: {
     booking: BookingWithRelations;
     role: CalendarInviteRecipientRole;
     zoomInviteText: string;
+    canonicalDateTime: string;
+    canonicalTimezone: string;
 }) {
     const counterpartName = role === 'CANDIDATE'
         ? getDisplayName(booking.professional, 'Professional')
@@ -181,6 +187,7 @@ function buildInviteDescription({
     return [
         zoomInviteText.trim(),
         '',
+        `Scheduled Time (${canonicalTimezone}): ${canonicalDateTime}`,
         `Counterpart: ${counterpartName}`,
     ].join('\n');
 }
@@ -198,6 +205,32 @@ function buildIcsStartDateArray(startDate: Date): DateArray {
 function buildIcsDuration(startDate: Date, endDate: Date) {
     const durationMinutes = (endDate.getTime() - startDate.getTime()) / (1000 * 60);
     return { hours: Math.floor(durationMinutes / 60), minutes: durationMinutes % 60 };
+}
+
+function getCanonicalBookingTimezone(bookingTimezone: string | null | undefined) {
+    return normalizeTimezone(bookingTimezone ?? 'UTC');
+}
+
+function getRecipientTimezone(role: CalendarInviteRecipientRole, booking: BookingWithRelations) {
+    const recipient = role === 'CANDIDATE' ? booking.candidate : booking.professional;
+    const recipientTimezone = typeof recipient.timezone === 'string' ? recipient.timezone : null;
+    return normalizeTimezone(recipientTimezone ?? booking.timezone);
+}
+
+function formatDateTimeForTimezone(date: Date, timezone: string) {
+    return formatInTimeZone(date, timezone, "MMM d, yyyy 'at' h:mm a");
+}
+
+function buildInviteTimeContext(role: CalendarInviteRecipientRole, booking: BookingWithRelations, startDate: Date) {
+    const canonicalTimezone = getCanonicalBookingTimezone(booking.timezone);
+    const recipientTimezone = getRecipientTimezone(role, booking);
+
+    return {
+        canonicalTimezone,
+        canonicalDateTime: formatDateTimeForTimezone(startDate, canonicalTimezone),
+        recipientTimezone,
+        recipientDateTime: formatDateTimeForTimezone(startDate, recipientTimezone),
+    };
 }
 
 function createCalendarInviteContent({
@@ -224,15 +257,26 @@ function createCalendarInviteContent({
     const meetingUrl = getRoleSpecificMeetingUrl(booking, role);
     const hasValidMeetingUrl = isValidAbsoluteHttpUrl(meetingUrl);
     const recipient = role === 'CANDIDATE' ? booking.candidate : booking.professional;
+    const inviteTimeContext = buildInviteTimeContext(role, booking, startDate);
 
     const eventResult = createEvent({
         uid,
         sequence,
         method,
         start: buildIcsStartDateArray(startDate),
+        startInputType: 'utc',
+        startOutputType: 'utc',
+        endInputType: 'utc',
+        endOutputType: 'utc',
         duration: buildIcsDuration(startDate, endDate),
         title: 'Consultation Call',
-        description: buildInviteDescription({ booking, role, zoomInviteText }),
+        description: buildInviteDescription({
+            booking,
+            role,
+            zoomInviteText,
+            canonicalDateTime: inviteTimeContext.canonicalDateTime,
+            canonicalTimezone: inviteTimeContext.canonicalTimezone,
+        }),
         ...(hasValidMeetingUrl ? { location: meetingUrl, url: meetingUrl } : {}),
         status: method === 'CANCEL' ? 'CANCELLED' : 'CONFIRMED',
         busyStatus: method === 'CANCEL' ? 'FREE' : 'BUSY',
@@ -260,6 +304,7 @@ function createCalendarInviteContent({
         meetingUrl,
         hasValidMeetingUrl,
         startDate,
+        inviteTimeContext,
     };
 }
 
@@ -271,7 +316,7 @@ export async function sendCalendarInviteRequestEmail(
     zoomInviteText: string
 ) {
     const recipientEmail = role === 'CANDIDATE' ? booking.candidate.email : booking.professional.email;
-    const { icsContent, meetingUrl, hasValidMeetingUrl, startDate } = createCalendarInviteContent({
+    const { icsContent, meetingUrl, hasValidMeetingUrl, inviteTimeContext } = createCalendarInviteContent({
         booking,
         role,
         uid,
@@ -283,11 +328,17 @@ export async function sendCalendarInviteRequestEmail(
     await sendEmail({
         to: recipientEmail,
         subject: 'Invitation: Consultation Call',
-        text: `Please respond to the calendar invitation for your consultation call at ${startDate.toUTCString()}.`,
+        text: [
+            'Please respond to the calendar invitation for your consultation call.',
+            `Scheduled Time (${inviteTimeContext.canonicalTimezone}): ${inviteTimeContext.canonicalDateTime}`,
+            `Your Local Time (${inviteTimeContext.recipientTimezone}): ${inviteTimeContext.recipientDateTime}`,
+            'Please use your calendar client\'s RSVP controls to accept or decline.',
+        ].join('\n'),
         html: `
             <h1>Consultation Call Invitation</h1>
             <p>Your consultation call has been scheduled.</p>
-            <p><strong>Time:</strong> ${startDate.toUTCString()}</p>
+            <p><strong>Scheduled Time (${inviteTimeContext.canonicalTimezone}):</strong> ${inviteTimeContext.canonicalDateTime}</p>
+            <p><strong>Your Local Time (${inviteTimeContext.recipientTimezone}):</strong> ${inviteTimeContext.recipientDateTime}</p>
             <p><strong>Zoom Link:</strong> ${hasValidMeetingUrl ? `<a href="${meetingUrl}">${meetingUrl}</a>` : 'Included in invite details'}</p>
             <p>Please use your calendar client's RSVP controls to accept or decline.</p>
         `,
@@ -307,7 +358,7 @@ export async function sendCalendarInviteCancelEmail(
     zoomInviteText: string
 ) {
     const recipientEmail = role === 'CANDIDATE' ? booking.candidate.email : booking.professional.email;
-    const { icsContent, startDate } = createCalendarInviteContent({
+    const { icsContent, inviteTimeContext } = createCalendarInviteContent({
         booking,
         role,
         uid,
@@ -319,10 +370,16 @@ export async function sendCalendarInviteCancelEmail(
     await sendEmail({
         to: recipientEmail,
         subject: 'Canceled: Consultation Call',
-        text: `Your consultation call scheduled for ${startDate.toUTCString()} has been canceled.`,
+        text: [
+            'Your consultation call has been canceled.',
+            `Scheduled Time (${inviteTimeContext.canonicalTimezone}): ${inviteTimeContext.canonicalDateTime}`,
+            `Your Local Time (${inviteTimeContext.recipientTimezone}): ${inviteTimeContext.recipientDateTime}`,
+        ].join('\n'),
         html: `
             <h1>Consultation Call Canceled</h1>
-            <p>Your consultation call scheduled for <strong>${startDate.toUTCString()}</strong> has been canceled.</p>
+            <p>Your consultation call has been canceled.</p>
+            <p><strong>Scheduled Time (${inviteTimeContext.canonicalTimezone}):</strong> ${inviteTimeContext.canonicalDateTime}</p>
+            <p><strong>Your Local Time (${inviteTimeContext.recipientTimezone}):</strong> ${inviteTimeContext.recipientDateTime}</p>
             <p>A calendar cancellation update is attached to this message.</p>
         `,
         icalEvent: {

@@ -64,24 +64,36 @@ describe.sequential('Email integration', () => {
         const { sendCalendarInviteRequestEmail } = await import('@/lib/integrations/email');
         await sendCalendarInviteRequestEmail({
             id: 'booking_req_1',
+            timezone: 'America/New_York',
             startAt: new Date('2026-03-01T12:00:00Z'),
             endAt: new Date('2026-03-01T12:30:00Z'),
             zoomJoinUrl: 'https://zoom.us/j/shared',
             candidateZoomJoinUrl: 'https://zoom.us/w/candidate123',
             professionalZoomJoinUrl: 'https://zoom.us/w/pro123',
-            candidate: { email: 'cand@example.com', firstName: 'Cand', lastName: 'One' },
-            professional: { email: 'pro@example.com', firstName: 'Pro', lastName: 'Two' },
+            candidate: { email: 'cand@example.com', firstName: 'Cand', lastName: 'One', timezone: 'America/Chicago' },
+            professional: { email: 'pro@example.com', firstName: 'Pro', lastName: 'Two', timezone: 'America/Los_Angeles' },
         } as any, 'CANDIDATE', 'booking_req_1.candidate@monet.ai', 0, 'Join Zoom Meeting\nhttps://zoom.us/w/candidate123');
 
         const eventArg = createEventMock.mock.calls[0][0];
         expect(eventArg.method).toBe('REQUEST');
         expect(eventArg.uid).toBe('booking_req_1.candidate@monet.ai');
         expect(eventArg.sequence).toBe(0);
+        expect(eventArg.startInputType).toBe('utc');
+        expect(eventArg.startOutputType).toBe('utc');
+        expect(eventArg.endInputType).toBe('utc');
+        expect(eventArg.endOutputType).toBe('utc');
         expect(eventArg.attendees).toHaveLength(1);
         expect(eventArg.attendees[0].email).toBe('cand@example.com');
         expect(eventArg.location).toBe('https://zoom.us/w/candidate123');
         expect(eventArg.url).toBe('https://zoom.us/w/candidate123');
         expect(eventArg.organizer.email).toBe('sender@example.com');
+        expect(eventArg.description).toContain('Scheduled Time (America/New_York): Mar 1, 2026 at 7:00 AM');
+
+        const requestMailArg = sendMailMock.mock.calls[0][0];
+        expect(requestMailArg.text).toContain('Scheduled Time (America/New_York): Mar 1, 2026 at 7:00 AM');
+        expect(requestMailArg.text).toContain('Your Local Time (America/Chicago): Mar 1, 2026 at 6:00 AM');
+        expect(requestMailArg.html).toContain('Scheduled Time (America/New_York):');
+        expect(requestMailArg.html).toContain('Your Local Time (America/Chicago):');
         expect(sendMailMock).toHaveBeenCalledWith(expect.objectContaining({
             icalEvent: expect.objectContaining({
                 method: 'REQUEST',
@@ -208,19 +220,23 @@ describe.sequential('Email integration', () => {
         const { sendCalendarInviteCancelEmail } = await import('@/lib/integrations/email');
         await sendCalendarInviteCancelEmail({
             id: 'booking_req_1',
+            timezone: 'America/New_York',
             startAt: new Date('2026-03-01T12:00:00Z'),
             endAt: new Date('2026-03-01T12:30:00Z'),
             zoomJoinUrl: 'https://zoom.us/j/shared',
             candidateZoomJoinUrl: 'https://zoom.us/w/candidate123',
             professionalZoomJoinUrl: 'https://zoom.us/w/pro123',
-            candidate: { email: 'cand@example.com', firstName: 'Cand', lastName: 'One' },
-            professional: { email: 'pro@example.com', firstName: 'Pro', lastName: 'Two' },
+            candidate: { email: 'cand@example.com', firstName: 'Cand', lastName: 'One', timezone: 'America/Chicago' },
+            professional: { email: 'pro@example.com', firstName: 'Pro', lastName: 'Two', timezone: 'America/Los_Angeles' },
         } as any, 'CANDIDATE', 'booking_req_1.candidate@monet.ai', 3, 'Join Zoom Meeting\nhttps://zoom.us/w/candidate123');
 
         const eventArg = createEventMock.mock.calls[0][0];
         expect(eventArg.method).toBe('CANCEL');
         expect(eventArg.status).toBe('CANCELLED');
         expect(eventArg.sequence).toBe(3);
+        const cancelMailArg = sendMailMock.mock.calls[0][0];
+        expect(cancelMailArg.text).toContain('Scheduled Time (America/New_York): Mar 1, 2026 at 7:00 AM');
+        expect(cancelMailArg.text).toContain('Your Local Time (America/Chicago): Mar 1, 2026 at 6:00 AM');
         expect(sendMailMock).toHaveBeenCalledWith(expect.objectContaining({
             icalEvent: expect.objectContaining({
                 method: 'CANCEL',

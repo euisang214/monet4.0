@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { appRoutes } from "@/lib/shared/routes";
+import { formatInTimeZone } from "@/lib/utils/timezones";
+import { normalizeTimezone } from "@/lib/utils/supported-timezones";
 
 interface UpcomingCall {
     id: string;
@@ -18,22 +20,15 @@ interface ProfessionalUpcomingCallsListProps {
 }
 
 function formatCallTime(startAt: Date | string | null, timezone: string) {
+    const resolvedTimezone = normalizeTimezone(timezone);
     if (!startAt) {
-        return `Time TBD (${timezone})`;
+        return `Time TBD (${resolvedTimezone})`;
     }
 
     const parsed = startAt instanceof Date ? startAt : new Date(startAt);
-    const dateLabel = parsed.toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-    });
-    const timeLabel = parsed.toLocaleTimeString(undefined, {
-        hour: "numeric",
-        minute: "2-digit",
-    });
+    const dateTimeLabel = formatInTimeZone(parsed, resolvedTimezone, "MMM d, yyyy 'at' h:mm a");
 
-    return `${dateLabel} at ${timeLabel} (${timezone})`;
+    return `${dateTimeLabel} (${resolvedTimezone})`;
 }
 
 export function ProfessionalUpcomingCallsList({ bookings }: ProfessionalUpcomingCallsListProps) {

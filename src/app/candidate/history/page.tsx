@@ -14,6 +14,8 @@ import {
     formatProfessionalForCandidateView,
     shouldRevealProfessionalNameForCandidateStatus,
 } from '@/lib/domain/users/identity-labels';
+import { formatInTimeZone } from '@/lib/utils/timezones';
+import { normalizeTimezone } from '@/lib/utils/supported-timezones';
 
 const CHAT_SECTION_KEYS: CandidateChatSection[] = ['upcoming', 'pending', 'expired', 'past', 'other'];
 const DEFAULT_VIEW: CandidateChatSection = 'upcoming';
@@ -72,15 +74,19 @@ function statusTone(status: BookingStatus) {
 }
 
 function scheduleLabel(booking: CandidateChatBooking) {
+    const bookingTimezone = normalizeTimezone(booking.timezone);
+
     if (booking.startAt) {
-        return `${booking.startAt.toLocaleDateString()} at ${booking.startAt.toLocaleTimeString()} (${booking.timezone})`;
+        const schedule = formatInTimeZone(booking.startAt, bookingTimezone, "MMM d, yyyy 'at' h:mm a");
+        return `${schedule} (${bookingTimezone})`;
     }
 
     if (booking.expiresAt) {
-        return `Request window ends ${booking.expiresAt.toLocaleDateString()} at ${booking.expiresAt.toLocaleTimeString()} (${booking.timezone})`;
+        const expiry = formatInTimeZone(booking.expiresAt, bookingTimezone, "MMM d, yyyy 'at' h:mm a");
+        return `Request window ends ${expiry} (${bookingTimezone})`;
     }
 
-    return `Awaiting scheduling details (${booking.timezone})`;
+    return `Awaiting scheduling details (${bookingTimezone})`;
 }
 
 function sectionUrl(view: CandidateChatSection, cursor?: string) {
