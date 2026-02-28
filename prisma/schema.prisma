@@ -123,6 +123,14 @@ model Booking {
   professionalZoomJoinUrl String?
   candidateZoomRegistrantId String?
   professionalZoomRegistrantId String?
+  candidateCalendarInviteUid String?
+  professionalCalendarInviteUid String?
+  candidateCalendarInviteSequence Int @default(0)
+  professionalCalendarInviteSequence Int @default(0)
+  candidateCalendarInviteSentAt DateTime?
+  professionalCalendarInviteSentAt DateTime?
+  candidateCalendarInviteCancelledAt DateTime?
+  professionalCalendarInviteCancelledAt DateTime?
   timezone         String        @default("UTC")
   
   // Join tracking

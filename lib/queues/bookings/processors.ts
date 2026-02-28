@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/core/db';
 import { createZoomMeeting } from '@/lib/integrations/zoom';
-import { createGoogleCalendarEvent } from '@/lib/integrations/calendar/google';
 import { expireBooking, completeCall, cancelBooking, initiateDispute, completeIntegrations } from '@/lib/domain/bookings/transitions';
 import { cancelPaymentIntent } from '@/lib/integrations/stripe';
 import { subDays } from 'date-fns';
@@ -225,39 +224,6 @@ export async function processConfirmBooking(bookingId: string) {
         throw new Error(`Booking ${bookingId} has incomplete Zoom metadata`);
     }
 
-    // 3. Google Calendar Sync
-    // We do not fail the job if this fails, as per plan.
-    const eventParams = {
-        summary: `Consultation Call`,
-        description: `Join Zoom Meeting: ${zoomJoinUrl}`,
-        location: zoomJoinUrl || undefined,
-        start: booking.startAt,
-        end: booking.endAt,
-        attendees: [booking.candidate.email, booking.professional.email],
-    };
-
-    // Sync to Professional
-    try {
-        await createGoogleCalendarEvent({
-            userId: booking.professionalId,
-            ...eventParams,
-            description: `${eventParams.description}\n\nClient: ${booking.candidate.email}`,
-        });
-    } catch (e) {
-        console.error(`Failed to sync calendar for professional ${booking.professionalId}`, e);
-    }
-
-    // Sync to Candidate
-    try {
-        await createGoogleCalendarEvent({
-            userId: booking.candidateId,
-            ...eventParams,
-            description: `${eventParams.description}\n\nProfessional: ${booking.professional.email}`,
-        });
-    } catch (e) {
-        console.error(`Failed to sync calendar for candidate ${booking.candidateId}`, e);
-    }
-
     return { processed: true, bookingId, zoomCreated: !!zoomJoinUrl };
 }
 
@@ -342,30 +308,6 @@ export async function processRescheduleBooking(bookingId: string, oldZoomMeeting
         console.error(`Failed to create new Zoom meeting for reschedule ${bookingId}`, error);
         throw error;
     }
-
-    // Reuse calendar sync logic
-    const eventParams = {
-        summary: `Rescheduled Consultation Call`,
-        description: `Join Zoom Meeting: ${zoomJoinUrl}`,
-        location: zoomJoinUrl || undefined,
-        start: booking.startAt,
-        end: booking.endAt,
-        attendees: [booking.candidate.email, booking.professional.email],
-    };
-
-    // Sync to Professional
-    await createGoogleCalendarEvent({
-        userId: booking.professionalId,
-        ...eventParams,
-        description: `${eventParams.description}\n\nClient: ${booking.candidate.email}`,
-    }).catch(e => console.error(e));
-
-    // Sync to Candidate
-    await createGoogleCalendarEvent({
-        userId: booking.candidateId,
-        ...eventParams,
-        description: `${eventParams.description}\n\nProfessional: ${booking.professional.email}`,
-    }).catch(e => console.error(e));
 
     return { processed: true, type: 'reschedule' };
 }

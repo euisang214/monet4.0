@@ -51,10 +51,6 @@ vi.mock('@/lib/integrations/zoom', () => ({
     deleteZoomMeeting: vi.fn(),
 }));
 
-vi.mock('@/lib/integrations/calendar/google', () => ({
-    createGoogleCalendarEvent: vi.fn().mockResolvedValue({}),
-}));
-
 vi.mock('@/lib/integrations/stripe', () => ({
     cancelPaymentIntent: vi.fn().mockResolvedValue(undefined),
 }));

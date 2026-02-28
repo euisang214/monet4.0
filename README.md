@@ -333,25 +333,23 @@ Or use Vercel's build command to run migrations automatically by updating `packa
 - Use Railway, Render, or a dedicated VPS
 - Ensure the worker has access to the same `REDIS_URL` and `STORAGE_POSTGRES_PRISMA_URL`
 
-### Email Cutover Checklist (SES -> Gmail OAuth2)
+### Email and Calendar Invite Operations Checklist (Gmail OAuth2 + iMIP)
 
 1. Configure all `GMAIL_OAUTH_*` variables and `EMAIL_FROM` in production.
-2. Deploy and run a controlled end-to-end booking acceptance.
+2. Deploy app + worker and run controlled end-to-end acceptance, reschedule, and cancellation flows.
 3. Verify:
    - Booking moves `accepted_pending_integrations` -> `accepted`
-   - `confirm-booking` failures are retried with backoff
-   - Acceptance emails include valid Zoom links and ICS attachments
+   - `calendar_invite_request` jobs are created for both candidate/professional
+   - `calendar_invite_cancel` jobs are created on cancellation paths
+   - Gmail/Outlook/Apple Mail show native invite/cancel actions without manual `.ics` download
+   - Reschedule updates the same event (no duplicate events)
+   - Zoom-native registrant emails remain suppressed
 4. Monitor for 24 hours:
    - Count of stale `accepted_pending_integrations` bookings
-   - BullMQ failed `confirm-booking` jobs
+   - BullMQ failed `confirm-booking`, `calendar_invite_request`, and `calendar_invite_cancel` jobs
    - Email transport failures
 
-### Email Rollback Checklist
-
-1. Revert to the pre-cutover SES commit.
-2. Redeploy app + worker.
-3. Restore SES environment variables.
-4. Re-run controlled acceptance flow and verify email delivery.
+**Zoom suppression prerequisite:** ensure account-level Zoom registration email notifications are disabled, in addition to API-side suppression settings, before enabling this flow in production.
 
 ### Production Build Commands
 

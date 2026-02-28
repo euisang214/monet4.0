@@ -1,18 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BookingStatus, PaymentStatus, Role } from '@prisma/client';
 
+const notificationsQueueAddMock = vi.hoisted(() => vi.fn());
+
 vi.mock('@/lib/queues', () => ({
     notificationsQueue: {
-        add: vi.fn(),
+        add: notificationsQueueAddMock,
     },
 }));
-
-import { notificationsQueue } from '@/lib/queues';
-import {
-    acceptBookingWithIntegrations,
-    completeIntegrations,
-    updateZoomDetails,
-} from '@/lib/domain/bookings/transitions';
 
 function buildPrismaMock() {
     const tx = {
@@ -23,6 +18,14 @@ function buildPrismaMock() {
         },
         payment: {
             updateMany: vi.fn(),
+            update: vi.fn(),
+            findUnique: vi.fn(),
+        },
+        user: {
+            findUnique: vi.fn(),
+        },
+        payout: {
+            create: vi.fn(),
         },
         auditLog: {
             create: vi.fn().mockResolvedValue({ id: 'audit_1' }),
@@ -40,9 +43,12 @@ function buildPrismaMock() {
 describe('Integration transition notification semantics', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.resetModules();
+        vi.unstubAllEnvs();
     });
 
-    it('does not queue booking_accepted when moving requested -> accepted_pending_integrations', async () => {
+    it('does not queue accepted notifications when moving requested -> accepted_pending_integrations', async () => {
+        const { acceptBookingWithIntegrations } = await import('@/lib/domain/bookings/transitions');
         const { prisma, tx } = buildPrismaMock();
 
         const before = {
@@ -75,10 +81,11 @@ describe('Integration transition notification semantics', () => {
         );
 
         expect(result.status).toBe(BookingStatus.accepted_pending_integrations);
-        expect(notificationsQueue.add).not.toHaveBeenCalled();
+        expect(notificationsQueueAddMock).not.toHaveBeenCalled();
     });
 
-    it('queues booking_accepted after completeIntegrations succeeds', async () => {
+    it('queues two calendar_invite_request jobs when integrations complete', async () => {
+        const { completeIntegrations } = await import('@/lib/domain/bookings/transitions');
         const { prisma, tx } = buildPrismaMock();
 
         const before = {
@@ -112,12 +119,34 @@ describe('Integration transition notification semantics', () => {
             { prisma: prisma as any },
         );
 
-        expect(notificationsQueue.add).toHaveBeenCalledWith(
+        expect(notificationsQueueAddMock).toHaveBeenCalledTimes(2);
+        expect(notificationsQueueAddMock).toHaveBeenCalledWith(
             'notifications',
-            { type: 'booking_accepted', bookingId: 'booking_2' },
             {
-                jobId: 'booking-accepted-booking_2-123456',
-                attempts: 3,
+                type: 'calendar_invite_request',
+                bookingId: 'booking_2',
+                recipientRole: 'CANDIDATE',
+                revisionKey: '123456',
+            },
+            {
+                jobId: 'cal-req-booking_2-CANDIDATE-123456',
+                attempts: 5,
+                backoff: { type: 'exponential', delay: 60_000 },
+                removeOnComplete: true,
+                removeOnFail: false,
+            },
+        );
+        expect(notificationsQueueAddMock).toHaveBeenCalledWith(
+            'notifications',
+            {
+                type: 'calendar_invite_request',
+                bookingId: 'booking_2',
+                recipientRole: 'PROFESSIONAL',
+                revisionKey: '123456',
+            },
+            {
+                jobId: 'cal-req-booking_2-PROFESSIONAL-123456',
+                attempts: 5,
                 backoff: { type: 'exponential', delay: 60_000 },
                 removeOnComplete: true,
                 removeOnFail: false,
@@ -125,7 +154,8 @@ describe('Integration transition notification semantics', () => {
         );
     });
 
-    it('queues booking_accepted when admin fallback transitions accepted_pending_integrations -> accepted', async () => {
+    it('queues two calendar_invite_request jobs when admin fallback transitions accepted_pending_integrations -> accepted', async () => {
+        const { updateZoomDetails } = await import('@/lib/domain/bookings/transitions');
         const { prisma } = buildPrismaMock();
 
         prisma.booking.findUnique.mockResolvedValue({ status: BookingStatus.accepted_pending_integrations });
@@ -146,10 +176,189 @@ describe('Integration transition notification semantics', () => {
             { prisma: prisma as any },
         );
 
-        expect(notificationsQueue.add).toHaveBeenCalledWith(
+        expect(notificationsQueueAddMock).toHaveBeenCalledTimes(2);
+        expect(notificationsQueueAddMock).toHaveBeenCalledWith(
             'notifications',
-            { type: 'booking_accepted', bookingId: 'booking_3' },
-            { jobId: 'booking-accepted-booking_3-manual-1' },
+            {
+                type: 'calendar_invite_request',
+                bookingId: 'booking_3',
+                recipientRole: 'CANDIDATE',
+                revisionKey: 'manual-1',
+            },
+            {
+                jobId: 'cal-req-booking_3-CANDIDATE-manual-1',
+                attempts: 5,
+                backoff: { type: 'exponential', delay: 60_000 },
+                removeOnComplete: true,
+                removeOnFail: false,
+            },
+        );
+        expect(notificationsQueueAddMock).toHaveBeenCalledWith(
+            'notifications',
+            {
+                type: 'calendar_invite_request',
+                bookingId: 'booking_3',
+                recipientRole: 'PROFESSIONAL',
+                revisionKey: 'manual-1',
+            },
+            {
+                jobId: 'cal-req-booking_3-PROFESSIONAL-manual-1',
+                attempts: 5,
+                backoff: { type: 'exponential', delay: 60_000 },
+                removeOnComplete: true,
+                removeOnFail: false,
+            },
+        );
+    });
+
+    it('queues two calendar_invite_cancel jobs when cancelBooking performs a real cancellation', async () => {
+        const { cancelBooking } = await import('@/lib/domain/bookings/transitions');
+        const { prisma, tx } = buildPrismaMock();
+
+        const before = {
+            id: 'booking_cancel_1',
+            candidateId: 'cand_1',
+            professionalId: 'pro_1',
+            status: BookingStatus.accepted,
+            zoomMeetingId: 'meeting-cancel-1',
+            priceCents: 10000,
+            startAt: new Date(Date.now() + 12 * 60 * 60 * 1000),
+            endAt: new Date(Date.now() + 12.5 * 60 * 60 * 1000),
+            candidateLateCancellation: false,
+            attendanceOutcome: null,
+            payment: { status: PaymentStatus.held },
+            payout: null,
+            feedback: null,
+        };
+
+        const after = {
+            ...before,
+            status: BookingStatus.cancelled,
+            payment: { status: PaymentStatus.refunded },
+        };
+
+        tx.booking.findUnique
+            .mockResolvedValueOnce(before) // transitionBooking lock/fetch
+            .mockResolvedValueOnce(after); // transitionBooking post-update invariant fetch
+        tx.booking.findUniqueOrThrow.mockResolvedValue(before);
+        tx.booking.update.mockResolvedValue(after);
+        tx.payment.findUnique.mockResolvedValue({
+            bookingId: 'booking_cancel_1',
+            status: PaymentStatus.held,
+            amountGross: 10000,
+            stripePaymentIntentId: 'pi_1',
+        });
+        tx.payment.update.mockResolvedValue({});
+
+        await cancelBooking(
+            'booking_cancel_1',
+            { userId: 'cand_1', role: Role.CANDIDATE },
+            'change of plans',
+            undefined,
+            { prisma: prisma as any, stripe: undefined },
+        );
+
+        expect(notificationsQueueAddMock).toHaveBeenCalledTimes(2);
+        expect(notificationsQueueAddMock).toHaveBeenCalledWith(
+            'notifications',
+            {
+                type: 'calendar_invite_cancel',
+                bookingId: 'booking_cancel_1',
+                recipientRole: 'CANDIDATE',
+            },
+            {
+                jobId: 'cal-cxl-booking_cancel_1-CANDIDATE',
+                attempts: 5,
+                backoff: { type: 'exponential', delay: 60_000 },
+                removeOnComplete: true,
+                removeOnFail: false,
+            },
+        );
+        expect(notificationsQueueAddMock).toHaveBeenCalledWith(
+            'notifications',
+            {
+                type: 'calendar_invite_cancel',
+                bookingId: 'booking_cancel_1',
+                recipientRole: 'PROFESSIONAL',
+            },
+            {
+                jobId: 'cal-cxl-booking_cancel_1-PROFESSIONAL',
+                attempts: 5,
+                backoff: { type: 'exponential', delay: 60_000 },
+                removeOnComplete: true,
+                removeOnFail: false,
+            },
+        );
+    });
+
+    it('queues two calendar_invite_cancel jobs when rejectReschedule cancels a booking', async () => {
+        const { rejectReschedule } = await import('@/lib/domain/bookings/transitions');
+        const { prisma, tx } = buildPrismaMock();
+
+        const before = {
+            id: 'booking_cancel_2',
+            candidateId: 'cand_1',
+            professionalId: 'pro_1',
+            status: BookingStatus.reschedule_pending,
+            zoomMeetingId: 'meeting-cancel-2',
+            priceCents: 10000,
+            startAt: new Date(Date.now() + 12 * 60 * 60 * 1000),
+            endAt: new Date(Date.now() + 12.5 * 60 * 60 * 1000),
+            candidateLateCancellation: false,
+            payment: { status: PaymentStatus.held },
+            payout: null,
+            feedback: null,
+        };
+
+        const after = {
+            ...before,
+            status: BookingStatus.cancelled,
+            payment: { status: PaymentStatus.refunded },
+        };
+
+        tx.booking.findUnique
+            .mockResolvedValueOnce(before) // transitionBooking lock/fetch
+            .mockResolvedValueOnce(after); // transitionBooking post-update invariant fetch
+        tx.booking.findUniqueOrThrow.mockResolvedValue(before);
+        tx.booking.update.mockResolvedValue(after);
+        tx.payment.update.mockResolvedValue({});
+
+        await rejectReschedule(
+            'booking_cancel_2',
+            { userId: 'cand_1', role: Role.CANDIDATE },
+            { prisma: prisma as any },
+        );
+
+        expect(notificationsQueueAddMock).toHaveBeenCalledTimes(2);
+        expect(notificationsQueueAddMock).toHaveBeenCalledWith(
+            'notifications',
+            {
+                type: 'calendar_invite_cancel',
+                bookingId: 'booking_cancel_2',
+                recipientRole: 'CANDIDATE',
+            },
+            {
+                jobId: 'cal-cxl-booking_cancel_2-CANDIDATE',
+                attempts: 5,
+                backoff: { type: 'exponential', delay: 60_000 },
+                removeOnComplete: true,
+                removeOnFail: false,
+            },
+        );
+        expect(notificationsQueueAddMock).toHaveBeenCalledWith(
+            'notifications',
+            {
+                type: 'calendar_invite_cancel',
+                bookingId: 'booking_cancel_2',
+                recipientRole: 'PROFESSIONAL',
+            },
+            {
+                jobId: 'cal-cxl-booking_cancel_2-PROFESSIONAL',
+                attempts: 5,
+                backoff: { type: 'exponential', delay: 60_000 },
+                removeOnComplete: true,
+                removeOnFail: false,
+            },
         );
     });
 });

@@ -82,6 +82,43 @@ interface ZoomRegistrantResponse {
     join_url?: string;
 }
 
+interface ZoomMeetingInvitationResponse {
+    invitation?: string;
+}
+
+interface ZoomDialInNumber {
+    country?: string;
+    country_name?: string;
+    city?: string;
+    number?: string;
+    type?: string;
+}
+
+interface ZoomMeetingDetailsResponse {
+    id?: string | number;
+    join_url?: string;
+    password?: string;
+    settings?: {
+        global_dial_in_numbers?: ZoomDialInNumber[];
+        global_dial_in_url?: string;
+    };
+}
+
+export type ZoomInvitationContentSource = 'native' | 'generated';
+
+export interface ZoomInvitationContent {
+    text: string;
+    source: ZoomInvitationContentSource;
+}
+
+function normalizeMeetingId(meetingId: string | number): string {
+    const normalized = String(meetingId).trim();
+    if (!normalized) {
+        throw new Error('Zoom meeting ID is required');
+    }
+    return normalized;
+}
+
 function splitName(fullName: string | null | undefined) {
     const trimmed = fullName?.trim();
     if (!trimmed) {
@@ -141,6 +178,119 @@ async function createRegistrant({
     };
 }
 
+async function fetchZoomMeetingDetails(meetingId: string, token: string): Promise<ZoomMeetingDetailsResponse> {
+    const response = await fetch(`https://api.zoom.us/v2/meetings/${meetingId}`, {
+        method: 'GET',
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(`Zoom Fetch Meeting Details Failed: ${JSON.stringify(error)}`);
+    }
+
+    return response.json() as Promise<ZoomMeetingDetailsResponse>;
+}
+
+function buildGeneratedZoomInvitationText({
+    meetingId,
+    details,
+    preferredJoinUrl,
+}: {
+    meetingId: string;
+    details: ZoomMeetingDetailsResponse;
+    preferredJoinUrl?: string | null;
+}) {
+    const joinUrl = preferredJoinUrl?.trim() || details.join_url || '';
+    const resolvedMeetingId = String(details.id ?? meetingId);
+    const passcode = details.password || 'N/A';
+    const globalNumbers = details.settings?.global_dial_in_numbers || [];
+    const dialInLines = globalNumbers
+        .filter((entry) => Boolean(entry.number))
+        .slice(0, 8)
+        .map((entry) => {
+            const location = entry.country_name || entry.country || entry.city || 'Dial-in';
+            return `${location}: ${entry.number}`;
+        });
+
+    const sections = [
+        'Join Zoom Meeting',
+        joinUrl || 'Join link unavailable',
+        '',
+        `Meeting ID: ${resolvedMeetingId}`,
+        `Passcode: ${passcode}`,
+    ];
+
+    if (dialInLines.length > 0) {
+        sections.push('', 'Dial by your location', ...dialInLines);
+    }
+
+    const globalDialInUrl = details.settings?.global_dial_in_url?.trim();
+    if (globalDialInUrl) {
+        sections.push('', `Find your local number: ${globalDialInUrl}`);
+    }
+
+    return sections.join('\n');
+}
+
+export async function getZoomInvitationContent({
+    meetingId,
+    preferredJoinUrl,
+}: {
+    meetingId: string | number;
+    preferredJoinUrl?: string | null;
+}): Promise<ZoomInvitationContent> {
+    const normalizedMeetingId = normalizeMeetingId(meetingId);
+    const token = await getZoomAccessToken();
+
+    // Best effort: try native invitation format first.
+    const invitationResponse = await fetch(`https://api.zoom.us/v2/meetings/${normalizedMeetingId}/invitation`, {
+        method: 'GET',
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+
+    if (invitationResponse.ok) {
+        const payload = await invitationResponse.json().catch(() => null) as ZoomMeetingInvitationResponse | null;
+        const nativeInvitation = payload?.invitation?.trim();
+        if (nativeInvitation) {
+            if (!preferredJoinUrl?.trim()) {
+                return {
+                    text: nativeInvitation,
+                    source: 'native',
+                };
+            }
+
+            // Keep Zoom-native body while pinning the role-specific join URL at the top.
+            return {
+                text: ['Join Zoom Meeting', preferredJoinUrl.trim(), '', nativeInvitation].join('\n'),
+                source: 'native',
+            };
+        }
+    } else {
+        const error = await invitationResponse.json().catch(() => null);
+        console.warn('[ZOOM] Failed to fetch native invitation, falling back to generated details', {
+            meetingId: normalizedMeetingId,
+            error,
+        });
+    }
+
+    const details = await fetchZoomMeetingDetails(normalizedMeetingId, token);
+    return {
+        text: buildGeneratedZoomInvitationText({
+            meetingId: normalizedMeetingId,
+            details,
+            preferredJoinUrl,
+        }),
+        source: 'generated',
+    };
+}
+
 /**
  * Create a Zoom Meeting
  */
@@ -182,6 +332,8 @@ export async function createZoomMeeting({
                     auto_recording: 'none',
                     approval_type: 0, // Auto-approve registrants
                     registration_type: 1, // Register once and attend all occurrences
+                    registrants_confirmation_email: false,
+                    registrants_email_notification: false,
                 },
             }),
         });

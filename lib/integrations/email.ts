@@ -50,11 +50,17 @@ interface SendEmailParams {
     to: string;
     subject: string;
     html: string;
+    text?: string;
     attachments?: {
         filename: string;
         content: string | Buffer;
         contentType?: string;
     }[];
+    icalEvent?: {
+        method: 'PUBLISH' | 'REQUEST' | 'CANCEL';
+        content: string | Buffer;
+        filename?: string;
+    };
 }
 
 function isValidEmailAddress(value: string | null | undefined): value is string {
@@ -74,7 +80,7 @@ function parseEmailAddress(value: string | null | undefined): string | null {
     return isValidEmailAddress(candidate) ? candidate : null;
 }
 
-export async function sendEmail({ to, subject, html, attachments }: SendEmailParams) {
+export async function sendEmail({ to, subject, html, text, attachments, icalEvent }: SendEmailParams) {
     try {
         if (!hasGmailOAuthConfig || !gmailOAuthClient) {
             console.log(`[EMAIL][DEV] Would send to ${to}: ${subject}`);
@@ -106,8 +112,10 @@ export async function sendEmail({ to, subject, html, attachments }: SendEmailPar
             from: EMAIL_FROM!,
             to,
             subject,
+            text,
             html,
             attachments,
+            icalEvent,
         });
         return true;
     } catch (error) {
@@ -137,112 +145,191 @@ export function isValidAbsoluteHttpUrl(value: string | null | undefined): value 
     }
 }
 
-export async function sendBookingAcceptedEmail(
-    booking: BookingWithRelations,
-    role: 'CANDIDATE' | 'PROFESSIONAL'
-) {
-    if (!booking.startAt || !booking.endAt) {
-        console.error('Booking missing start/end time, cannot send confirmation email');
-        return;
+export type CalendarInviteRecipientRole = 'CANDIDATE' | 'PROFESSIONAL';
+
+function getRoleSpecificMeetingUrl(booking: BookingWithRelations, role: CalendarInviteRecipientRole) {
+    const roleSpecificMeetingUrl = (
+        role === 'CANDIDATE'
+            ? booking.candidateZoomJoinUrl
+            : booking.professionalZoomJoinUrl
+    )?.trim() || null;
+
+    return roleSpecificMeetingUrl || booking.zoomJoinUrl?.trim() || null;
+}
+
+function getDisplayName(user: User, fallbackLabel: string) {
+    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+    if (fullName) {
+        return fullName;
     }
+    return fallbackLabel;
+}
 
-    const startDate = new Date(booking.startAt);
-    const endDate = new Date(booking.endAt);
+function buildInviteDescription({
+    booking,
+    role,
+    zoomInviteText,
+}: {
+    booking: BookingWithRelations;
+    role: CalendarInviteRecipientRole;
+    zoomInviteText: string;
+}) {
+    const counterpartName = role === 'CANDIDATE'
+        ? getDisplayName(booking.professional, 'Professional')
+        : getDisplayName(booking.candidate, 'Candidate');
 
-    // Create ICS Event
-    const icsStart: DateArray = [
+    return [
+        zoomInviteText.trim(),
+        '',
+        `Counterpart: ${counterpartName}`,
+    ].join('\n');
+}
+
+function buildIcsStartDateArray(startDate: Date): DateArray {
+    return [
         startDate.getUTCFullYear(),
         startDate.getUTCMonth() + 1,
         startDate.getUTCDate(),
         startDate.getUTCHours(),
         startDate.getUTCMinutes(),
     ];
+}
 
+function buildIcsDuration(startDate: Date, endDate: Date) {
     const durationMinutes = (endDate.getTime() - startDate.getTime()) / (1000 * 60);
-    const duration = { hours: Math.floor(durationMinutes / 60), minutes: durationMinutes % 60 };
+    return { hours: Math.floor(durationMinutes / 60), minutes: durationMinutes % 60 };
+}
 
-    const roleSpecificMeetingUrl = (
-        role === 'CANDIDATE'
-            ? booking.candidateZoomJoinUrl
-            : booking.professionalZoomJoinUrl
-    )?.trim() || null;
-    const meetingUrl = roleSpecificMeetingUrl || booking.zoomJoinUrl?.trim() || null;
+function createCalendarInviteContent({
+    booking,
+    role,
+    uid,
+    sequence,
+    method,
+    zoomInviteText,
+}: {
+    booking: BookingWithRelations;
+    role: CalendarInviteRecipientRole;
+    uid: string;
+    sequence: number;
+    method: 'REQUEST' | 'CANCEL';
+    zoomInviteText: string;
+}) {
+    if (!booking.startAt || !booking.endAt) {
+        throw new Error(`Booking ${booking.id} missing start/end time`);
+    }
+
+    const startDate = new Date(booking.startAt);
+    const endDate = new Date(booking.endAt);
+    const meetingUrl = getRoleSpecificMeetingUrl(booking, role);
     const hasValidMeetingUrl = isValidAbsoluteHttpUrl(meetingUrl);
-    const meetingLabel = hasValidMeetingUrl ? meetingUrl : 'link pending';
-    const icsDescription = hasValidMeetingUrl
-        ? `Join Zoom Meeting: ${meetingUrl}`
-        : 'Join Zoom Meeting: link pending';
+    const recipient = role === 'CANDIDATE' ? booking.candidate : booking.professional;
 
-    const { error, value: icsContent } = createEvent({
-        start: icsStart,
-        duration,
-        title: `Consultation Call (${role === 'CANDIDATE' ? 'Professional' : 'Candidate'})`,
-        description: icsDescription,
+    const eventResult = createEvent({
+        uid,
+        sequence,
+        method,
+        start: buildIcsStartDateArray(startDate),
+        duration: buildIcsDuration(startDate, endDate),
+        title: 'Consultation Call',
+        description: buildInviteDescription({ booking, role, zoomInviteText }),
         ...(hasValidMeetingUrl ? { location: meetingUrl, url: meetingUrl } : {}),
-        categories: ['Consultation', 'Monet'],
-        status: 'CONFIRMED',
-        busyStatus: 'BUSY',
+        status: method === 'CANCEL' ? 'CANCELLED' : 'CONFIRMED',
+        busyStatus: method === 'CANCEL' ? 'FREE' : 'BUSY',
         organizer: { name: 'Monet Platform', email: organizerEmailForIcs },
         attendees: [
-            { name: 'Professional', email: booking.professional.email, rsvp: true, partstat: 'ACCEPTED', role: 'REQ-PARTICIPANT' },
-            { name: 'Candidate', email: booking.candidate.email, rsvp: true, partstat: 'ACCEPTED', role: 'REQ-PARTICIPANT' }
-        ]
+            {
+                name: getDisplayName(recipient, role === 'CANDIDATE' ? 'Candidate' : 'Professional'),
+                email: recipient.email,
+                rsvp: true,
+                partstat: method === 'CANCEL' ? 'DECLINED' : 'NEEDS-ACTION',
+                role: 'REQ-PARTICIPANT',
+            },
+        ],
     });
 
-    if (error) {
-        const message = error instanceof Error
-            ? error.message
-            : (
-                typeof error === 'object'
-                && error !== null
-                && 'message' in error
-                && typeof (error as { message?: unknown }).message === 'string'
-            )
-                ? (error as { message: string }).message
-                : String(error);
-
-        console.error('[EMAIL][ICS] Failed to generate booking invite attachment', {
-            bookingId: booking.id,
-            role,
-            organizerEmailForIcs,
-            errorMessage: message,
-        });
+    if (eventResult.error || !eventResult.value) {
+        const reason = eventResult.error instanceof Error
+            ? eventResult.error.message
+            : String(eventResult.error || 'unknown_error');
+        throw new Error(`Failed to create calendar invite ICS: ${reason}`);
     }
 
-    const attachments = icsContent ? [{
-        filename: 'consultation.ics',
-        content: icsContent,
-        contentType: 'text/calendar',
-    }] : undefined;
+    return {
+        icsContent: eventResult.value,
+        meetingUrl,
+        hasValidMeetingUrl,
+        startDate,
+    };
+}
 
-    const subject = `Booking Confirmed: Consultation Call`;
-    let html = '';
-
-    if (role === 'CANDIDATE') {
-        html = `
-      <h1>Booking Confirmed!</h1>
-      <p>Your consultation has been accepted by the professional.</p>
-      <p><strong>Time:</strong> ${startDate.toUTCString()}</p>
-      <p><strong>Zoom Link:</strong> ${hasValidMeetingUrl ? `<a href="${meetingUrl}">${meetingUrl}</a>` : meetingLabel}</p>
-      <p>A calendar invitation is attached.</p>
-    `;
-    } else {
-        html = `
-      <h1>Booking Confirmed!</h1>
-      <p>You have accepted the consultation request.</p>
-      <p><strong>Time:</strong> ${startDate.toUTCString()}</p>
-      <p><strong>Zoom Link:</strong> ${hasValidMeetingUrl ? `<a href="${meetingUrl}">${meetingUrl}</a>` : meetingLabel}</p>
-      <p>A calendar invitation is attached.</p>
-    `;
-    }
-
-    const to = role === 'CANDIDATE' ? booking.candidate.email : booking.professional.email;
+export async function sendCalendarInviteRequestEmail(
+    booking: BookingWithRelations,
+    role: CalendarInviteRecipientRole,
+    uid: string,
+    sequence: number,
+    zoomInviteText: string
+) {
+    const recipientEmail = role === 'CANDIDATE' ? booking.candidate.email : booking.professional.email;
+    const { icsContent, meetingUrl, hasValidMeetingUrl, startDate } = createCalendarInviteContent({
+        booking,
+        role,
+        uid,
+        sequence,
+        method: 'REQUEST',
+        zoomInviteText,
+    });
 
     await sendEmail({
-        to,
-        subject,
-        html,
-        attachments,
+        to: recipientEmail,
+        subject: 'Invitation: Consultation Call',
+        text: `Please respond to the calendar invitation for your consultation call at ${startDate.toUTCString()}.`,
+        html: `
+            <h1>Consultation Call Invitation</h1>
+            <p>Your consultation call has been scheduled.</p>
+            <p><strong>Time:</strong> ${startDate.toUTCString()}</p>
+            <p><strong>Zoom Link:</strong> ${hasValidMeetingUrl ? `<a href="${meetingUrl}">${meetingUrl}</a>` : 'Included in invite details'}</p>
+            <p>Please use your calendar client's RSVP controls to accept or decline.</p>
+        `,
+        icalEvent: {
+            method: 'REQUEST',
+            content: icsContent,
+            filename: 'consultation.ics',
+        },
+    });
+}
+
+export async function sendCalendarInviteCancelEmail(
+    booking: BookingWithRelations,
+    role: CalendarInviteRecipientRole,
+    uid: string,
+    sequence: number,
+    zoomInviteText: string
+) {
+    const recipientEmail = role === 'CANDIDATE' ? booking.candidate.email : booking.professional.email;
+    const { icsContent, startDate } = createCalendarInviteContent({
+        booking,
+        role,
+        uid,
+        sequence,
+        method: 'CANCEL',
+        zoomInviteText,
+    });
+
+    await sendEmail({
+        to: recipientEmail,
+        subject: 'Canceled: Consultation Call',
+        text: `Your consultation call scheduled for ${startDate.toUTCString()} has been canceled.`,
+        html: `
+            <h1>Consultation Call Canceled</h1>
+            <p>Your consultation call scheduled for <strong>${startDate.toUTCString()}</strong> has been canceled.</p>
+            <p>A calendar cancellation update is attached to this message.</p>
+        `,
+        icalEvent: {
+            method: 'CANCEL',
+            content: icsContent,
+            filename: 'consultation-cancel.ics',
+        },
     });
 }
 

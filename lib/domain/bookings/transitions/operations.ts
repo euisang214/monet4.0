@@ -27,9 +27,46 @@ type StripeDependencies = {
     stripe?: Pick<typeof stripe, 'refunds' | 'paymentIntents'>;
 };
 
+type CalendarInviteRecipientRole = 'CANDIDATE' | 'PROFESSIONAL';
+
+const CALENDAR_INVITE_RECIPIENT_ROLES: CalendarInviteRecipientRole[] = ['CANDIDATE', 'PROFESSIONAL'];
+
 function sameInstant(left: Date | null | undefined, right: Date | null | undefined) {
     if (!left || !right) return false;
     return left.getTime() === right.getTime();
+}
+
+async function enqueueCalendarInviteRequestJobs(bookingId: string, meetingId: string) {
+    await Promise.all(CALENDAR_INVITE_RECIPIENT_ROLES.map((recipientRole) => (
+        notificationsQueue.add('notifications', {
+            type: 'calendar_invite_request',
+            bookingId,
+            recipientRole,
+            revisionKey: meetingId,
+        }, {
+            jobId: `cal-req-${bookingId}-${recipientRole}-${meetingId}`,
+            attempts: 5,
+            backoff: { type: 'exponential', delay: 60_000 },
+            removeOnComplete: true,
+            removeOnFail: false,
+        })
+    )));
+}
+
+async function enqueueCalendarInviteCancelJobs(bookingId: string) {
+    await Promise.all(CALENDAR_INVITE_RECIPIENT_ROLES.map((recipientRole) => (
+        notificationsQueue.add('notifications', {
+            type: 'calendar_invite_cancel',
+            bookingId,
+            recipientRole,
+        }, {
+            jobId: `cal-cxl-${bookingId}-${recipientRole}`,
+            attempts: 5,
+            backoff: { type: 'exponential', delay: 60_000 },
+            removeOnComplete: true,
+            removeOnFail: false,
+        })
+    )));
 }
 
 /**
@@ -501,6 +538,8 @@ export async function completeIntegrations(
     },
     deps: Dependencies = { prisma: defaultPrisma }
 ) {
+    let shouldEnqueueInviteRequests = true;
+
     const result = await transitionBooking(bookingId, BookingStatus.accepted, { actor: 'system' }, deps, async (tx) => {
         const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
         const hasMatchingZoomData = booking.zoomJoinUrl === zoomData.joinUrl
@@ -512,6 +551,7 @@ export async function completeIntegrations(
 
         if (booking.status === BookingStatus.accepted) {
             if (hasMatchingZoomData) {
+                shouldEnqueueInviteRequests = false;
                 return booking;
             }
 
@@ -546,17 +586,9 @@ export async function completeIntegrations(
         });
     });
 
-    await notificationsQueue.add('notifications', {
-        type: 'booking_accepted',
-        bookingId: bookingId,
-    }, {
-        // Guarantees at-most-once acceptance email dispatch per meeting provisioning.
-        jobId: `booking-accepted-${bookingId}-${zoomData.meetingId}`,
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 60_000 },
-        removeOnComplete: true,
-        removeOnFail: false,
-    });
+    if (shouldEnqueueInviteRequests) {
+        await enqueueCalendarInviteRequestJobs(bookingId, zoomData.meetingId);
+    }
 
     return result;
 }
@@ -638,8 +670,9 @@ export async function cancelBooking(
     deps: Dependencies & StripeDependencies = { prisma: defaultPrisma, stripe }
 ) {
     const actorInfo = actor === 'system' ? 'system' : actor;
+    let transitioned = false;
 
-    return transitionBooking(bookingId, BookingStatus.cancelled, { actor: actorInfo, reason, metadata: { attendanceOutcome: options?.attendanceOutcome } }, deps, async (tx) => {
+    const result = await transitionBooking(bookingId, BookingStatus.cancelled, { actor: actorInfo, reason, metadata: { attendanceOutcome: options?.attendanceOutcome } }, deps, async (tx) => {
         const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
 
         // Authorization check: if not system, must be candidate or professional
@@ -668,6 +701,7 @@ export async function cancelBooking(
         if (!validOrigins.includes(booking.status)) {
             throw new TransitionError(`Cannot cancel from ${booking.status}`);
         }
+        transitioned = true;
 
         let isLate = false;
 
@@ -752,6 +786,12 @@ export async function cancelBooking(
             },
         });
     });
+
+    if (transitioned) {
+        await enqueueCalendarInviteCancelJobs(bookingId);
+    }
+
+    return result;
 }
 
 // 9. accepted → dispute_pending
@@ -1002,7 +1042,9 @@ export async function rejectReschedule(
     actor: { userId: string; role: Role },
     deps: Dependencies = { prisma: defaultPrisma }
 ) {
-    return transitionBooking(bookingId, BookingStatus.cancelled, { actor, reason: 'Reschedule rejected' }, deps, async (tx) => {
+    let transitioned = false;
+
+    const result = await transitionBooking(bookingId, BookingStatus.cancelled, { actor, reason: 'Reschedule rejected' }, deps, async (tx) => {
         const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
 
         if (booking.candidateId !== actor.userId && booking.professionalId !== actor.userId) {
@@ -1019,6 +1061,7 @@ export async function rejectReschedule(
         if (booking.status !== BookingStatus.reschedule_pending) {
             throw new TransitionError(`Cannot reject reschedule from ${booking.status}`);
         }
+        transitioned = true;
 
         // Logic here mirrors cancelBooking but forced.
         // If startAt > 6 hours, refund. Else payout.
@@ -1063,6 +1106,12 @@ export async function rejectReschedule(
             },
         });
     });
+
+    if (transitioned) {
+        await enqueueCalendarInviteCancelJobs(bookingId);
+    }
+
+    return result;
 }
 
 // 14. Admin Manual Zoom Link Update
@@ -1127,12 +1176,10 @@ export async function updateZoomDetails(
     });
 
     if (shouldTransitionToAccepted) {
-        await notificationsQueue.add('notifications', {
-            type: 'booking_accepted',
+        await enqueueCalendarInviteRequestJobs(
             bookingId,
-        }, {
-            jobId: `booking-accepted-${bookingId}-${zoomInput.zoomMeetingId ?? 'manual'}`,
-        });
+            zoomInput.zoomMeetingId ?? updated.zoomMeetingId ?? 'manual'
+        );
     }
 
     // Create audit log

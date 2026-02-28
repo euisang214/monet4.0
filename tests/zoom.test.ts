@@ -138,6 +138,10 @@ describe('Zoom Integration', () => {
             expect(result.candidate_join_url).toBe('https://zoom.us/w/candidate123');
             expect(result.professional_join_url).toBe('https://zoom.us/w/professional123');
 
+            const createMeetingBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+            expect(createMeetingBody.settings.registrants_confirmation_email).toBe(false);
+            expect(createMeetingBody.settings.registrants_email_notification).toBe(false);
+
             // Check meeting creation call
             expect(mockFetch).toHaveBeenCalledWith(
                 'https://api.zoom.us/v2/users/me/meetings',
@@ -235,6 +239,78 @@ describe('Zoom Integration', () => {
 
             // Should NOT throw - 404 is acceptable (idempotent)
             await expect(deleteZoomMeeting('nonexistent')).resolves.toBeUndefined();
+        });
+    });
+
+    describe('Invitation Content', () => {
+        it('should return native invitation text when endpoint is available', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({ access_token: 'token', expires_in: 3600 }),
+            });
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    invitation: 'Join Zoom Meeting\nhttps://zoom.us/j/12345',
+                }),
+            });
+
+            vi.stubEnv('ZOOM_ACCOUNT_ID', 'test_account');
+            vi.stubEnv('ZOOM_CLIENT_ID', 'test_client');
+            vi.stubEnv('ZOOM_CLIENT_SECRET', 'test_secret');
+
+            const { getZoomInvitationContent } = await import('@/lib/integrations/zoom');
+            const invitation = await getZoomInvitationContent({
+                meetingId: '12345',
+                preferredJoinUrl: 'https://zoom.us/w/role-specific',
+            });
+
+            expect(invitation.source).toBe('native');
+            expect(invitation.text).toContain('https://zoom.us/w/role-specific');
+            expect(invitation.text).toContain('Join Zoom Meeting');
+            expect(mockFetch).toHaveBeenCalledTimes(2);
+        });
+
+        it('should fall back to generated invitation text when native endpoint fails', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({ access_token: 'token', expires_in: 3600 }),
+            });
+            mockFetch.mockResolvedValueOnce({
+                ok: false,
+                json: async () => ({ code: 404, message: 'Not found' }),
+            });
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    id: 12345,
+                    join_url: 'https://zoom.us/j/12345',
+                    password: 'abc123',
+                    settings: {
+                        global_dial_in_numbers: [
+                            { country_name: 'US', number: '+1 123-456-7890' },
+                        ],
+                        global_dial_in_url: 'https://zoom.us/u/abc',
+                    },
+                }),
+            });
+
+            vi.stubEnv('ZOOM_ACCOUNT_ID', 'test_account');
+            vi.stubEnv('ZOOM_CLIENT_ID', 'test_client');
+            vi.stubEnv('ZOOM_CLIENT_SECRET', 'test_secret');
+
+            const { getZoomInvitationContent } = await import('@/lib/integrations/zoom');
+            const invitation = await getZoomInvitationContent({
+                meetingId: 12345,
+                preferredJoinUrl: 'https://zoom.us/w/role-specific',
+            });
+
+            expect(invitation.source).toBe('generated');
+            expect(invitation.text).toContain('https://zoom.us/w/role-specific');
+            expect(invitation.text).toContain('Meeting ID: 12345');
+            expect(invitation.text).toContain('Passcode: abc123');
+            expect(invitation.text).toContain('Dial by your location');
+            expect(mockFetch).toHaveBeenCalledTimes(3);
         });
     });
 });
