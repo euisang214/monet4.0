@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/core/db";
 import { deriveCurrentRoleFromExperiences } from "@/lib/domain/users/current-role";
 import { BookingStatus, Prisma } from "@prisma/client";
+import { normalizeTimezone } from "@/lib/utils/supported-timezones";
 
 export type CandidateChatSection = "upcoming" | "pending" | "expired" | "past" | "other";
 
@@ -111,7 +112,21 @@ export function getCandidateChatSectionFromStatus(status: BookingStatus): Candid
     return "other";
 }
 
-function buildSectionWhere(candidateId: string, section: CandidateChatSection): Prisma.BookingWhereInput {
+function upcomingWhere(candidateId: string, now: Date): Prisma.BookingWhereInput {
+    return {
+        candidateId,
+        status: {
+            in: STATUS_BY_SECTION.upcoming,
+        },
+        startAt: { gte: now },
+    };
+}
+
+function buildSectionWhere(candidateId: string, section: CandidateChatSection, now: Date): Prisma.BookingWhereInput {
+    if (section === "upcoming") {
+        return upcomingWhere(candidateId, now);
+    }
+
     if (section === "other") {
         return {
             candidateId,
@@ -131,7 +146,7 @@ function buildSectionWhere(candidateId: string, section: CandidateChatSection): 
 
 function buildSectionOrderBy(section: CandidateChatSection): Prisma.BookingOrderByWithRelationInput[] {
     if (section === "upcoming") {
-        return [{ startAt: "asc" }, { expiresAt: "asc" }, { id: "asc" }];
+        return [{ startAt: "asc" }, { id: "asc" }];
     }
 
     if (section === "pending") {
@@ -147,11 +162,17 @@ function isInvalidCursorError(error: unknown) {
 
 export async function getCandidateChatSectionCounts(candidateId: string): Promise<Record<CandidateChatSection, number>> {
     const startedAt = performance.now();
-    const grouped = await prisma.booking.groupBy({
-        by: ["status"],
-        where: { candidateId },
-        _count: { _all: true },
-    });
+    const now = new Date();
+    const [grouped, upcomingVisibleCount] = await Promise.all([
+        prisma.booking.groupBy({
+            by: ["status"],
+            where: { candidateId },
+            _count: { _all: true },
+        }),
+        prisma.booking.count({
+            where: upcomingWhere(candidateId, now),
+        }),
+    ]);
 
     const counts: Record<CandidateChatSection, number> = {
         upcoming: 0,
@@ -164,10 +185,12 @@ export async function getCandidateChatSectionCounts(candidateId: string): Promis
     for (const item of grouped) {
         counts[getCandidateChatSectionFromStatus(item.status)] += item._count._all;
     }
+    counts.upcoming = upcomingVisibleCount;
 
     const durationMs = Number((performance.now() - startedAt).toFixed(2));
     console.info("[perf][candidate-history] getCandidateChatSectionCounts", {
         rows: grouped.length,
+        upcomingVisibleCount,
         durationMs,
     });
 
@@ -178,11 +201,16 @@ export async function getCandidateChatSectionPage(
     candidateId: string,
     section: CandidateChatSection,
     options: { take?: number; cursor?: string } = {}
-): Promise<{ items: CandidateChatBooking[]; nextCursor?: string }> {
+): Promise<{ items: CandidateChatBooking[]; nextCursor?: string; candidateTimezone: string }> {
     const take = getPageSize(options.take);
     const startedAt = performance.now();
+    const now = new Date();
+    const candidateTimezonePromise = prisma.user.findUnique({
+        where: { id: candidateId },
+        select: { timezone: true },
+    });
     const buildQuery = (cursor?: string) => ({
-        where: buildSectionWhere(candidateId, section),
+        where: buildSectionWhere(candidateId, section, now),
         include: candidateChatInclude,
         orderBy: buildSectionOrderBy(section),
         take: take + 1,
@@ -203,6 +231,8 @@ export async function getCandidateChatSectionPage(
     const hasMore = items.length > take;
     const pageItems = hasMore ? items.slice(0, take) : items;
     const nextCursor = hasMore ? pageItems[pageItems.length - 1]?.id : undefined;
+    const candidate = await candidateTimezonePromise;
+    const candidateTimezone = normalizeTimezone(candidate?.timezone);
     const durationMs = Number((performance.now() - startedAt).toFixed(2));
 
     console.info("[perf][candidate-history] getCandidateChatSectionPage", {
@@ -217,6 +247,7 @@ export async function getCandidateChatSectionPage(
     return {
         items: pageItems.map(withDerivedProfessionalRole),
         nextCursor,
+        candidateTimezone,
     };
 }
 

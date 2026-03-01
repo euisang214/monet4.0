@@ -35,7 +35,7 @@ describe("CandidateChatsPage timezone schedule labels", () => {
         });
     });
 
-    it("formats start and expiry labels in booking timezone", async () => {
+    it("formats start and expiry labels in candidate timezone", async () => {
         getCandidateChatSectionPageMock.mockResolvedValue({
             items: [
                 {
@@ -78,6 +78,7 @@ describe("CandidateChatsPage timezone schedule labels", () => {
                 },
             ],
             nextCursor: undefined,
+            candidateTimezone: "America/New_York",
         });
 
         const html = renderToStaticMarkup(
@@ -88,7 +89,7 @@ describe("CandidateChatsPage timezone schedule labels", () => {
             })
         );
 
-        expect(html).toContain("Mar 2, 2026 at 7:00 AM (America/Los_Angeles)");
-        expect(html).toContain("Request window ends Mar 3, 2026 at 11:30 AM (America/Los_Angeles)");
+        expect(html).toContain("Mar 2, 2026 at 10:00 AM (America/New_York)");
+        expect(html).toContain("Request window ends Mar 3, 2026 at 2:30 PM (America/New_York)");
     });
 });

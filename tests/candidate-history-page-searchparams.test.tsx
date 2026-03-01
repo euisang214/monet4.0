@@ -29,6 +29,7 @@ describe("CandidateChatsPage search params", () => {
         getCandidateChatSectionPageMock.mockResolvedValue({
             items: [],
             nextCursor: undefined,
+            candidateTimezone: "UTC",
         });
     });
 

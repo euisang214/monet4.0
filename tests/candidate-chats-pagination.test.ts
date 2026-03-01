@@ -1,13 +1,19 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BookingStatus } from "@prisma/client";
 
 const mockPrisma = vi.hoisted(() => ({
     booking: {
         findMany: vi.fn(),
         groupBy: vi.fn(),
+        count: vi.fn(),
+        findUnique: vi.fn(),
+    },
+    user: {
         findUnique: vi.fn(),
     },
 }));
+
+const FROZEN_NOW = new Date("2026-03-01T12:00:00Z");
 
 vi.mock("@/lib/core/db", () => ({
     prisma: mockPrisma,
@@ -22,25 +28,43 @@ import {
 
 describe("candidate chat pagination", () => {
     beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(FROZEN_NOW);
         vi.clearAllMocks();
+        mockPrisma.booking.count.mockResolvedValue(0);
+        mockPrisma.user.findUnique.mockResolvedValue({ timezone: "America/New_York" });
     });
 
-    it("maps statuses to section counts", async () => {
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it("maps statuses to section counts with upcoming aligned to visible future calls", async () => {
         mockPrisma.booking.groupBy.mockResolvedValue([
             { status: BookingStatus.accepted, _count: { _all: 2 } },
             { status: BookingStatus.requested, _count: { _all: 1 } },
             { status: BookingStatus.completed, _count: { _all: 3 } },
             { status: "unexpected_status", _count: { _all: 4 } },
         ]);
+        mockPrisma.booking.count.mockResolvedValueOnce(1);
 
         const counts = await getCandidateChatSectionCounts("cand-1");
 
         expect(counts).toEqual({
-            upcoming: 2,
+            upcoming: 1,
             pending: 1,
             expired: 0,
             past: 3,
             other: 4,
+        });
+        expect(mockPrisma.booking.count).toHaveBeenCalledWith({
+            where: {
+                candidateId: "cand-1",
+                status: {
+                    in: [BookingStatus.accepted, BookingStatus.accepted_pending_integrations],
+                },
+                startAt: { gte: FROZEN_NOW },
+            },
         });
     });
 
@@ -105,12 +129,35 @@ describe("candidate chat pagination", () => {
 
         expect(page.items).toHaveLength(2);
         expect(page.nextCursor).toBe("booking-2");
+        expect(page.candidateTimezone).toBe("America/New_York");
         expect(page.items[0]?.professional.professionalProfile?.title).toBe("Principal");
         expect(page.items[0]?.professional.professionalProfile?.employer).toBe("Monet");
         expect(mockPrisma.booking.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
                 take: 3,
                 orderBy: [{ expiresAt: "asc" }, { startAt: "asc" }, { id: "asc" }],
+            }),
+        );
+    });
+
+    it("applies future-only filtering and soonest-first ordering for upcoming section", async () => {
+        mockPrisma.booking.findMany.mockResolvedValue([]);
+
+        await getCandidateChatSectionPage("cand-1", "upcoming", {
+            take: 2,
+        });
+
+        expect(mockPrisma.booking.findMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: {
+                    candidateId: "cand-1",
+                    status: {
+                        in: [BookingStatus.accepted, BookingStatus.accepted_pending_integrations],
+                    },
+                    startAt: { gte: FROZEN_NOW },
+                },
+                take: 3,
+                orderBy: [{ startAt: "asc" }, { id: "asc" }],
             }),
         );
     });

@@ -78,6 +78,7 @@ describe("CandidateChatsPage identity labels", () => {
                 },
             ],
             nextCursor: undefined,
+            candidateTimezone: "America/New_York",
         });
 
         const html = renderToStaticMarkup(

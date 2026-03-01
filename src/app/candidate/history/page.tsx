@@ -15,7 +15,6 @@ import {
     shouldRevealProfessionalNameForCandidateStatus,
 } from '@/lib/domain/users/identity-labels';
 import { formatInTimeZone } from '@/lib/utils/timezones';
-import { normalizeTimezone } from '@/lib/utils/supported-timezones';
 
 const CHAT_SECTION_KEYS: CandidateChatSection[] = ['upcoming', 'pending', 'expired', 'past', 'other'];
 const DEFAULT_VIEW: CandidateChatSection = 'upcoming';
@@ -73,20 +72,18 @@ function statusTone(status: BookingStatus) {
     return 'bg-gray-100 text-gray-700';
 }
 
-function scheduleLabel(booking: CandidateChatBooking) {
-    const bookingTimezone = normalizeTimezone(booking.timezone);
-
+function scheduleLabel(booking: CandidateChatBooking, displayTimezone: string) {
     if (booking.startAt) {
-        const schedule = formatInTimeZone(booking.startAt, bookingTimezone, "MMM d, yyyy 'at' h:mm a");
-        return `${schedule} (${bookingTimezone})`;
+        const schedule = formatInTimeZone(booking.startAt, displayTimezone, "MMM d, yyyy 'at' h:mm a");
+        return `${schedule} (${displayTimezone})`;
     }
 
     if (booking.expiresAt) {
-        const expiry = formatInTimeZone(booking.expiresAt, bookingTimezone, "MMM d, yyyy 'at' h:mm a");
-        return `Request window ends ${expiry} (${bookingTimezone})`;
+        const expiry = formatInTimeZone(booking.expiresAt, displayTimezone, "MMM d, yyyy 'at' h:mm a");
+        return `Request window ends ${expiry} (${displayTimezone})`;
     }
 
-    return `Awaiting scheduling details (${bookingTimezone})`;
+    return `Awaiting scheduling details (${displayTimezone})`;
 }
 
 function sectionUrl(view: CandidateChatSection, cursor?: string) {
@@ -203,7 +200,7 @@ export default async function CandidateChatsPage({
                                                     })}
                                                 </p>
                                                 <p className="text-sm text-gray-600">
-                                                    {scheduleLabel(booking)}
+                                                    {scheduleLabel(booking, sectionPage.candidateTimezone)}
                                                 </p>
                                             </div>
                                             <span className={`px-2 py-1 text-xs rounded-full font-semibold ${statusTone(booking.status)}`}>
