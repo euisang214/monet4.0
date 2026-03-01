@@ -67,6 +67,10 @@ type ProfessionalProfileEditorProps = {
     stripeStatus?: ProfessionalStripeStatus | null;
     onConnectStripe?: () => Promise<void>;
     onCorporateEmailDraftChange?: (value: string) => void;
+    corporateEmailOverride?: string;
+    requireCorporateVerification?: boolean;
+    isCorporateEmailVerified?: boolean;
+    corporateVerificationMessage?: string;
 };
 
 function isPayoutReady(status?: ProfessionalStripeStatus | null) {
@@ -84,6 +88,10 @@ export function ProfessionalProfileEditor({
     stripeStatus,
     onConnectStripe,
     onCorporateEmailDraftChange,
+    corporateEmailOverride,
+    requireCorporateVerification = false,
+    isCorporateEmailVerified = true,
+    corporateVerificationMessage = "Verify your corporate email to complete onboarding.",
 }: ProfessionalProfileEditorProps) {
     const [firstName, setFirstName] = useState(initialData?.firstName || "");
     const [lastName, setLastName] = useState(initialData?.lastName || "");
@@ -119,6 +127,10 @@ export function ProfessionalProfileEditor({
     }, [initialData, onCorporateEmailDraftChange]);
 
     const payoutReady = isPayoutReady(stripeStatus);
+    const effectiveCorporateEmail =
+        mode === "settings" && typeof corporateEmailOverride === "string"
+            ? corporateEmailOverride
+            : corporateEmail;
 
     const handleCorporateEmailChange = (value: string) => {
         setCorporateEmail(value);
@@ -182,9 +194,12 @@ export function ProfessionalProfileEditor({
                 throw new Error("Bio is required.");
             }
 
-            const trimmedCorporateEmail = corporateEmail.trim();
+            const trimmedCorporateEmail = effectiveCorporateEmail.trim();
             if (!trimmedCorporateEmail) {
                 throw new Error("Corporate email is required.");
+            }
+            if (requireCorporateVerification && !isCorporateEmailVerified) {
+                throw new Error(corporateVerificationMessage);
             }
 
             await onSubmit({
@@ -313,6 +328,7 @@ export function ProfessionalProfileEditor({
                     onPriceChange={setPrice}
                     corporateEmail={corporateEmail}
                     onCorporateEmailChange={handleCorporateEmailChange}
+                    showCorporateEmail={mode !== "settings"}
                     interests={interests}
                     onInterestsChange={setInterests}
                     disabled={effectiveDisabled}
@@ -354,11 +370,18 @@ export function ProfessionalProfileEditor({
 
             <button
                 type="submit"
-                disabled={effectiveDisabled || (requirePayoutReady && !payoutReady)}
+                disabled={
+                    effectiveDisabled ||
+                    (requirePayoutReady && !payoutReady) ||
+                    (requireCorporateVerification && !isCorporateEmailVerified)
+                }
                 className="w-full rounded-md border border-transparent bg-black py-2 px-4 text-sm font-medium text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50"
             >
                 {isSaving ? submittingLabel : submitLabel}
             </button>
+            {requireCorporateVerification && !isCorporateEmailVerified ? (
+                <p className="text-sm text-amber-700">{corporateVerificationMessage}</p>
+            ) : null}
         </form>
     );
 }

@@ -79,11 +79,19 @@ function ProfessionalSettingsPageContent() {
 
     const handleProfileSave = async (payload: ProfessionalProfileSubmitPayload) => {
         clear();
+        const trimmedCorporateEmail = corporateEmail.trim();
+        if (!trimmedCorporateEmail) {
+            throw new Error("Corporate email is required.");
+        }
+        const payloadWithVerificationEmail = {
+            ...payload,
+            corporateEmail: trimmedCorporateEmail,
+        };
 
         const response = await fetch(appRoutes.api.shared.settings, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
+            body: JSON.stringify(payloadWithVerificationEmail),
         });
 
         const responsePayload = (await response.json().catch(() => null)) as
@@ -99,7 +107,7 @@ function ProfessionalSettingsPageContent() {
         }
 
         await loadData();
-        setCorporateEmail(payload.corporateEmail);
+        setCorporateEmail(payloadWithVerificationEmail.corporateEmail);
         notify("success", "Profile settings saved.");
     };
 
@@ -224,6 +232,7 @@ function ProfessionalSettingsPageContent() {
                         submittingLabel="Saving..."
                         onSubmit={handleProfileSave}
                         onCorporateEmailDraftChange={setCorporateEmail}
+                        corporateEmailOverride={corporateEmail}
                     />
 
                     <section className="pt-6 border-t">
@@ -246,11 +255,7 @@ function ProfessionalSettingsPageContent() {
                             </Button>
                         </div>
 
-                        {profile?.verifiedAt ? (
-                            <p className="text-sm text-green-700 mt-3">
-                                Verified on {new Date(profile.verifiedAt).toLocaleDateString()}
-                            </p>
-                        ) : verificationSent ? (
+                        {verificationSent ? (
                             <div className="mt-4 p-4 bg-gray-50 rounded-md border border-gray-200">
                                 <label className="block text-sm font-medium mb-1" htmlFor="verification-code">
                                     Verification code
@@ -273,6 +278,10 @@ function ProfessionalSettingsPageContent() {
                                     </Button>
                                 </div>
                             </div>
+                        ) : profile?.verifiedAt ? (
+                            <p className="text-sm text-green-700 mt-3">
+                                Verified on {new Date(profile.verifiedAt).toLocaleDateString()}
+                            </p>
                         ) : (
                             <p className="text-sm text-gray-500 mt-3">Email is not verified yet.</p>
                         )}

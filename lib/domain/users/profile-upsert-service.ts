@@ -151,16 +151,20 @@ export async function upsertProfessionalProfileFromPayload(
     payload: ProfessionalProfilePayload,
     options?: { markOnboardingCompleted?: boolean }
 ) {
+    const trimmedCorporateEmail = payload.corporateEmail.trim();
     const existingProfile = await prisma.professionalProfile.findUnique({
         where: { userId },
-        select: { availabilityPrefs: true },
+        select: { availabilityPrefs: true, corporateEmail: true },
     });
+    const normalizedExistingCorporateEmail = existingProfile?.corporateEmail?.trim().toLowerCase() ?? null;
+    const normalizedIncomingCorporateEmail = trimmedCorporateEmail.toLowerCase();
+    const corporateEmailChanged = normalizedExistingCorporateEmail !== normalizedIncomingCorporateEmail;
 
     await upsertProfessionalProfile(userId, {
         bio: payload.bio.trim(),
         priceCents: Math.round(payload.price * 100),
         availabilityPrefs: (existingProfile?.availabilityPrefs ?? {}) as Record<string, unknown>,
-        corporateEmail: payload.corporateEmail.trim(),
+        corporateEmail: trimmedCorporateEmail,
         timezone: payload.timezone,
         interests: normalizeStringList(payload.interests),
         experience: payload.experience.map(mapExperienceEntry),
@@ -168,11 +172,21 @@ export async function upsertProfessionalProfileFromPayload(
         education: payload.education.map(mapEducationEntry),
     });
 
+    if (corporateEmailChanged) {
+        await prisma.professionalProfile.update({
+            where: { userId },
+            data: { verifiedAt: null },
+        });
+    }
+
     const userUpdateData: Prisma.UserUpdateInput = {
         firstName: payload.firstName,
         lastName: payload.lastName,
         timezone: payload.timezone,
     };
+    if (corporateEmailChanged) {
+        userUpdateData.corporateEmailVerified = false;
+    }
 
     if (options?.markOnboardingCompleted) {
         userUpdateData.onboardingCompleted = true;

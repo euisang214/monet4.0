@@ -11,6 +11,7 @@ type ProfessionalProfileFieldsProps = {
     onCorporateEmailChange: (value: string) => void;
     interests: string;
     onInterestsChange: (value: string) => void;
+    showCorporateEmail?: boolean;
     disabled?: boolean;
 };
 
@@ -23,6 +24,7 @@ export function ProfessionalProfileFields({
     onCorporateEmailChange,
     interests,
     onInterestsChange,
+    showCorporateEmail = true,
     disabled = false,
 }: ProfessionalProfileFieldsProps) {
     return (
@@ -60,20 +62,22 @@ export function ProfessionalProfileFields({
                 />
             </div>
 
-            <div>
-                <label htmlFor="professional-corporate-email" className="block text-sm font-medium mb-1">
-                    Corporate email
-                </label>
-                <input
-                    id="professional-corporate-email"
-                    required
-                    disabled={disabled}
-                    type="email"
-                    value={corporateEmail}
-                    onChange={(event) => onCorporateEmailChange(event.target.value)}
-                    className="w-full p-2 border rounded-md"
-                />
-            </div>
+            {showCorporateEmail ? (
+                <div>
+                    <label htmlFor="professional-corporate-email" className="block text-sm font-medium mb-1">
+                        Corporate email
+                    </label>
+                    <input
+                        id="professional-corporate-email"
+                        required
+                        disabled={disabled}
+                        type="email"
+                        value={corporateEmail}
+                        onChange={(event) => onCorporateEmailChange(event.target.value)}
+                        className="w-full p-2 border rounded-md"
+                    />
+                </div>
+            ) : null}
 
             <div className="md:col-span-2">
                 <label htmlFor="professional-interests" className="block text-sm font-medium mb-1">

@@ -105,7 +105,16 @@ export async function submitProfilePayload({
         if (mode === "onboarding") {
             const userOnboardingState = await prisma.user.findUnique({
                 where: { id: userId },
-                select: { onboardingCompleted: true },
+                select: {
+                    onboardingCompleted: true,
+                    corporateEmailVerified: true,
+                    professionalProfile: {
+                        select: {
+                            corporateEmail: true,
+                            verifiedAt: true,
+                        },
+                    },
+                },
             });
 
             if (userOnboardingState?.onboardingCompleted !== true) {
@@ -115,6 +124,23 @@ export async function submitProfilePayload({
                         success: false,
                         status: 400,
                         error: "stripe_payout_not_ready",
+                    };
+                }
+
+                const normalizedPayloadCorporateEmail = parsed.data.corporateEmail.trim().toLowerCase();
+                const normalizedProfileCorporateEmail = userOnboardingState?.professionalProfile?.corporateEmail
+                    ?.trim()
+                    .toLowerCase();
+                const isVerifiedForSubmittedEmail =
+                    userOnboardingState?.corporateEmailVerified === true &&
+                    Boolean(userOnboardingState?.professionalProfile?.verifiedAt) &&
+                    normalizedProfileCorporateEmail === normalizedPayloadCorporateEmail;
+
+                if (!isVerifiedForSubmittedEmail) {
+                    return {
+                        success: false,
+                        status: 400,
+                        error: "corporate_email_not_verified",
                     };
                 }
             }

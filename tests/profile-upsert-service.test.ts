@@ -10,6 +10,7 @@ const prismaMock = vi.hoisted(() => ({
     },
     professionalProfile: {
         findUnique: vi.fn(),
+        update: vi.fn(),
     },
     user: {
         update: vi.fn(),
@@ -39,6 +40,7 @@ describe("profile-upsert-service", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         prismaMock.user.update.mockResolvedValue({});
+        prismaMock.professionalProfile.update.mockResolvedValue({});
     });
 
     it("returns resume_required when candidate has no payload or existing resume", async () => {
@@ -156,6 +158,7 @@ describe("profile-upsert-service", () => {
     it("upserts professional profile with price cents and existing availability prefs", async () => {
         prismaMock.professionalProfile.findUnique.mockResolvedValue({
             availabilityPrefs: { windows: ["weekday"] },
+            corporateEmail: "pro@example.com",
         });
 
         upsertProfessionalProfileMock.mockResolvedValue({ userId: "pro-1" });
@@ -213,6 +216,69 @@ describe("profile-upsert-service", () => {
                 firstName: "Morgan",
                 lastName: "Lee",
                 timezone: "America/New_York",
+            },
+        });
+        expect(prismaMock.professionalProfile.update).not.toHaveBeenCalled();
+    });
+
+    it("resets verification state when professional email changes", async () => {
+        prismaMock.professionalProfile.findUnique.mockResolvedValue({
+            availabilityPrefs: { windows: ["weekday"] },
+            corporateEmail: "old@example.com",
+        });
+
+        upsertProfessionalProfileMock.mockResolvedValue({ userId: "pro-1" });
+
+        await upsertProfessionalProfileFromPayload("pro-1", {
+            firstName: "Morgan",
+            lastName: "Lee",
+            bio: "Mentor",
+            price: 120,
+            corporateEmail: "new@example.com",
+            timezone: "America/New_York",
+            interests: ["Mentorship"],
+            experience: [
+                {
+                    company: "Monet",
+                    title: "Principal",
+                    startDate: new Date("2022-01-01"),
+                    isCurrent: true,
+                    positionHistory: [],
+                },
+            ],
+            activities: [
+                {
+                    company: "Club",
+                    title: "Speaker",
+                    startDate: new Date("2021-01-01"),
+                    isCurrent: true,
+                    positionHistory: [],
+                },
+            ],
+            education: [
+                {
+                    school: "State U",
+                    degree: "MBA",
+                    fieldOfStudy: "Business",
+                    startDate: new Date("2015-01-01"),
+                    isCurrent: false,
+                    endDate: new Date("2017-01-01"),
+                    activities: [],
+                },
+            ],
+        });
+
+        expect(prismaMock.professionalProfile.update).toHaveBeenCalledWith({
+            where: { userId: "pro-1" },
+            data: { verifiedAt: null },
+        });
+        expect(prismaMock.user.update).toHaveBeenCalledWith({
+            where: { id: "pro-1" },
+            data: {
+                firstName: "Morgan",
+                lastName: "Lee",
+                timezone: "America/New_York",
+                corporateEmailVerified: false,
             },
         });
     });

@@ -229,6 +229,11 @@ describe("POST /api/auth/onboarding", () => {
         });
         prismaMock.user.findUnique.mockResolvedValueOnce({
             onboardingCompleted: false,
+            corporateEmailVerified: true,
+            professionalProfile: {
+                corporateEmail: "pro@monet.com",
+                verifiedAt: new Date("2026-02-28T12:00:00Z"),
+            },
         });
 
         getProfessionalStripeStatusMock.mockResolvedValue({
@@ -249,6 +254,35 @@ describe("POST /api/auth/onboarding", () => {
             expect.objectContaining({ bio: "Guides candidates through case prep." }),
             { markOnboardingCompleted: true }
         );
+    });
+
+    it("rejects professional onboarding when corporate email is not verified", async () => {
+        authMock.mockResolvedValue({
+            user: { id: "professional_5", role: Role.PROFESSIONAL },
+        });
+        prismaMock.user.findUnique.mockResolvedValueOnce({
+            onboardingCompleted: false,
+            corporateEmailVerified: false,
+            professionalProfile: {
+                corporateEmail: "pro@monet.com",
+                verifiedAt: null,
+            },
+        });
+
+        getProfessionalStripeStatusMock.mockResolvedValue({
+            accountId: "acct_123",
+            payoutsEnabled: true,
+            chargesEnabled: true,
+            detailsSubmitted: true,
+            isPayoutReady: true,
+        });
+
+        const response = await POST(makeRequest(validProfessionalPayload));
+        const body = await response.json();
+
+        expect(response.status).toBe(400);
+        expect(body.error).toBe("corporate_email_not_verified");
+        expect(upsertProfessionalProfileFromPayloadMock).not.toHaveBeenCalled();
     });
 
     it("does not enforce Stripe payout gate for already completed professionals", async () => {

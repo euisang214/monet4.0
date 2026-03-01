@@ -103,7 +103,7 @@ describe('submitProfilePayload', () => {
     });
 
     it('blocks professional onboarding when payouts are not ready', async () => {
-        const parsedPayload = { timezone: 'America/New_York' };
+        const parsedPayload = { timezone: 'America/New_York', corporateEmail: 'pro@example.com' };
         professionalSafeParseMock.mockReturnValue({ success: true, data: parsedPayload });
         userFindUniqueMock.mockResolvedValueOnce({ onboardingCompleted: false });
         getProfessionalStripeStatusMock.mockResolvedValue({ isPayoutReady: false });
@@ -121,6 +121,99 @@ describe('submitProfilePayload', () => {
             error: 'stripe_payout_not_ready',
         });
         expect(upsertProfessionalProfileFromPayloadMock).not.toHaveBeenCalled();
+    });
+
+    it('blocks professional onboarding when corporate email is not verified', async () => {
+        const parsedPayload = { timezone: 'America/New_York', corporateEmail: 'pro@example.com' };
+        professionalSafeParseMock.mockReturnValue({ success: true, data: parsedPayload });
+        userFindUniqueMock.mockResolvedValueOnce({
+            onboardingCompleted: false,
+            corporateEmailVerified: false,
+            professionalProfile: {
+                corporateEmail: 'pro@example.com',
+                verifiedAt: null,
+            },
+        });
+        getProfessionalStripeStatusMock.mockResolvedValue({ isPayoutReady: true });
+
+        const result = await submitProfilePayload({
+            userId: 'pro-1',
+            role: Role.PROFESSIONAL,
+            body: parsedPayload,
+            mode: 'onboarding',
+        });
+
+        expect(result).toEqual({
+            success: false,
+            status: 400,
+            error: 'corporate_email_not_verified',
+        });
+        expect(upsertProfessionalProfileFromPayloadMock).not.toHaveBeenCalled();
+    });
+
+    it('blocks professional onboarding when verified email does not match submitted payload', async () => {
+        const parsedPayload = { timezone: 'America/New_York', corporateEmail: 'new@example.com' };
+        professionalSafeParseMock.mockReturnValue({ success: true, data: parsedPayload });
+        userFindUniqueMock.mockResolvedValueOnce({
+            onboardingCompleted: false,
+            corporateEmailVerified: true,
+            professionalProfile: {
+                corporateEmail: 'old@example.com',
+                verifiedAt: new Date('2026-02-28T12:00:00Z'),
+            },
+        });
+        getProfessionalStripeStatusMock.mockResolvedValue({ isPayoutReady: true });
+
+        const result = await submitProfilePayload({
+            userId: 'pro-1',
+            role: Role.PROFESSIONAL,
+            body: parsedPayload,
+            mode: 'onboarding',
+        });
+
+        expect(result).toEqual({
+            success: false,
+            status: 400,
+            error: 'corporate_email_not_verified',
+        });
+        expect(upsertProfessionalProfileFromPayloadMock).not.toHaveBeenCalled();
+    });
+
+    it('allows professional onboarding when corporate email is verified and matches payload', async () => {
+        const parsedPayload = { timezone: 'America/New_York', corporateEmail: 'pro@example.com' };
+        professionalSafeParseMock.mockReturnValue({ success: true, data: parsedPayload });
+        userFindUniqueMock
+            .mockResolvedValueOnce({
+                onboardingCompleted: false,
+                corporateEmailVerified: true,
+                professionalProfile: {
+                    corporateEmail: 'pro@example.com',
+                    verifiedAt: new Date('2026-02-28T12:00:00Z'),
+                },
+            })
+            .mockResolvedValueOnce({
+                onboardingRequired: true,
+                onboardingCompleted: true,
+            });
+        getProfessionalStripeStatusMock.mockResolvedValue({ isPayoutReady: true });
+
+        const result = await submitProfilePayload({
+            userId: 'pro-1',
+            role: Role.PROFESSIONAL,
+            body: parsedPayload,
+            mode: 'onboarding',
+        });
+
+        expect(upsertProfessionalProfileFromPayloadMock).toHaveBeenCalledWith(
+            'pro-1',
+            parsedPayload,
+            { markOnboardingCompleted: true },
+        );
+        expect(result).toEqual({
+            success: true,
+            onboardingRequired: true,
+            onboardingCompleted: true,
+        });
     });
 
     it('upserts professional profile and returns onboarding state for settings mode', async () => {

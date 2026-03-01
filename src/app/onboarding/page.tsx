@@ -32,6 +32,7 @@ export default async function OnboardingPage() {
             timezone: true,
             onboardingRequired: true,
             onboardingCompleted: true,
+            corporateEmailVerified: true,
             candidateProfile: {
                 select: {
                     resumeUrl: true,
@@ -82,6 +83,7 @@ export default async function OnboardingPage() {
                     bio: true,
                     priceCents: true,
                     corporateEmail: true,
+                    verifiedAt: true,
                     interests: true,
                     experience: {
                         orderBy: { startDate: "desc" },
@@ -188,6 +190,7 @@ export default async function OnboardingPage() {
                               bio: user.professionalProfile.bio,
                               price: user.professionalProfile.priceCents / 100,
                               corporateEmail: user.professionalProfile.corporateEmail,
+                              verifiedAt: user.professionalProfile.verifiedAt?.toISOString() ?? null,
                               interests: user.professionalProfile.interests,
                               experience: user.professionalProfile.experience.map((entry) => ({
                                   company: entry.company,
@@ -222,6 +225,7 @@ export default async function OnboardingPage() {
                           }
                         : undefined
                 }
+                initialProfessionalEmailVerified={user.corporateEmailVerified}
             />
         </main>
     );
