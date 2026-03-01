@@ -3,6 +3,7 @@ import { BookingStatus, Prisma } from '@prisma/client';
 import { ReviewsService } from '@/lib/domain/reviews/service';
 import { formatCandidateForProfessionalView } from '@/lib/domain/users/identity-labels';
 import { signCandidateResumeUrls } from '@/lib/shared/resume-signing';
+import { normalizeTimezone } from '@/lib/utils/supported-timezones';
 
 export type ProfessionalDashboardView = 'upcoming' | 'requested' | 'reschedule' | 'pending_feedback';
 
@@ -110,6 +111,14 @@ function pendingFeedbackWhere(professionalId: string): Prisma.BookingWhereInput 
     };
 }
 
+function upcomingWhere(professionalId: string, now: Date): Prisma.BookingWhereInput {
+    return {
+        professionalId,
+        status: BookingStatus.accepted,
+        startAt: { gte: now },
+    };
+}
+
 function nextCursorFromPage<T extends { id: string }>(items: T[], take: number) {
     const hasMore = items.length > take;
     const pageItems = hasMore ? items.slice(0, take) : items;
@@ -131,14 +140,12 @@ async function getActiveViewPage(
     professionalId: string,
     view: ProfessionalDashboardView,
     take: number,
+    now: Date,
     cursor?: string,
 ) {
     if (view === 'upcoming') {
         const items = await prisma.booking.findMany({
-            where: {
-                professionalId,
-                status: BookingStatus.accepted,
-            },
+            where: upcomingWhere(professionalId, now),
             select: {
                 id: true,
                 startAt: true,
@@ -291,34 +298,45 @@ export const ProfessionalDashboardService = {
     async getDashboardData(professionalId: string, options: DashboardOptions) {
         const take = getPageSize(options.take);
         const startedAt = performance.now();
-        const activeViewPromise = getActiveViewPage(professionalId, options.view, take, options.cursor).catch(
+        const now = new Date();
+        const activeViewPromise = getActiveViewPage(professionalId, options.view, take, now, options.cursor).catch(
             async (error) => {
                 if (options.cursor && isInvalidCursorError(error)) {
                     // Fallback to first page when cursor is stale/invalid.
-                    return getActiveViewPage(professionalId, options.view, take);
+                    return getActiveViewPage(professionalId, options.view, take, now);
                 }
 
                 throw error;
             },
         );
 
-        const [bookingsCount, pendingFeedbackCount, recentFeedbackData, activeViewPage] = await Promise.all([
-            prisma.booking.groupBy({
-                by: ['status'],
-                where: {
-                    professionalId,
-                },
-                _count: { _all: true },
-            }),
-            prisma.booking.count({
-                where: pendingFeedbackWhere(professionalId),
-            }),
-            ReviewsService.getProfessionalReviews(professionalId, { take: 5 }),
-            activeViewPromise,
-        ]);
+        const [bookingsCount, upcomingVisibleCount, pendingFeedbackCount, recentFeedbackData, activeViewPage, professional] =
+            await Promise.all([
+                prisma.booking.groupBy({
+                    by: ['status'],
+                    where: {
+                        professionalId,
+                    },
+                    _count: { _all: true },
+                }),
+                prisma.booking.count({
+                    where: upcomingWhere(professionalId, now),
+                }),
+                prisma.booking.count({
+                    where: pendingFeedbackWhere(professionalId),
+                }),
+                ReviewsService.getProfessionalReviews(professionalId, { take: 5 }),
+                activeViewPromise,
+                prisma.user.findUnique({
+                    where: { id: professionalId },
+                    select: { timezone: true },
+                }),
+            ]);
+
+        const professionalTimezone = normalizeTimezone(professional?.timezone);
 
         const sectionCounts: Record<ProfessionalDashboardView, number> = {
-            upcoming: bookingsCount.find((item) => item.status === BookingStatus.accepted)?._count._all || 0,
+            upcoming: upcomingVisibleCount,
             requested: bookingsCount.find((item) => item.status === BookingStatus.requested)?._count._all || 0,
             reschedule: bookingsCount.find((item) => item.status === BookingStatus.reschedule_pending)?._count._all || 0,
             pending_feedback: pendingFeedbackCount,
@@ -343,6 +361,7 @@ export const ProfessionalDashboardService = {
             activeView: options.view,
             items: activeViewPage.pageItems as ProfessionalDashboardItem[],
             nextCursor: activeViewPage.nextCursor,
+            professionalTimezone,
             recentFeedback: recentFeedbackData.reviews,
             reviewStats: recentFeedbackData.stats,
         };

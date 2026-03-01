@@ -17,10 +17,10 @@ interface UpcomingCall {
 
 interface ProfessionalUpcomingCallsListProps {
     bookings: UpcomingCall[];
+    professionalTimezone: string;
 }
 
-function formatCallTime(startAt: Date | string | null, timezone: string) {
-    const resolvedTimezone = normalizeTimezone(timezone);
+function formatCallTime(startAt: Date | string | null, resolvedTimezone: string) {
     if (!startAt) {
         return `Time TBD (${resolvedTimezone})`;
     }
@@ -31,10 +31,11 @@ function formatCallTime(startAt: Date | string | null, timezone: string) {
     return `${dateTimeLabel} (${resolvedTimezone})`;
 }
 
-export function ProfessionalUpcomingCallsList({ bookings }: ProfessionalUpcomingCallsListProps) {
+export function ProfessionalUpcomingCallsList({ bookings, professionalTimezone }: ProfessionalUpcomingCallsListProps) {
     const router = useRouter();
     const [pendingAction, setPendingAction] = useState<{ id: string; type: "cancel" | "reschedule" } | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const displayTimezone = normalizeTimezone(professionalTimezone);
 
     const handleCancel = async (bookingId: string) => {
         const confirmed = window.confirm("Cancel this upcoming call?");
@@ -122,7 +123,7 @@ export function ProfessionalUpcomingCallsList({ bookings }: ProfessionalUpcoming
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <div>
                                 <p className="font-semibold text-gray-900">{booking.candidateLabel}</p>
-                                <p className="text-sm text-gray-600">{formatCallTime(booking.startAt, booking.timezone)}</p>
+                                <p className="text-sm text-gray-600">{formatCallTime(booking.startAt, displayTimezone)}</p>
                             </div>
 
                             <div className="flex flex-wrap gap-2">

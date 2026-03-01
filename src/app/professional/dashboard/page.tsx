@@ -79,6 +79,7 @@ export default async function ProfessionalDashboardPage({
         sectionCounts,
         items,
         nextCursor,
+        professionalTimezone,
         recentFeedback,
         reviewStats,
     } = await ProfessionalDashboardService.getDashboardData(user.id, {
@@ -148,7 +149,10 @@ export default async function ProfessionalDashboardPage({
                 ) : null}
 
                 {items.length > 0 && activeView === "upcoming" ? (
-                    <ProfessionalUpcomingCallsList bookings={upcomingItems} />
+                    <ProfessionalUpcomingCallsList
+                        bookings={upcomingItems}
+                        professionalTimezone={professionalTimezone}
+                    />
                 ) : null}
 
                 {items.length > 0 && (activeView === "requested" || activeView === "reschedule") ? (

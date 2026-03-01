@@ -15,7 +15,7 @@ vi.mock("next/navigation", () => ({
 import { ProfessionalUpcomingCallsList } from "@/components/dashboard/ProfessionalUpcomingCallsList";
 
 describe("ProfessionalUpcomingCallsList timezone formatting", () => {
-    it("formats upcoming call time using booking timezone", () => {
+    it("formats upcoming call time using professional timezone", () => {
         const html = renderToStaticMarkup(
             <ProfessionalUpcomingCallsList
                 bookings={[
@@ -28,9 +28,10 @@ describe("ProfessionalUpcomingCallsList timezone formatting", () => {
                         candidateLabel: "Candidate One",
                     },
                 ]}
+                professionalTimezone="America/New_York"
             />
         );
 
-        expect(html).toContain("Mar 2, 2026 at 7:00 AM (America/Los_Angeles)");
+        expect(html).toContain("Mar 2, 2026 at 10:00 AM (America/New_York)");
     });
 });

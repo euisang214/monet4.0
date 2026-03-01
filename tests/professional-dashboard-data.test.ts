@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BookingStatus } from "@prisma/client";
 
 const mockPrisma = vi.hoisted(() => ({
@@ -7,10 +7,14 @@ const mockPrisma = vi.hoisted(() => ({
         groupBy: vi.fn(),
         count: vi.fn(),
     },
+    user: {
+        findUnique: vi.fn(),
+    },
 }));
 
 const getProfessionalReviewsMock = vi.hoisted(() => vi.fn());
 const createResumeUrlSignerMock = vi.hoisted(() => vi.fn());
+const FROZEN_NOW = new Date("2026-03-01T12:00:00Z");
 
 vi.mock("@/lib/core/db", () => ({
     prisma: mockPrisma,
@@ -30,17 +34,24 @@ import { ProfessionalDashboardService } from "@/lib/role/professional/dashboard"
 
 describe("ProfessionalDashboardService.getDashboardData", () => {
     beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(FROZEN_NOW);
         vi.clearAllMocks();
         mockPrisma.booking.groupBy.mockResolvedValue([
             { status: BookingStatus.accepted, _count: { _all: 4 } },
             { status: BookingStatus.requested, _count: { _all: 2 } },
             { status: BookingStatus.reschedule_pending, _count: { _all: 1 } },
         ]);
-        mockPrisma.booking.count.mockResolvedValue(3);
+        mockPrisma.booking.count.mockResolvedValueOnce(4).mockResolvedValueOnce(3);
+        mockPrisma.user.findUnique.mockResolvedValue({ timezone: "America/New_York" });
         getProfessionalReviewsMock.mockResolvedValue({
             reviews: [],
             stats: { average: 4.5, count: 9 },
         });
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
     });
 
     it("loads only the active view query and returns section counts", async () => {
@@ -86,6 +97,23 @@ describe("ProfessionalDashboardService.getDashboardData", () => {
         });
 
         expect(mockPrisma.booking.findMany).toHaveBeenCalledTimes(1);
+        expect(mockPrisma.booking.findMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: {
+                    professionalId: "pro-1",
+                    status: BookingStatus.accepted,
+                    startAt: { gte: FROZEN_NOW },
+                },
+                orderBy: [{ startAt: "asc" }, { id: "asc" }],
+            }),
+        );
+        expect(mockPrisma.booking.count).toHaveBeenNthCalledWith(1, {
+            where: {
+                professionalId: "pro-1",
+                status: BookingStatus.accepted,
+                startAt: { gte: FROZEN_NOW },
+            },
+        });
         expect(data.sectionCounts).toEqual({
             upcoming: 4,
             requested: 2,
@@ -96,12 +124,14 @@ describe("ProfessionalDashboardService.getDashboardData", () => {
             upcomingBookingsCount: 4,
             pendingFeedbackCount: 3,
         });
+        expect(data.professionalTimezone).toBe("America/New_York");
         expect((data.items[0] as { candidateLabel: string }).candidateLabel).toBe(
             "John Doe - Columbia University, Intern @ Blackstone"
         );
     });
 
     it("paginates pending feedback section", async () => {
+        mockPrisma.user.findUnique.mockResolvedValue({ timezone: "Mars/Olympus" });
         mockPrisma.booking.findMany.mockResolvedValue([
             {
                 id: "f1",
@@ -155,6 +185,7 @@ describe("ProfessionalDashboardService.getDashboardData", () => {
                 orderBy: [{ endAt: "desc" }, { id: "desc" }],
             }),
         );
+        expect(data.professionalTimezone).toBe("UTC");
         expect((data.items[0] as { candidateLabel: string }).candidateLabel).toBe("Casey Lee - Analyst @ Centerview");
     });
 });

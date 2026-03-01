@@ -7,6 +7,9 @@ const mockPrisma = vi.hoisted(() => ({
         groupBy: vi.fn(),
         count: vi.fn(),
     },
+    user: {
+        findUnique: vi.fn(),
+    },
 }));
 
 const getProfessionalReviewsMock = vi.hoisted(() => vi.fn());
@@ -42,6 +45,7 @@ describe("ProfessionalDashboardService resume signing", () => {
         });
         mockPrisma.booking.groupBy.mockResolvedValue([]);
         mockPrisma.booking.count.mockResolvedValue(0);
+        mockPrisma.user.findUnique.mockResolvedValue({ timezone: "UTC" });
         getProfessionalReviewsMock.mockResolvedValue({
             reviews: [],
             stats: { average: null, count: 0 },
@@ -141,5 +145,6 @@ describe("ProfessionalDashboardService resume signing", () => {
                 }),
             })
         );
+        expect(data.professionalTimezone).toBe("UTC");
     });
 });
