@@ -33,7 +33,7 @@ describe.sequential('Email integration', () => {
         await expect(import('@/lib/integrations/email')).rejects.toThrow('Missing Gmail OAuth email configuration');
     });
 
-    it('sends iMIP REQUEST invite with private attendee metadata and role-specific meeting URL', async () => {
+    it('sends iMIP REQUEST invite with role-based subject and local-time-only body', async () => {
         process.env.GMAIL_OAUTH_CLIENT_ID = 'gmail-client';
         process.env.GMAIL_OAUTH_CLIENT_SECRET = 'gmail-secret';
         process.env.GMAIL_OAUTH_REFRESH_TOKEN = 'gmail-refresh';
@@ -71,11 +71,26 @@ describe.sequential('Email integration', () => {
             candidateZoomJoinUrl: 'https://zoom.us/w/candidate123',
             professionalZoomJoinUrl: 'https://zoom.us/w/pro123',
             candidate: { email: 'cand@example.com', firstName: 'Cand', lastName: 'One', timezone: 'America/Chicago' },
-            professional: { email: 'pro@example.com', firstName: 'Pro', lastName: 'Two', timezone: 'America/Los_Angeles' },
+            professional: {
+                email: 'pro@example.com',
+                firstName: 'Pro',
+                lastName: 'Two',
+                timezone: 'America/Los_Angeles',
+                professionalProfile: {
+                    experience: [{
+                        id: 'exp_1',
+                        title: 'Associate',
+                        company: 'Morgan Stanley',
+                        isCurrent: true,
+                        startDate: new Date('2024-01-01T00:00:00Z'),
+                    }],
+                },
+            },
         } as any, 'CANDIDATE', 'booking_req_1.candidate@monet.ai', 0, 'Join Zoom Meeting\nhttps://zoom.us/w/candidate123');
 
         const eventArg = createEventMock.mock.calls[0][0];
         expect(eventArg.method).toBe('REQUEST');
+        expect(eventArg.title).toBe('Kafei - Chat with Associate @ Morgan Stanley');
         expect(eventArg.uid).toBe('booking_req_1.candidate@monet.ai');
         expect(eventArg.sequence).toBe(0);
         expect(eventArg.startInputType).toBe('utc');
@@ -87,19 +102,183 @@ describe.sequential('Email integration', () => {
         expect(eventArg.location).toBe('https://zoom.us/w/candidate123');
         expect(eventArg.url).toBe('https://zoom.us/w/candidate123');
         expect(eventArg.organizer.email).toBe('sender@example.com');
-        expect(eventArg.description).toContain('Scheduled Time (America/New_York): Mar 1, 2026 at 7:00 AM');
+        expect(eventArg.description).toContain('Your Local Time (America/Chicago): Mar 1, 2026 at 6:00 AM');
+        expect(eventArg.description).not.toContain('Scheduled Time (');
 
         const requestMailArg = sendMailMock.mock.calls[0][0];
-        expect(requestMailArg.text).toContain('Scheduled Time (America/New_York): Mar 1, 2026 at 7:00 AM');
+        expect(requestMailArg.subject).toBe('Kafei - Chat with Associate @ Morgan Stanley');
         expect(requestMailArg.text).toContain('Your Local Time (America/Chicago): Mar 1, 2026 at 6:00 AM');
-        expect(requestMailArg.html).toContain('Scheduled Time (America/New_York):');
+        expect(requestMailArg.text).not.toContain('Scheduled Time (');
         expect(requestMailArg.html).toContain('Your Local Time (America/Chicago):');
+        expect(requestMailArg.html).not.toContain('Scheduled Time (');
         expect(sendMailMock).toHaveBeenCalledWith(expect.objectContaining({
             icalEvent: expect.objectContaining({
                 method: 'REQUEST',
                 content: 'BEGIN:VCALENDAR',
             }),
         }));
+    });
+
+    it('uses candidate full name in subject/title for professional request invite', async () => {
+        process.env.GMAIL_OAUTH_CLIENT_ID = 'gmail-client';
+        process.env.GMAIL_OAUTH_CLIENT_SECRET = 'gmail-secret';
+        process.env.GMAIL_OAUTH_REFRESH_TOKEN = 'gmail-refresh';
+        process.env.GMAIL_OAUTH_USER = 'sender@example.com';
+        process.env.EMAIL_FROM = 'Monet Platform <sender@example.com>';
+
+        const createEventMock = vi.fn().mockReturnValue({ error: null, value: 'BEGIN:VCALENDAR' });
+        const sendMailMock = vi.fn().mockResolvedValue({});
+        vi.doMock('ics', () => ({ createEvent: createEventMock }));
+        vi.doMock('nodemailer', () => ({
+            default: {
+                createTransport: vi.fn(() => ({ sendMail: sendMailMock })),
+            },
+        }));
+        vi.doMock('googleapis', () => ({
+            google: {
+                auth: {
+                    OAuth2: vi.fn(function OAuth2Mock() {
+                        return {
+                            setCredentials: vi.fn(),
+                            getAccessToken: vi.fn().mockResolvedValue({ token: 'gmail-access-token' }),
+                        };
+                    }),
+                },
+            },
+        }));
+
+        const { sendCalendarInviteRequestEmail } = await import('@/lib/integrations/email');
+        await sendCalendarInviteRequestEmail({
+            id: 'booking_req_prof_1',
+            timezone: 'America/New_York',
+            startAt: new Date('2026-03-01T12:00:00Z'),
+            endAt: new Date('2026-03-01T12:30:00Z'),
+            zoomJoinUrl: 'https://zoom.us/j/shared',
+            candidateZoomJoinUrl: 'https://zoom.us/w/candidate123',
+            professionalZoomJoinUrl: 'https://zoom.us/w/pro123',
+            candidate: { email: 'cand@example.com', firstName: 'John', lastName: 'Doe', timezone: 'America/New_York' },
+            professional: { email: 'pro@example.com', firstName: 'Pro', lastName: 'Two', timezone: 'America/Los_Angeles' },
+        } as any, 'PROFESSIONAL', 'booking_req_prof_1.professional@monet.ai', 0, 'Join Zoom Meeting\nhttps://zoom.us/w/pro123');
+
+        const eventArg = createEventMock.mock.calls[0][0];
+        const requestMailArg = sendMailMock.mock.calls[0][0];
+
+        expect(eventArg.title).toBe('Kafei - Chat with John Doe');
+        expect(eventArg.description).toContain('Your Local Time (America/Los_Angeles): Mar 1, 2026 at 4:00 AM');
+        expect(eventArg.description).not.toContain('Scheduled Time (');
+        expect(requestMailArg.subject).toBe('Kafei - Chat with John Doe');
+        expect(requestMailArg.text).toContain('Your Local Time (America/Los_Angeles): Mar 1, 2026 at 4:00 AM');
+        expect(requestMailArg.text).not.toContain('Scheduled Time (');
+        expect(requestMailArg.html).toContain('Your Local Time (America/Los_Angeles):');
+        expect(requestMailArg.html).not.toContain('Scheduled Time (');
+    });
+
+    it('falls back to Professional subject when title/company are incomplete', async () => {
+        process.env.GMAIL_OAUTH_CLIENT_ID = 'gmail-client';
+        process.env.GMAIL_OAUTH_CLIENT_SECRET = 'gmail-secret';
+        process.env.GMAIL_OAUTH_REFRESH_TOKEN = 'gmail-refresh';
+        process.env.GMAIL_OAUTH_USER = 'sender@example.com';
+        process.env.EMAIL_FROM = 'Monet Platform <sender@example.com>';
+
+        const createEventMock = vi.fn().mockReturnValue({ error: null, value: 'BEGIN:VCALENDAR' });
+        const sendMailMock = vi.fn().mockResolvedValue({});
+        vi.doMock('ics', () => ({ createEvent: createEventMock }));
+        vi.doMock('nodemailer', () => ({
+            default: {
+                createTransport: vi.fn(() => ({ sendMail: sendMailMock })),
+            },
+        }));
+        vi.doMock('googleapis', () => ({
+            google: {
+                auth: {
+                    OAuth2: vi.fn(function OAuth2Mock() {
+                        return {
+                            setCredentials: vi.fn(),
+                            getAccessToken: vi.fn().mockResolvedValue({ token: 'gmail-access-token' }),
+                        };
+                    }),
+                },
+            },
+        }));
+
+        const { sendCalendarInviteRequestEmail } = await import('@/lib/integrations/email');
+        await sendCalendarInviteRequestEmail({
+            id: 'booking_req_fallback_1',
+            timezone: 'America/New_York',
+            startAt: new Date('2026-03-01T12:00:00Z'),
+            endAt: new Date('2026-03-01T12:30:00Z'),
+            zoomJoinUrl: 'https://zoom.us/j/shared',
+            candidateZoomJoinUrl: 'https://zoom.us/w/candidate123',
+            professionalZoomJoinUrl: 'https://zoom.us/w/pro123',
+            candidate: { email: 'cand@example.com', firstName: 'Cand', lastName: 'One', timezone: 'America/Chicago' },
+            professional: {
+                email: 'pro@example.com',
+                firstName: 'Pro',
+                lastName: 'Two',
+                timezone: 'America/Los_Angeles',
+                professionalProfile: {
+                    experience: [{
+                        id: 'exp_2',
+                        title: 'Associate',
+                        company: null,
+                        isCurrent: true,
+                        startDate: new Date('2024-01-01T00:00:00Z'),
+                    }],
+                },
+            },
+        } as any, 'CANDIDATE', 'booking_req_fallback_1.candidate@monet.ai', 0, 'Join Zoom Meeting\nhttps://zoom.us/w/candidate123');
+
+        const eventArg = createEventMock.mock.calls[0][0];
+        const requestMailArg = sendMailMock.mock.calls[0][0];
+        expect(eventArg.title).toBe('Kafei - Chat with Professional');
+        expect(requestMailArg.subject).toBe('Kafei - Chat with Professional');
+    });
+
+    it('falls back to Candidate subject when candidate name is missing', async () => {
+        process.env.GMAIL_OAUTH_CLIENT_ID = 'gmail-client';
+        process.env.GMAIL_OAUTH_CLIENT_SECRET = 'gmail-secret';
+        process.env.GMAIL_OAUTH_REFRESH_TOKEN = 'gmail-refresh';
+        process.env.GMAIL_OAUTH_USER = 'sender@example.com';
+        process.env.EMAIL_FROM = 'Monet Platform <sender@example.com>';
+
+        const createEventMock = vi.fn().mockReturnValue({ error: null, value: 'BEGIN:VCALENDAR' });
+        const sendMailMock = vi.fn().mockResolvedValue({});
+        vi.doMock('ics', () => ({ createEvent: createEventMock }));
+        vi.doMock('nodemailer', () => ({
+            default: {
+                createTransport: vi.fn(() => ({ sendMail: sendMailMock })),
+            },
+        }));
+        vi.doMock('googleapis', () => ({
+            google: {
+                auth: {
+                    OAuth2: vi.fn(function OAuth2Mock() {
+                        return {
+                            setCredentials: vi.fn(),
+                            getAccessToken: vi.fn().mockResolvedValue({ token: 'gmail-access-token' }),
+                        };
+                    }),
+                },
+            },
+        }));
+
+        const { sendCalendarInviteRequestEmail } = await import('@/lib/integrations/email');
+        await sendCalendarInviteRequestEmail({
+            id: 'booking_req_fallback_2',
+            timezone: 'America/New_York',
+            startAt: new Date('2026-03-01T12:00:00Z'),
+            endAt: new Date('2026-03-01T12:30:00Z'),
+            zoomJoinUrl: 'https://zoom.us/j/shared',
+            candidateZoomJoinUrl: 'https://zoom.us/w/candidate123',
+            professionalZoomJoinUrl: 'https://zoom.us/w/pro123',
+            candidate: { email: 'cand@example.com', firstName: null, lastName: null, timezone: 'America/New_York' },
+            professional: { email: 'pro@example.com', firstName: 'Pro', lastName: 'Two', timezone: 'America/Los_Angeles' },
+        } as any, 'PROFESSIONAL', 'booking_req_fallback_2.professional@monet.ai', 0, 'Join Zoom Meeting\nhttps://zoom.us/w/pro123');
+
+        const eventArg = createEventMock.mock.calls[0][0];
+        const requestMailArg = sendMailMock.mock.calls[0][0];
+        expect(eventArg.title).toBe('Kafei - Chat with Candidate');
+        expect(requestMailArg.subject).toBe('Kafei - Chat with Candidate');
     });
 
     it('omits ICS url/location when the meeting URL is invalid', async () => {

@@ -3,9 +3,10 @@ import nodemailer from 'nodemailer';
 import { google } from 'googleapis';
 import { createEvent, DateArray } from 'ics';
 import { formatInTimeZone } from 'date-fns-tz';
-import { Booking, User, ProfessionalProfile, Payout } from '@prisma/client';
+import { Booking, User, ProfessionalProfile, Payout, Experience } from '@prisma/client';
 import { appRoutes } from '@/lib/shared/routes';
 import { normalizeTimezone } from '@/lib/utils/supported-timezones';
+import { deriveCurrentRoleFromExperiences } from '@/lib/domain/users/current-role';
 
 const GMAIL_OAUTH_CLIENT_ID = process.env.GMAIL_OAUTH_CLIENT_ID?.trim();
 const GMAIL_OAUTH_CLIENT_SECRET = process.env.GMAIL_OAUTH_CLIENT_SECRET?.trim();
@@ -128,8 +129,11 @@ export async function sendEmail({ to, subject, html, text, attachments, icalEven
 
 type BookingWithRelations = Booking & {
     candidate: User;
-    professional: User;
-    professionalProfile?: ProfessionalProfile | null;
+    professional: User & {
+        professionalProfile?: (ProfessionalProfile & {
+            experience?: Experience[];
+        }) | null;
+    };
 };
 
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -167,27 +171,52 @@ function getDisplayName(user: User, fallbackLabel: string) {
     return fallbackLabel;
 }
 
+function buildRequestSubject(booking: BookingWithRelations, role: CalendarInviteRecipientRole) {
+    if (role === 'PROFESSIONAL') {
+        return `Kafei - Chat with ${getDisplayName(booking.candidate, 'Candidate')}`;
+    }
+
+    const professionalExperiences = booking.professional.professionalProfile?.experience ?? [];
+    const currentRole = deriveCurrentRoleFromExperiences(professionalExperiences);
+    const hasCompleteRoleLabel = Boolean(currentRole.title && currentRole.employer);
+    const roleLabel = hasCompleteRoleLabel
+        ? `${currentRole.title} @ ${currentRole.employer}`
+        : 'Professional';
+
+    return `Kafei - Chat with ${roleLabel}`;
+}
+
 function buildInviteDescription({
     booking,
     role,
+    method,
     zoomInviteText,
     canonicalDateTime,
     canonicalTimezone,
+    recipientDateTime,
+    recipientTimezone,
 }: {
     booking: BookingWithRelations;
     role: CalendarInviteRecipientRole;
+    method: 'REQUEST' | 'CANCEL';
     zoomInviteText: string;
     canonicalDateTime: string;
     canonicalTimezone: string;
+    recipientDateTime: string;
+    recipientTimezone: string;
 }) {
     const counterpartName = role === 'CANDIDATE'
         ? getDisplayName(booking.professional, 'Professional')
         : getDisplayName(booking.candidate, 'Candidate');
 
+    const timeLine = method === 'REQUEST'
+        ? `Your Local Time (${recipientTimezone}): ${recipientDateTime}`
+        : `Scheduled Time (${canonicalTimezone}): ${canonicalDateTime}`;
+
     return [
         zoomInviteText.trim(),
         '',
-        `Scheduled Time (${canonicalTimezone}): ${canonicalDateTime}`,
+        timeLine,
         `Counterpart: ${counterpartName}`,
     ].join('\n');
 }
@@ -240,6 +269,7 @@ function createCalendarInviteContent({
     sequence,
     method,
     zoomInviteText,
+    eventTitle,
 }: {
     booking: BookingWithRelations;
     role: CalendarInviteRecipientRole;
@@ -247,6 +277,7 @@ function createCalendarInviteContent({
     sequence: number;
     method: 'REQUEST' | 'CANCEL';
     zoomInviteText: string;
+    eventTitle: string;
 }) {
     if (!booking.startAt || !booking.endAt) {
         throw new Error(`Booking ${booking.id} missing start/end time`);
@@ -269,13 +300,16 @@ function createCalendarInviteContent({
         endInputType: 'utc',
         endOutputType: 'utc',
         duration: buildIcsDuration(startDate, endDate),
-        title: 'Consultation Call',
+        title: eventTitle,
         description: buildInviteDescription({
             booking,
             role,
+            method,
             zoomInviteText,
             canonicalDateTime: inviteTimeContext.canonicalDateTime,
             canonicalTimezone: inviteTimeContext.canonicalTimezone,
+            recipientDateTime: inviteTimeContext.recipientDateTime,
+            recipientTimezone: inviteTimeContext.recipientTimezone,
         }),
         ...(hasValidMeetingUrl ? { location: meetingUrl, url: meetingUrl } : {}),
         status: method === 'CANCEL' ? 'CANCELLED' : 'CONFIRMED',
@@ -316,6 +350,7 @@ export async function sendCalendarInviteRequestEmail(
     zoomInviteText: string
 ) {
     const recipientEmail = role === 'CANDIDATE' ? booking.candidate.email : booking.professional.email;
+    const requestSubject = buildRequestSubject(booking, role);
     const { icsContent, meetingUrl, hasValidMeetingUrl, inviteTimeContext } = createCalendarInviteContent({
         booking,
         role,
@@ -323,21 +358,20 @@ export async function sendCalendarInviteRequestEmail(
         sequence,
         method: 'REQUEST',
         zoomInviteText,
+        eventTitle: requestSubject,
     });
 
     await sendEmail({
         to: recipientEmail,
-        subject: 'Invitation: Consultation Call',
+        subject: requestSubject,
         text: [
             'Please respond to the calendar invitation for your consultation call.',
-            `Scheduled Time (${inviteTimeContext.canonicalTimezone}): ${inviteTimeContext.canonicalDateTime}`,
             `Your Local Time (${inviteTimeContext.recipientTimezone}): ${inviteTimeContext.recipientDateTime}`,
             'Please use your calendar client\'s RSVP controls to accept or decline.',
         ].join('\n'),
         html: `
-            <h1>Consultation Call Invitation</h1>
+            <h1>${requestSubject}</h1>
             <p>Your consultation call has been scheduled.</p>
-            <p><strong>Scheduled Time (${inviteTimeContext.canonicalTimezone}):</strong> ${inviteTimeContext.canonicalDateTime}</p>
             <p><strong>Your Local Time (${inviteTimeContext.recipientTimezone}):</strong> ${inviteTimeContext.recipientDateTime}</p>
             <p><strong>Zoom Link:</strong> ${hasValidMeetingUrl ? `<a href="${meetingUrl}">${meetingUrl}</a>` : 'Included in invite details'}</p>
             <p>Please use your calendar client's RSVP controls to accept or decline.</p>
@@ -365,6 +399,7 @@ export async function sendCalendarInviteCancelEmail(
         sequence,
         method: 'CANCEL',
         zoomInviteText,
+        eventTitle: 'Consultation Call',
     });
 
     await sendEmail({

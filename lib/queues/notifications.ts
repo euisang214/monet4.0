@@ -98,7 +98,21 @@ async function processCalendarInviteRequestJob({
 }) {
     const booking = await prisma.booking.findUnique({
         where: { id: bookingId },
-        include: { candidate: true, professional: true },
+        include: {
+            candidate: true,
+            professional: {
+                include: {
+                    professionalProfile: {
+                        include: {
+                            experience: {
+                                where: { type: 'EXPERIENCE' },
+                                orderBy: [{ isCurrent: 'desc' }, { startDate: 'desc' }, { id: 'desc' }],
+                            },
+                        },
+                    },
+                },
+            },
+        },
     });
 
     if (!booking) {
