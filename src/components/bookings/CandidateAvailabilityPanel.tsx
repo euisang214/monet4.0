@@ -8,6 +8,7 @@ import { useCandidateGoogleBusy } from '@/components/bookings/hooks/useCandidate
 
 interface CandidateAvailabilityPanelProps {
     calendarTimezone?: string;
+    isGoogleCalendarConnected: boolean;
     professionalTimezone?: string | null;
     initialSelectedSlots?: SlotInterval[];
     onSelectionChange: (payload: { availabilitySlots: SlotInterval[]; selectedCount: number }) => void;
@@ -21,6 +22,7 @@ interface CandidateAvailabilityPanelProps {
 
 export function CandidateAvailabilityPanel({
     calendarTimezone,
+    isGoogleCalendarConnected,
     professionalTimezone,
     initialSelectedSlots = [],
     onSelectionChange,
@@ -37,7 +39,7 @@ export function CandidateAvailabilityPanel({
         [calendarTimezone]
     );
     const { googleBusyIntervals, isLoadingBusy, busyLoadError, lastBusyRefreshAt, refreshGoogleBusy } =
-        useCandidateGoogleBusy();
+        useCandidateGoogleBusy({ autoLoad: isGoogleCalendarConnected });
 
     const handleSelectionChange = useCallback(
         ({ availabilitySlots, selectedCount }: { availabilitySlots: SlotInterval[]; selectedCount: number }) => {
@@ -56,8 +58,11 @@ export function CandidateAvailabilityPanel({
             <div className="mb-3 flex flex-wrap items-center gap-3">
                 <button
                     type="button"
-                    onClick={() => void refreshGoogleBusy()}
-                    disabled={isLoadingBusy}
+                    onClick={() => {
+                        if (!isGoogleCalendarConnected) return;
+                        void refreshGoogleBusy();
+                    }}
+                    disabled={isLoadingBusy || !isGoogleCalendarConnected}
                     className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
                 >
                     {isLoadingBusy ? 'Refreshing calendar...' : 'Refresh Google Calendar'}

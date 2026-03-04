@@ -3,6 +3,7 @@ import { prisma } from '@/lib/core/db';
 
 export type SavedAvailabilitySeed = {
     candidateTimezone: string;
+    isGoogleCalendarConnected: boolean;
     initialAvailabilitySlots: Array<{ start: string; end: string }>;
 };
 
@@ -25,7 +26,7 @@ export const CandidateAvailability = {
         const [candidate, availability] = await Promise.all([
             prisma.user.findUnique({
                 where: { id: candidateId },
-                select: { timezone: true },
+                select: { timezone: true, googleCalendarConnected: true },
             }),
             AvailabilityService.getUserAvailability(candidateId),
         ]);
@@ -38,6 +39,7 @@ export const CandidateAvailability = {
 
         return {
             candidateTimezone: candidate?.timezone || 'UTC',
+            isGoogleCalendarConnected: candidate?.googleCalendarConnected || false,
             initialAvailabilitySlots,
         };
     },

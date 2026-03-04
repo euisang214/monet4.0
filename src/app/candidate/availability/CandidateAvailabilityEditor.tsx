@@ -17,6 +17,7 @@ import { appRoutes } from '@/lib/shared/routes';
 interface CandidateAvailabilityEditorProps {
     initialAvailabilitySlots: SlotInterval[];
     calendarTimezone?: string | null;
+    isGoogleCalendarConnected: boolean;
 }
 
 function closestAnchorTarget(target: EventTarget | null): HTMLAnchorElement | null {
@@ -76,6 +77,7 @@ export function dispatchBestEffortAvailabilitySave(
 export function CandidateAvailabilityEditor({
     initialAvailabilitySlots,
     calendarTimezone,
+    isGoogleCalendarConnected,
 }: CandidateAvailabilityEditorProps) {
     const router = useRouter();
     const resolvedCalendarTimezone = React.useMemo(
@@ -259,6 +261,7 @@ export function CandidateAvailabilityEditor({
         <section className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
             <CandidateAvailabilityPanel
                 calendarTimezone={resolvedCalendarTimezone}
+                isGoogleCalendarConnected={isGoogleCalendarConnected}
                 initialSelectedSlots={initialEditableSlots}
                 onSelectionChange={handleSlotSelectionChange}
                 selectedCountLabel="Selected candidate slots"

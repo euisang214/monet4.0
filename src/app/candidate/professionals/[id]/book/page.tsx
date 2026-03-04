@@ -45,6 +45,7 @@ export default async function BookingRequestPage(props: {
                 priceCents={professional.priceCents}
                 professionalTimezone={professional.timezone}
                 candidateTimezone={availabilitySeed.candidateTimezone}
+                isGoogleCalendarConnected={availabilitySeed.isGoogleCalendarConnected}
                 initialAvailabilitySlots={availabilitySeed.initialAvailabilitySlots}
             />
         </div>

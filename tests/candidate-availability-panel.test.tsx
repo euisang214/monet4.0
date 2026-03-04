@@ -2,18 +2,14 @@ import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
+const useCandidateGoogleBusyMock = vi.hoisted(() => vi.fn());
+
 let latestPickerOnChange:
     | ((payload: { availabilitySlots: Array<{ start: string; end: string }>; selectedCount: number }) => void)
     | null = null;
 
 vi.mock('@/components/bookings/hooks/useCandidateGoogleBusy', () => ({
-    useCandidateGoogleBusy: () => ({
-        googleBusyIntervals: [],
-        isLoadingBusy: true,
-        busyLoadError: 'calendar warning',
-        lastBusyRefreshAt: new Date('2026-02-21T10:00:00.000Z'),
-        refreshGoogleBusy: vi.fn(),
-    }),
+    useCandidateGoogleBusy: (...args: unknown[]) => useCandidateGoogleBusyMock(...args),
 }));
 
 vi.mock('@/components/bookings/WeeklySlotCalendar', () => ({
@@ -30,6 +26,14 @@ import { CandidateAvailabilityPanel } from '@/components/bookings/CandidateAvail
 
 describe('CandidateAvailabilityPanel', () => {
     beforeEach(() => {
+        useCandidateGoogleBusyMock.mockReset();
+        useCandidateGoogleBusyMock.mockReturnValue({
+            googleBusyIntervals: [],
+            isLoadingBusy: true,
+            busyLoadError: 'calendar warning',
+            lastBusyRefreshAt: new Date('2026-02-21T10:00:00.000Z'),
+            refreshGoogleBusy: vi.fn(),
+        });
         latestPickerOnChange = null;
     });
 
@@ -37,6 +41,7 @@ describe('CandidateAvailabilityPanel', () => {
         const html = renderToStaticMarkup(
             <CandidateAvailabilityPanel
                 calendarTimezone="UTC"
+                isGoogleCalendarConnected
                 initialSelectedSlots={[{ start: '2026-02-21T10:00:00.000Z', end: '2026-02-21T11:00:00.000Z' }]}
                 onSelectionChange={() => {}}
             />
@@ -55,6 +60,7 @@ describe('CandidateAvailabilityPanel', () => {
         renderToStaticMarkup(
             <CandidateAvailabilityPanel
                 calendarTimezone="UTC"
+                isGoogleCalendarConnected
                 onSelectionChange={onSelectionChange}
             />
         );
@@ -70,5 +76,26 @@ describe('CandidateAvailabilityPanel', () => {
             availabilitySlots: [{ start: '2026-02-21T12:00:00.000Z', end: '2026-02-21T12:30:00.000Z' }],
             selectedCount: 1,
         });
+    });
+
+    it('disables refresh when Google Calendar is not connected', () => {
+        useCandidateGoogleBusyMock.mockReturnValue({
+            googleBusyIntervals: [],
+            isLoadingBusy: false,
+            busyLoadError: null,
+            lastBusyRefreshAt: null,
+            refreshGoogleBusy: vi.fn(),
+        });
+
+        const html = renderToStaticMarkup(
+            <CandidateAvailabilityPanel
+                calendarTimezone="UTC"
+                isGoogleCalendarConnected={false}
+                onSelectionChange={() => {}}
+            />
+        );
+
+        expect(useCandidateGoogleBusyMock).toHaveBeenCalledWith({ autoLoad: false });
+        expect(html).toMatch(/<button[^>]*disabled[^>]*>Refresh Google Calendar<\/button>/);
     });
 });

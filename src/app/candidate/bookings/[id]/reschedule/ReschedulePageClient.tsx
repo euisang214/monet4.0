@@ -10,12 +10,14 @@ interface ReschedulePageClientProps {
     bookingId: string;
     calendarTimezone?: string;
     professionalTimezone?: string | null;
+    isGoogleCalendarConnected: boolean;
 }
 
 export function ReschedulePageClient({
     bookingId,
     calendarTimezone,
     professionalTimezone,
+    isGoogleCalendarConnected,
 }: ReschedulePageClientProps) {
     const router = useRouter();
     const [availabilitySlots, setAvailabilitySlots] = useState<SlotInterval[]>([]);
@@ -61,6 +63,7 @@ export function ReschedulePageClient({
             <div className="bg-white p-6 rounded-lg shadow mb-6 border border-gray-200">
                 <CandidateAvailabilityPanel
                     calendarTimezone={resolvedCalendarTimezone}
+                    isGoogleCalendarConnected={isGoogleCalendarConnected}
                     professionalTimezone={professionalTimezone}
                     onSelectionChange={handleSlotSelectionChange}
                 />

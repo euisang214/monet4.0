@@ -6,7 +6,7 @@ import { CandidateAvailabilityEditor } from './CandidateAvailabilityEditor';
 export default async function CandidateAvailabilityPage() {
     const user = await requireRole(Role.CANDIDATE, '/candidate/availability');
 
-    const { initialAvailabilitySlots, candidateTimezone } =
+    const { initialAvailabilitySlots, candidateTimezone, isGoogleCalendarConnected } =
         await CandidateAvailability.getSavedAvailabilitySeed(user.id);
 
     return (
@@ -20,6 +20,7 @@ export default async function CandidateAvailabilityPage() {
             <CandidateAvailabilityEditor
                 initialAvailabilitySlots={initialAvailabilitySlots}
                 calendarTimezone={candidateTimezone}
+                isGoogleCalendarConnected={isGoogleCalendarConnected}
             />
         </main>
     );

@@ -52,6 +52,7 @@ describe('CandidateBookingRequestForm', () => {
                 professionalId="pro-1"
                 priceCents={25000}
                 candidateTimezone="America/Chicago"
+                isGoogleCalendarConnected
                 professionalTimezone="America/New_York"
                 initialAvailabilitySlots={initialSlots}
             />
@@ -60,6 +61,7 @@ describe('CandidateBookingRequestForm', () => {
         expect(latestPanelProps.current).toMatchObject({
             initialSelectedSlots: initialSlots,
             calendarTimezone: 'America/Chicago',
+            isGoogleCalendarConnected: true,
             professionalTimezone: 'America/New_York',
         });
     });

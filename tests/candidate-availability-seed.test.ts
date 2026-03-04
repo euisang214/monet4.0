@@ -37,7 +37,10 @@ describe('CandidateAvailability.getSavedAvailabilitySeed', () => {
         const pastStart = new Date(nowMs - 2 * 60 * 60 * 1000);
         const pastEnd = new Date(nowMs - 1 * 60 * 60 * 1000);
 
-        userFindUniqueMock.mockResolvedValue({ timezone: 'America/Chicago' });
+        userFindUniqueMock.mockResolvedValue({
+            timezone: 'America/Chicago',
+            googleCalendarConnected: true,
+        });
         getUserAvailabilityMock.mockResolvedValue([
             { busy: false, start: slotBStart, end: slotBEnd },
             { busy: true, start: slotAStart, end: slotAEnd },
@@ -49,11 +52,12 @@ describe('CandidateAvailability.getSavedAvailabilitySeed', () => {
 
         expect(userFindUniqueMock).toHaveBeenCalledWith({
             where: { id: 'cand-1' },
-            select: { timezone: true },
+            select: { timezone: true, googleCalendarConnected: true },
         });
         expect(getUserAvailabilityMock).toHaveBeenCalledWith('cand-1');
         expect(result).toEqual({
             candidateTimezone: 'America/Chicago',
+            isGoogleCalendarConnected: true,
             initialAvailabilitySlots: [
                 { start: slotAStart.toISOString(), end: slotAEnd.toISOString() },
                 { start: slotBStart.toISOString(), end: slotBEnd.toISOString() },
@@ -69,6 +73,7 @@ describe('CandidateAvailability.getSavedAvailabilitySeed', () => {
 
         expect(result).toEqual({
             candidateTimezone: 'UTC',
+            isGoogleCalendarConnected: false,
             initialAvailabilitySlots: [],
         });
     });

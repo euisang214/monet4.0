@@ -56,6 +56,7 @@ describe('BookingRequestPage preload wiring', () => {
         });
         getSavedAvailabilitySeedMock.mockResolvedValue({
             candidateTimezone: 'America/Chicago',
+            isGoogleCalendarConnected: true,
             initialAvailabilitySlots: [
                 { start: '2026-02-22T16:00:00.000Z', end: '2026-02-22T16:30:00.000Z' },
             ],
@@ -73,6 +74,7 @@ describe('BookingRequestPage preload wiring', () => {
             professionalTimezone: 'America/New_York',
             priceCents: 25000,
             candidateTimezone: 'America/Chicago',
+            isGoogleCalendarConnected: true,
             initialAvailabilitySlots: [
                 { start: '2026-02-22T16:00:00.000Z', end: '2026-02-22T16:30:00.000Z' },
             ],

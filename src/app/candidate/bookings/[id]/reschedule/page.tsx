@@ -23,6 +23,11 @@ export default async function ReschedulePage({ params }: PageProps) {
                     timezone: true,
                 },
             },
+            candidate: {
+                select: {
+                    googleCalendarConnected: true,
+                },
+            },
         },
     });
 
@@ -35,6 +40,7 @@ export default async function ReschedulePage({ params }: PageProps) {
             bookingId={booking.id}
             calendarTimezone={booking.timezone}
             professionalTimezone={booking.professional.timezone}
+            isGoogleCalendarConnected={booking.candidate.googleCalendarConnected}
         />
     );
 }

@@ -15,6 +15,7 @@ interface CandidateBookingRequestFormProps {
     priceCents: number;
     professionalTimezone?: string | null;
     candidateTimezone?: string;
+    isGoogleCalendarConnected: boolean;
     initialAvailabilitySlots?: SlotInterval[];
 }
 
@@ -23,6 +24,7 @@ export function CandidateBookingRequestForm({
     priceCents,
     professionalTimezone,
     candidateTimezone,
+    isGoogleCalendarConnected,
     initialAvailabilitySlots = [],
 }: CandidateBookingRequestFormProps) {
     const [availabilitySlots, setAvailabilitySlots] = useState<SlotInterval[]>(() => initialAvailabilitySlots);
@@ -64,6 +66,7 @@ export function CandidateBookingRequestForm({
         <div className="bg-gray-50 p-6 rounded-lg border">
             <CandidateAvailabilityPanel
                 calendarTimezone={resolvedCandidateTimezone}
+                isGoogleCalendarConnected={isGoogleCalendarConnected}
                 professionalTimezone={professionalTimezone}
                 initialSelectedSlots={initialAvailabilitySlots}
                 onSelectionChange={handleSlotSelectionChange}
