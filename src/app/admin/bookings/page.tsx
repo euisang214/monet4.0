@@ -3,8 +3,9 @@ import { AdminBookingService } from '@/lib/role/admin/bookings';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import BookingSearch from './BookingSearch';
-import { AdminDataTable, type Column } from '@/components/ui/composites/AdminDataTable';
-import { StatusBadge } from '@/components/ui/composites/StatusBadge';
+import { DataTable, EmptyState, PageHeader, type DataColumn, StatusBadge, SurfaceCard } from '@/components/ui';
+import { appRoutes } from '@/lib/shared/routes';
+import { buttonVariants } from '@/components/ui/primitives/Button';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,34 +23,43 @@ function paymentStatusVariant(status: string) {
     return 'warning' as const;
 }
 
-const columns: Column<BookingRow>[] = [
+const columns: DataColumn<BookingRow>[] = [
     {
+        key: 'id',
         header: 'ID',
-        accessor: (booking) => <span className="font-mono text-xs text-gray-500">{booking.id.slice(0, 8)}...</span>,
+        cell: (booking) => <span className="font-mono text-xs text-gray-500">{booking.id.slice(0, 8)}...</span>,
+        mobileLabel: 'Booking ID',
+        priority: 'primary',
     },
     {
+        key: 'start-date',
         header: 'Start Date',
-        accessor: (booking) => (booking.startAt ? format(new Date(booking.startAt), 'MMM d, yy') : '-'),
+        cell: (booking) => (booking.startAt ? format(new Date(booking.startAt), 'MMM d, yy') : '-'),
     },
     {
+        key: 'status',
         header: 'Status',
-        accessor: (booking) => <StatusBadge label={booking.status} variant={bookingStatusVariant(booking.status)} />,
+        cell: (booking) => <StatusBadge label={booking.status} variant={bookingStatusVariant(booking.status)} />,
     },
     {
+        key: 'candidate',
         header: 'Candidate',
-        accessor: (booking) => booking.candidateId,
+        cell: (booking) => booking.candidateId,
     },
     {
+        key: 'professional',
         header: 'Professional',
-        accessor: (booking) => booking.professionalId,
+        cell: (booking) => booking.professionalId,
     },
     {
+        key: 'date',
         header: 'Date',
-        accessor: (booking) => (booking.startAt ? format(new Date(booking.startAt), 'MMM d, h:mm a') : '-'),
+        cell: (booking) => (booking.startAt ? format(new Date(booking.startAt), 'MMM d, h:mm a') : '-'),
     },
     {
+        key: 'payment',
         header: 'Payment',
-        accessor: (booking) =>
+        cell: (booking) =>
             (booking as any).payment ? (
                 <StatusBadge
                     label={`${(booking as any).payment.status} ($${((booking as any).payment.amountGross / 100).toFixed(2)})`}
@@ -60,9 +70,16 @@ const columns: Column<BookingRow>[] = [
             ),
     },
     {
+        key: 'view',
         header: '',
-        accessor: () => null,
+        cell: (booking) => (
+            <Link href={appRoutes.admin.bookingDetails(booking.id)} className={buttonVariants({ variant: 'secondary', size: 'sm' })}>
+                View
+            </Link>
+        ),
         className: 'text-right',
+        align: 'right',
+        mobileLabel: 'Open',
     },
 ];
 
@@ -78,19 +95,29 @@ export default async function BookingsPage({
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
-            </div>
+            <PageHeader
+                eyebrow="Admin bookings"
+                title="Bookings"
+                description="Search current bookings and inspect payment state without leaving the queue."
+            />
 
-            <div className="bg-white p-4 shadow sm:rounded-lg">
+            <SurfaceCard tone="muted">
                 <BookingSearch />
-            </div>
+            </SurfaceCard>
 
-            <AdminDataTable
+            <DataTable
                 columns={columns}
                 data={bookings}
                 getRowKey={(booking) => booking.id}
-                emptyMessage="No bookings found."
+                density="compact"
+                emptyState={
+                    <EmptyState
+                        title="No bookings found."
+                        description="Adjust the query or check back after new bookings are created."
+                        badge="Queue empty"
+                        layout="inline"
+                    />
+                }
             />
         </div>
     );

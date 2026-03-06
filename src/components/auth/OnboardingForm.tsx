@@ -5,9 +5,9 @@ import { Role } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { appRoutes } from "@/lib/shared/routes";
-import { Button } from "@/components/ui/primitives/Button";
 import { NotificationBanner } from "@/components/ui/composites/NotificationBanner";
 import { useNotification } from "@/components/ui/hooks/useNotification";
+import { Button, Field, FormSection, InlineNotice, PageHeader, SurfaceCard, TextInput } from "@/components/ui";
 import {
     CandidateProfileEditor,
     CandidateProfileEditorInitialData,
@@ -92,6 +92,25 @@ export function OnboardingForm({
     }, [role, initialProfessional?.corporateEmail]);
 
     useEffect(() => {
+        if (role !== Role.PROFESSIONAL) {
+            setVerifiedEmailNormalized("");
+            return;
+        }
+
+        if (!initialProfessionalEmailVerified || !initialProfessional?.verifiedAt) {
+            setVerifiedEmailNormalized("");
+            return;
+        }
+
+        setVerifiedEmailNormalized(normalizeCorporateEmail(initialProfessional?.corporateEmail));
+    }, [
+        initialProfessional?.corporateEmail,
+        initialProfessional?.verifiedAt,
+        initialProfessionalEmailVerified,
+        role,
+    ]);
+
+    useEffect(() => {
         if (!verificationSent) return;
 
         const normalizedCurrentEmail = normalizeCorporateEmail(corporateEmail);
@@ -103,8 +122,14 @@ export function OnboardingForm({
     }, [corporateEmail, verificationSent, verificationTargetEmailNormalized]);
 
     const normalizedCorporateEmail = normalizeCorporateEmail(corporateEmail);
+    const initialVerifiedEmailNormalized =
+        role === Role.PROFESSIONAL && initialProfessionalEmailVerified && initialProfessional?.verifiedAt
+            ? normalizeCorporateEmail(initialProfessional?.corporateEmail)
+            : "";
     const isVerifiedForCurrentEmail =
-        normalizedCorporateEmail.length > 0 && normalizedCorporateEmail === verifiedEmailNormalized;
+        normalizedCorporateEmail.length > 0 &&
+        (normalizedCorporateEmail === verifiedEmailNormalized ||
+            normalizedCorporateEmail === initialVerifiedEmailNormalized);
 
     const submitOnboarding = async (payload: OnboardingSubmitPayload) => {
         clear();
@@ -218,15 +243,16 @@ export function OnboardingForm({
     };
 
     return (
-        <section className="w-full max-w-4xl mx-auto bg-white p-8 rounded-xl border border-gray-200 shadow-lg">
-            <header className="mb-6">
-                <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Onboarding</p>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Finish setting up your profile</h1>
-                <p className="text-sm text-gray-600">
-                    Complete required fields to continue as a {role === Role.PROFESSIONAL ? "professional" : "candidate"}.
-                </p>
-            </header>
-            <NotificationBanner notification={notification} />
+        <SurfaceCard className="w-full max-w-4xl mx-auto" padding="lg">
+            <PageHeader
+                eyebrow="Onboarding"
+                title="Finish setting up your profile"
+                description={`Complete required fields to continue as a ${
+                    role === Role.PROFESSIONAL ? "professional" : "candidate"
+                }.`}
+                className="mb-6"
+            />
+            <NotificationBanner notification={notification} className="mb-6" />
 
             {role === Role.CANDIDATE ? (
                 <CandidateProfileEditor
@@ -275,54 +301,60 @@ export function OnboardingForm({
                         corporateVerificationMessage="Verify your corporate email to complete onboarding."
                     />
 
-                    <section className="space-y-4 rounded-md border border-gray-200 p-4 bg-gray-50">
-                        <h2 className="text-lg font-semibold text-gray-900">Corporate Email Verification</h2>
-                        <p className="text-sm text-gray-600">
-                            Verify the corporate email listed in your profile before completing onboarding.
-                        </p>
-                        <div className="flex flex-wrap gap-2">
+                    <FormSection
+                        title="Corporate Email Verification"
+                        description="Verify the corporate email listed in your profile before completing onboarding."
+                        tone="muted"
+                        actions={
                             <Button
                                 type="button"
                                 onClick={handleVerifyEmail}
                                 disabled={verificationSent || !normalizedCorporateEmail}
+                                variant="secondary"
                             >
                                 {verificationSent ? "Sent" : "Send Code"}
                             </Button>
-                        </div>
+                        }
+                    >
+                        {isVerifiedForCurrentEmail ? (
+                            <InlineNotice tone="success" title="Verified">
+                                Corporate email is verified.
+                            </InlineNotice>
+                        ) : null}
 
                         {verificationSent ? (
-                            <div className="space-y-2">
-                                <label className="block text-sm font-medium" htmlFor="onboarding-verification-code">
-                                    Verification code
-                                </label>
-                                <div className="flex gap-2">
-                                    <input
+                            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+                                <Field
+                                    label="Verification code"
+                                    htmlFor="onboarding-verification-code"
+                                    hint="Use the most recent code sent to your corporate email."
+                                >
+                                    <TextInput
                                         id="onboarding-verification-code"
                                         type="text"
                                         value={verificationCode}
                                         onChange={(event) => setVerificationCode(event.target.value)}
-                                        className="flex-1 p-2 border rounded-md"
                                         placeholder="XXXXXX"
                                     />
-                                    <Button
-                                        type="button"
-                                        onClick={handleConfirmVerification}
-                                        disabled={verifying || !verificationCode.trim()}
-                                    >
-                                        {verifying ? "Verifying..." : "Confirm"}
-                                    </Button>
-                                </div>
+                                </Field>
+                                <Button
+                                    type="button"
+                                    onClick={handleConfirmVerification}
+                                    disabled={verifying || !verificationCode.trim()}
+                                    loading={verifying}
+                                    loadingLabel="Verifying..."
+                                >
+                                    Confirm
+                                </Button>
                             </div>
-                        ) : isVerifiedForCurrentEmail ? (
-                            <p className="text-sm text-green-700">Corporate email is verified.</p>
-                        ) : (
-                            <p className="text-sm text-amber-700">
+                        ) : !isVerifiedForCurrentEmail ? (
+                            <InlineNotice tone="warning" title="Verification required">
                                 Verify your corporate email to complete onboarding.
-                            </p>
-                        )}
-                    </section>
+                            </InlineNotice>
+                        ) : null}
+                    </FormSection>
                 </div>
             )}
-        </section>
+        </SurfaceCard>
     );
 }

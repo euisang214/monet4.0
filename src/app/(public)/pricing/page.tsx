@@ -19,7 +19,7 @@ export default function PricingPage() {
                     <div className={styles.feature}><span className={styles.checkmark}>✓</span><span>QC and dispute operations included</span></div>
                 </div>
 
-                <div style={{ marginTop: "2rem", textAlign: "center" }}>
+                <div className={styles.pricingCtaWrap}>
                     <Link href="/signup?role=professional" className="btn bg-blue-600 text-white hover:bg-blue-700">
                         Start Earning
                     </Link>

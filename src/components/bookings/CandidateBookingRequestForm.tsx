@@ -7,6 +7,7 @@ import { CandidateAvailabilityPanel } from '@/components/bookings/CandidateAvail
 import type { SlotInterval } from '@/components/bookings/calendar/types';
 import { useCandidateBookingRequest } from '@/components/bookings/hooks/useCandidateBookingRequest';
 import { appRoutes } from '@/lib/shared/routes';
+import { Button } from '@/components/ui/primitives/Button';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -63,7 +64,7 @@ export function CandidateBookingRequestForm({
     }
 
     return (
-        <div className="bg-gray-50 p-6 rounded-lg border">
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
             <CandidateAvailabilityPanel
                 calendarTimezone={resolvedCandidateTimezone}
                 isGoogleCalendarConnected={isGoogleCalendarConnected}
@@ -82,18 +83,19 @@ export function CandidateBookingRequestForm({
             </div>
 
             {error && (
-                <div className="mb-4 p-3 bg-red-100 text-red-700 rounded text-sm">
+                <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md text-sm">
                     {error}
                 </div>
             )}
 
-            <button
+            <Button
                 onClick={handleCreateRequest}
                 disabled={isSubmitting}
-                className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50 font-medium"
+                variant="primary"
+                className="w-full justify-center"
             >
                 {isSubmitting ? 'Processing...' : 'Proceed to Payment'}
-            </button>
+            </Button>
         </div>
     );
 }
@@ -132,19 +134,21 @@ function CheckoutForm({ bookingId }: { bookingId: string }) {
     };
 
     return (
-        <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg border shadow-sm">
+        <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
             <h3 className="text-lg font-medium mb-4">Complete Payment</h3>
             <PaymentElement id="payment-element" options={{ layout: 'tabs' }} />
             {message && <div id="payment-message" className="mt-4 text-red-600 text-sm">{message}</div>}
-            <button
+            <Button
+                type="submit"
                 disabled={isLoading || !stripe || !elements}
                 id="submit"
-                className="mt-6 w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50 font-medium"
+                variant="primary"
+                className="mt-6 w-full justify-center"
             >
                 <span id="button-text">
                     {isLoading ? 'Processing...' : 'Pay now'}
                 </span>
-            </button>
+            </Button>
         </form>
     );
 }

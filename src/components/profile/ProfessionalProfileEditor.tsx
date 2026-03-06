@@ -6,6 +6,14 @@ import { TimelineEntriesEditor } from "@/components/profile/shared/TimelineEntri
 import { EducationEntriesEditor } from "@/components/profile/shared/EducationEntriesEditor";
 import { SUPPORTED_TIMEZONES, normalizeTimezone } from "@/lib/utils/supported-timezones";
 import {
+    Button,
+    Field,
+    FormSection,
+    InlineNotice,
+    SelectInput,
+    TextInput,
+} from "@/components/ui";
+import {
     EducationEntry,
     ensureExactlyOneCurrentExperience,
     mapEducationEntries,
@@ -229,97 +237,89 @@ export function ProfessionalProfileEditor({
 
     return (
         <form className="space-y-8" onSubmit={handleSubmit}>
-            {error ? <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
+            {error ? (
+                <InlineNotice tone="error" title="Profile issue">
+                    {error}
+                </InlineNotice>
+            ) : null}
 
             {initialData?.title || initialData?.employer ? (
-                <p className="text-sm text-gray-600">
-                    Current role: {initialData?.title || "Unknown title"}
+                <InlineNotice tone="info" title="Current role">
+                    {initialData?.title || "Unknown title"}
                     {initialData?.employer ? ` at ${initialData.employer}` : ""}
-                </p>
+                </InlineNotice>
             ) : null}
 
             {requirePayoutReady ? (
-                <section className="space-y-3 rounded-md border border-gray-200 p-4 bg-gray-50">
-                    <h2 className="text-lg font-semibold text-gray-900">Stripe payouts</h2>
-                    <p className="text-sm text-gray-600">
-                        Connect Stripe and enable payouts before completing professional onboarding.
-                    </p>
-                    <p className={`text-sm font-medium ${payoutReady ? "text-green-700" : "text-gray-700"}`}>
+                <FormSection
+                    title="Stripe payouts"
+                    description="Connect Stripe and enable payouts before completing professional onboarding."
+                    tone="muted"
+                    actions={
+                        <Button
+                            type="button"
+                            disabled={effectiveDisabled || isConnectingStripe}
+                            onClick={handleConnectStripe}
+                            loading={isConnectingStripe}
+                            loadingLabel="Redirecting..."
+                        >
+                            {stripeStatus?.accountId ? "Manage Stripe Connection" : "Connect Stripe for Payouts"}
+                        </Button>
+                    }
+                >
+                    <InlineNotice tone={payoutReady ? "success" : "warning"} title="Payout status">
                         {payoutReady
                             ? "Stripe payouts are enabled."
                             : "Stripe payouts are not enabled yet."}
-                    </p>
-                    <button
-                        type="button"
-                        disabled={effectiveDisabled || isConnectingStripe}
-                        onClick={handleConnectStripe}
-                        className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-                    >
-                        {isConnectingStripe
-                            ? "Redirecting..."
-                            : stripeStatus?.accountId
-                              ? "Manage Stripe Connection"
-                              : "Connect Stripe for Payouts"}
-                    </button>
-                </section>
+                    </InlineNotice>
+                </FormSection>
             ) : null}
 
-            <section className="space-y-4 rounded-md border border-gray-200 p-4">
-                <h2 className="text-lg font-semibold text-gray-900">Account basics</h2>
-
+            <FormSection
+                title="Account basics"
+                description="This is the foundation candidates will use to evaluate credibility and fit."
+            >
                 <div className="grid gap-4 md:grid-cols-2">
-                    <div>
-                        <label htmlFor={`professional-first-name-${mode}`} className="block text-sm font-medium mb-1">
-                            First name
-                        </label>
-                        <input
+                    <Field label="First name" htmlFor={`professional-first-name-${mode}`}>
+                        <TextInput
                             id={`professional-first-name-${mode}`}
                             required
                             disabled={effectiveDisabled}
                             type="text"
                             value={firstName}
                             onChange={(event) => setFirstName(event.target.value)}
-                            className="w-full p-2 border rounded-md"
                             placeholder="First name"
                         />
-                    </div>
+                    </Field>
 
-                    <div>
-                        <label htmlFor={`professional-last-name-${mode}`} className="block text-sm font-medium mb-1">
-                            Last name
-                        </label>
-                        <input
+                    <Field label="Last name" htmlFor={`professional-last-name-${mode}`}>
+                        <TextInput
                             id={`professional-last-name-${mode}`}
                             required
                             disabled={effectiveDisabled}
                             type="text"
                             value={lastName}
                             onChange={(event) => setLastName(event.target.value)}
-                            className="w-full p-2 border rounded-md"
                             placeholder="Last name"
                         />
-                    </div>
+                    </Field>
                 </div>
 
-                <div>
-                    <label htmlFor={`professional-timezone-${mode}`} className="block text-sm font-medium mb-1">
-                        Timezone
-                    </label>
-                    <select
+                <Field label="Timezone" htmlFor={`professional-timezone-${mode}`}>
+                    <SelectInput
                         id={`professional-timezone-${mode}`}
                         required
                         disabled={effectiveDisabled}
                         value={timezone}
                         onChange={(event) => setTimezone(event.target.value)}
-                        className="w-full p-2 border rounded-md"
                     >
                         {SUPPORTED_TIMEZONES.map((timezoneOption) => (
                             <option key={timezoneOption} value={timezoneOption}>
                                 {timezoneOption}
                             </option>
                         ))}
-                    </select>
-                </div>
+                    </SelectInput>
+                </Field>
 
                 <ProfessionalProfileFields
                     bio={bio}
@@ -333,7 +333,7 @@ export function ProfessionalProfileEditor({
                     onInterestsChange={setInterests}
                     disabled={effectiveDisabled}
                 />
-            </section>
+            </FormSection>
 
             <TimelineEntriesEditor
                 sectionTitle="Experience"
@@ -368,19 +368,24 @@ export function ProfessionalProfileEditor({
                 disabled={effectiveDisabled}
             />
 
-            <button
+            <Button
                 type="submit"
                 disabled={
                     effectiveDisabled ||
                     (requirePayoutReady && !payoutReady) ||
                     (requireCorporateVerification && !isCorporateEmailVerified)
                 }
-                className="w-full rounded-md border border-transparent bg-black py-2 px-4 text-sm font-medium text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50"
+                className="w-full"
+                size="lg"
+                loading={isSaving}
+                loadingLabel={submittingLabel}
             >
-                {isSaving ? submittingLabel : submitLabel}
-            </button>
+                {submitLabel}
+            </Button>
             {requireCorporateVerification && !isCorporateEmailVerified ? (
-                <p className="text-sm text-amber-700">{corporateVerificationMessage}</p>
+                <InlineNotice tone="warning" title="Verification required">
+                    {corporateVerificationMessage}
+                </InlineNotice>
             ) : null}
         </form>
     );

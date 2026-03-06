@@ -6,6 +6,15 @@ import { EducationEntriesEditor } from "@/components/profile/shared/EducationEnt
 import { appRoutes } from "@/lib/shared/routes";
 import { SUPPORTED_TIMEZONES, normalizeTimezone } from "@/lib/utils/supported-timezones";
 import {
+    Button,
+    Field,
+    FileInput,
+    FormSection,
+    InlineNotice,
+    SelectInput,
+    TextInput,
+} from "@/components/ui";
+import {
     EducationEntry,
     mapEducationEntries,
     mapTimelineEntries,
@@ -194,122 +203,100 @@ export function CandidateProfileEditor({
     };
 
     const effectiveDisabled = disabled || isSaving;
+    const resumeHint = candidateResumeViewUrl ? (
+        <>
+            A resume is already on file. Upload another PDF only if you want to replace it.{" "}
+            <a href={candidateResumeViewUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
+                Open uploaded resume
+            </a>
+        </>
+    ) : (
+        "Upload a PDF resume to continue."
+    );
 
     return (
         <form className="space-y-8" onSubmit={handleSubmit}>
-            {error ? <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
+            {error ? (
+                <InlineNotice tone="error" title="Profile issue">
+                    {error}
+                </InlineNotice>
+            ) : null}
 
-            <section className="space-y-4 rounded-md border border-gray-200 p-4">
-                <h2 className="text-lg font-semibold text-gray-900">Account basics</h2>
-
+            <FormSection
+                title="Account basics"
+                description="Core details professionals will see before they ever open your resume."
+            >
                 <div className="grid gap-4 md:grid-cols-2">
-                    <div>
-                        <label htmlFor={`candidate-first-name-${mode}`} className="block text-sm font-medium mb-1">
-                            First name
-                        </label>
-                        <input
+                    <Field label="First name" htmlFor={`candidate-first-name-${mode}`}>
+                        <TextInput
                             id={`candidate-first-name-${mode}`}
                             required
                             disabled={effectiveDisabled}
                             type="text"
                             value={firstName}
                             onChange={(event) => setFirstName(event.target.value)}
-                            className="w-full p-2 border rounded-md"
                             placeholder="First name"
                         />
-                    </div>
-                    <div>
-                        <label htmlFor={`candidate-last-name-${mode}`} className="block text-sm font-medium mb-1">
-                            Last name
-                        </label>
-                        <input
+                    </Field>
+                    <Field label="Last name" htmlFor={`candidate-last-name-${mode}`}>
+                        <TextInput
                             id={`candidate-last-name-${mode}`}
                             required
                             disabled={effectiveDisabled}
                             type="text"
                             value={lastName}
                             onChange={(event) => setLastName(event.target.value)}
-                            className="w-full p-2 border rounded-md"
                             placeholder="Last name"
                         />
-                    </div>
+                    </Field>
                 </div>
 
-                <div>
-                    <label htmlFor="candidate-timezone" className="block text-sm font-medium mb-1">
-                        Timezone
-                    </label>
-                    <select
+                <Field label="Timezone" htmlFor="candidate-timezone">
+                    <SelectInput
                         id="candidate-timezone"
                         required
                         disabled={effectiveDisabled}
                         value={timezone}
                         onChange={(event) => setTimezone(event.target.value)}
-                        className="w-full p-2 border rounded-md"
                     >
                         {SUPPORTED_TIMEZONES.map((timezoneOption) => (
                             <option key={timezoneOption} value={timezoneOption}>
                                 {timezoneOption}
                             </option>
                         ))}
-                    </select>
-                </div>
+                    </SelectInput>
+                </Field>
 
-                <div className="rounded-md border border-gray-300 p-4 space-y-2">
-                    <label htmlFor={`candidate-resume-${mode}`} className="block text-sm font-medium text-gray-700">
-                        Resume (PDF)
-                    </label>
-                    {candidateResumeViewUrl ? (
-                        <div className="text-xs text-gray-600 space-y-1">
-                            <p>A resume is already on file. Upload another PDF only if you want to replace it.</p>
-                            <a
-                                href={candidateResumeViewUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-blue-600 hover:underline"
-                            >
-                                Open uploaded resume
-                            </a>
-                        </div>
-                    ) : (
-                        <p className="text-xs text-gray-500">Upload a PDF resume to continue.</p>
-                    )}
-
-                    <input
+                <Field label="Resume (PDF)" htmlFor={`candidate-resume-${mode}`} hint={resumeHint}>
+                    <FileInput
                         id={`candidate-resume-${mode}`}
                         type="file"
                         accept=".pdf,application/pdf"
                         disabled={effectiveDisabled}
                         onChange={(event) => setCandidateResumeFile(event.target.files?.[0] ?? null)}
-                        className="block w-full text-sm text-gray-500
-                            file:mr-4 file:py-2 file:px-4
-                            file:rounded-md file:border-0
-                            file:text-sm file:font-semibold
-                            file:bg-blue-50 file:text-blue-700
-                            hover:file:bg-blue-100"
                     />
 
                     {candidateResumeFile ? (
                         <p className="text-xs text-gray-500">Selected file: {candidateResumeFile.name}</p>
                     ) : null}
-                </div>
+                </Field>
 
-                <div>
-                    <label htmlFor={`candidate-interests-${mode}`} className="block text-sm font-medium mb-1">
-                        Interests (comma separated)
-                    </label>
-                    <input
+                <Field
+                    label="Interests (comma separated)"
+                    htmlFor={`candidate-interests-${mode}`}
+                    hint="Use specific interests and goals so professionals can tailor sessions."
+                >
+                    <TextInput
                         id={`candidate-interests-${mode}`}
                         required
                         disabled={effectiveDisabled}
                         type="text"
                         value={candidateInterests}
                         onChange={(event) => setCandidateInterests(event.target.value)}
-                        className="w-full p-2 border rounded-md"
                         placeholder="Poker, Tennis, Reading"
                     />
-                </div>
-            </section>
+                </Field>
+            </FormSection>
 
             <TimelineEntriesEditor
                 sectionTitle="Experience"
@@ -345,13 +332,16 @@ export function CandidateProfileEditor({
 
             {footerContent}
 
-            <button
+            <Button
                 type="submit"
+                className="w-full"
+                size="lg"
+                loading={isSaving}
+                loadingLabel={submittingLabel}
                 disabled={effectiveDisabled}
-                className="w-full rounded-md border border-transparent bg-black py-2 px-4 text-sm font-medium text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50"
             >
-                {isSaving ? submittingLabel : submitLabel}
-            </button>
+                {submitLabel}
+            </Button>
         </form>
     );
 }

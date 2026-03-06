@@ -1,9 +1,9 @@
 import { AdminPaymentService } from '@/lib/role/admin/payments';
 import { format } from 'date-fns';
 import Link from 'next/link';
-import { AdminDataTable, type Column } from '@/components/ui/composites/AdminDataTable';
-import { StatusBadge } from '@/components/ui/composites/StatusBadge';
+import { DataTable, EmptyState, PageHeader, type DataColumn, StatusBadge } from '@/components/ui';
 import { appRoutes } from '@/lib/shared/routes';
+import { buttonVariants } from '@/components/ui/primitives/Button';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,27 +15,31 @@ function paymentStatusVariant(status: string) {
     return 'neutral' as const;
 }
 
-const columns: Column<PaymentRow>[] = [
+const columns: DataColumn<PaymentRow>[] = [
     {
+        key: 'id',
         header: 'ID / Intent',
-        accessor: (payment) => (
+        cell: (payment) => (
             <>
                 <div className="font-mono text-xs">{payment.id}</div>
                 <div className="font-mono text-xs text-gray-400">{payment.stripePaymentIntentId}</div>
             </>
         ),
+        priority: 'primary',
     },
     {
+        key: 'amount',
         header: 'Amount',
-        accessor: (payment) => (
+        cell: (payment) => (
             <span className="font-medium text-gray-900">
                 {payment.amountGross ? `$${(payment.amountGross / 100).toFixed(2)}` : '-'}
             </span>
         ),
     },
     {
+        key: 'status',
         header: 'Status',
-        accessor: (payment) => (
+        cell: (payment) => (
             <StatusBadge
                 label={payment.status.replace(/_/g, ' ')}
                 variant={paymentStatusVariant(payment.status)}
@@ -43,16 +47,18 @@ const columns: Column<PaymentRow>[] = [
         ),
     },
     {
+        key: 'booking',
         header: 'Booking',
-        accessor: (payment) => (
+        cell: (payment) => (
             <Link href={appRoutes.admin.bookingDetails(payment.bookingId)} className="text-blue-600">
                 {payment.bookingId.slice(-8)}...
             </Link>
         ),
     },
     {
+        key: 'date',
         header: 'Date',
-        accessor: (payment) => format(payment.createdAt, 'MMM d, HH:mm'),
+        cell: (payment) => format(payment.createdAt, 'MMM d, HH:mm'),
     },
 ];
 
@@ -61,21 +67,30 @@ export default async function PaymentsPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold text-gray-800">Payments</h1>
-                <a
-                    href={appRoutes.api.admin.paymentsExport}
-                    className="px-4 py-2 bg-white border border-gray-300 rounded shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
-                >
+            <PageHeader
+                eyebrow="Admin payments"
+                title="Payments"
+                description="Inspect captured charges, held payments, and payout progression."
+                actions={
+                    <a href={appRoutes.api.admin.paymentsExport} className={buttonVariants({ variant: 'secondary' })}>
                     Export CSV
-                </a>
-            </div>
+                    </a>
+                }
+            />
 
-            <AdminDataTable
+            <DataTable
                 columns={columns}
                 data={payments}
                 getRowKey={(payment) => payment.id}
-                emptyMessage="No payments found."
+                density="compact"
+                emptyState={
+                    <EmptyState
+                        title="No payments found."
+                        description="Payment rows will appear here once checkout or payout activity exists."
+                        badge="Queue empty"
+                        layout="inline"
+                    />
+                }
             />
         </div>
     );

@@ -6,6 +6,8 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { OAuthProviderIcon } from "@/components/auth/OAuthProviderIcon";
 import { appRoutes } from "@/lib/shared/routes";
+import { AuthCard, AuthField, AuthMessage } from "@/components/ui/primitives/Auth";
+import { Button } from "@/components/ui/primitives/Button";
 
 const ROLE_REDIRECT_PATH = appRoutes.api.auth.callbackRedirect;
 
@@ -89,7 +91,7 @@ export function LoginForm() {
     };
 
     return (
-        <section className="w-full max-w-md mx-auto bg-white p-8 rounded-xl border border-gray-200 shadow-lg space-y-6">
+        <AuthCard>
             <header className="text-center">
                 <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Welcome Back</p>
                 <h2 className="text-3xl font-extrabold text-gray-900 mb-2">Sign in to Monet</h2>
@@ -97,31 +99,33 @@ export function LoginForm() {
             </header>
 
             {signupSuccess && (
-                <div className="rounded-md bg-green-50 p-3 text-sm text-green-700">
+                <AuthMessage tone="success">
                     Account created successfully. Sign in to continue.
-                </div>
+                </AuthMessage>
             )}
 
             <div className="space-y-3">
-                <button
+                <Button
                     type="button"
                     onClick={() => handleOAuthSignIn("google")}
                     disabled={isLoading}
-                    className="flex w-full items-center justify-center gap-3 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
+                    variant="ghost"
+                    className="w-full justify-center gap-3 shadow-sm"
                 >
                     <OAuthProviderIcon provider="google" className="h-5 w-5" />
                     Continue with Google
-                </button>
+                </Button>
 
-                <button
+                <Button
                     type="button"
                     onClick={() => handleOAuthSignIn("linkedin")}
                     disabled={isLoading}
-                    className="flex w-full items-center justify-center gap-3 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
+                    variant="ghost"
+                    className="w-full justify-center gap-3 shadow-sm"
                 >
                     <OAuthProviderIcon provider="linkedin" className="h-5 w-5" />
                     Continue with LinkedIn
-                </button>
+                </Button>
             </div>
 
             <div className="relative my-6">
@@ -134,36 +138,30 @@ export function LoginForm() {
             </div>
 
             <form className="space-y-6" onSubmit={handleSubmit}>
-                {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+                {error && <AuthMessage tone="error">{error}</AuthMessage>}
                 <div className="space-y-3">
-                    <div>
-                        <label htmlFor="email-address" className="sr-only">Email address</label>
-                        <input
-                            id="email-address"
-                            name="email"
-                            type="email"
-                            autoComplete="email"
-                            required
-                            className="relative block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-black focus:outline-none focus:ring-black sm:text-sm"
-                            placeholder="Email address"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="password" className="sr-only">Password</label>
-                        <input
-                            id="password"
-                            name="password"
-                            type="password"
-                            autoComplete="current-password"
-                            required
-                            className="relative block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-black focus:outline-none focus:ring-black sm:text-sm"
-                            placeholder="Password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                        />
-                    </div>
+                    <AuthField
+                        id="email-address"
+                        name="email"
+                        label="Email address"
+                        type="email"
+                        autoComplete="email"
+                        required
+                        placeholder="Email address"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                    />
+                    <AuthField
+                        id="password"
+                        name="password"
+                        label="Password"
+                        type="password"
+                        autoComplete="current-password"
+                        required
+                        placeholder="Password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                    />
                 </div>
 
                 <div className="flex items-center justify-between p-3">
@@ -172,13 +170,14 @@ export function LoginForm() {
                     </Link>
                 </div>
 
-                <button
+                <Button
                     type="submit"
                     disabled={isLoading}
-                    className="group relative flex w-full justify-center rounded-md border border-transparent bg-black py-2 px-4 text-sm font-medium text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50"
+                    variant="primary"
+                    className="w-full justify-center"
                 >
                     {isLoading ? "Signing in..." : "Sign in"}
-                </button>
+                </Button>
             </form>
 
             <div className="text-center text-sm">
@@ -187,6 +186,6 @@ export function LoginForm() {
                     Sign up
                 </Link>
             </div>
-        </section>
+        </AuthCard>
     );
 }

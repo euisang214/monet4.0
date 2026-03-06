@@ -1,12 +1,21 @@
 "use client";
 
 import type { Dispatch, SetStateAction } from "react";
-import { AutoResizeTextarea } from "@/components/profile/shared/AutoResizeTextarea";
 import {
     createEmptyExperienceEntry,
     ExperienceFormEntry,
     normalizeCurrentExperienceEntries,
 } from "@/components/profile/shared/profileFormAdapters";
+import {
+    Button,
+    ChoiceInput,
+    ChoiceLabel,
+    Field,
+    FormSection,
+    SurfaceCard,
+    TextAreaInput,
+    TextInput,
+} from "@/components/ui";
 
 type TimelineEntriesEditorProps = {
     sectionTitle: string;
@@ -83,15 +92,17 @@ export function TimelineEntriesEditor({
     enforceSingleCurrent = false,
     disabled = false,
 }: TimelineEntriesEditorProps) {
+    const sectionKey = sectionTitle.toLowerCase().replace(/\s+/g, "-");
+
     return (
-        <section className="space-y-4 rounded-md border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-lg font-semibold text-gray-900">{sectionTitle}</h2>
-                    <p className="text-xs text-gray-500">{sectionDescription}</p>
-                </div>
-                <button
+        <FormSection
+            title={sectionTitle}
+            description={sectionDescription}
+            actions={
+                <Button
                     type="button"
+                    variant="secondary"
+                    size="sm"
                     disabled={disabled}
                     onClick={() =>
                         setEntries((prev) => [
@@ -102,112 +113,124 @@ export function TimelineEntriesEditor({
                             },
                         ])
                     }
-                    className="rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-50"
                 >
                     {addLabel}
-                </button>
-            </div>
-
+                </Button>
+            }
+        >
             <div className="space-y-4">
                 {entries.map((entry, index) => (
-                    <article key={`${sectionTitle.toLowerCase()}-${index}`} className="rounded-md border border-gray-200 p-4 space-y-3">
+                    <SurfaceCard key={`${sectionKey}-${index}`} as="article" tone="muted" className="space-y-4">
                         <div className="flex items-center justify-between">
                             <h3 className="text-sm font-semibold text-gray-900">
                                 {entryLabelPrefix} #{index + 1}
                             </h3>
-                            <button
+                            <Button
                                 type="button"
+                                variant="ghost"
+                                size="sm"
                                 disabled={disabled || entries.length <= 1}
                                 onClick={() => removeEntry(setEntries, index, enforceSingleCurrent)}
-                                className="text-sm text-gray-600 hover:text-gray-900 disabled:opacity-40"
                             >
                                 Remove
-                            </button>
+                            </Button>
                         </div>
 
-                        <div className="grid gap-3 md:grid-cols-2">
-                            <input
-                                type="text"
-                                disabled={disabled}
-                                value={entry.title}
-                                onChange={(event) =>
-                                    updateEntry(setEntries, index, "title", event.target.value, enforceSingleCurrent)
-                                }
-                                className="w-full p-2 border rounded-md"
-                                placeholder={titlePlaceholder}
-                            />
-                            <input
-                                type="text"
-                                disabled={disabled}
-                                value={entry.company}
-                                onChange={(event) =>
-                                    updateEntry(setEntries, index, "company", event.target.value, enforceSingleCurrent)
-                                }
-                                className="w-full p-2 border rounded-md"
-                                placeholder={companyPlaceholder}
-                            />
-                            <input
-                                type="text"
-                                disabled={disabled}
-                                value={entry.location}
-                                onChange={(event) =>
-                                    updateEntry(setEntries, index, "location", event.target.value, enforceSingleCurrent)
-                                }
-                                className="w-full p-2 border rounded-md"
-                                placeholder="Location (optional)"
-                            />
-                            <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-                                <input
-                                    type={enforceSingleCurrent ? "radio" : "checkbox"}
-                                    name={enforceSingleCurrent ? `${sectionTitle.toLowerCase()}-current` : undefined}
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <Field label="Title" htmlFor={`${sectionKey}-title-${index}`}>
+                                <TextInput
+                                    id={`${sectionKey}-title-${index}`}
+                                    type="text"
                                     disabled={disabled}
-                                    checked={entry.isCurrent}
+                                    value={entry.title}
                                     onChange={(event) =>
-                                        updateEntry(setEntries, index, "isCurrent", event.target.checked, enforceSingleCurrent)
+                                        updateEntry(setEntries, index, "title", event.target.value, enforceSingleCurrent)
                                     }
+                                    placeholder={titlePlaceholder}
                                 />
-                                {currentLabel}
-                            </label>
-                            <div>
-                                <p className="text-xs text-gray-500 mb-1">Start date</p>
-                                <input
+                            </Field>
+                            <Field label="Company" htmlFor={`${sectionKey}-company-${index}`}>
+                                <TextInput
+                                    id={`${sectionKey}-company-${index}`}
+                                    type="text"
+                                    disabled={disabled}
+                                    value={entry.company}
+                                    onChange={(event) =>
+                                        updateEntry(setEntries, index, "company", event.target.value, enforceSingleCurrent)
+                                    }
+                                    placeholder={companyPlaceholder}
+                                />
+                            </Field>
+                            <Field label="Location" htmlFor={`${sectionKey}-location-${index}`}>
+                                <TextInput
+                                    id={`${sectionKey}-location-${index}`}
+                                    type="text"
+                                    disabled={disabled}
+                                    value={entry.location}
+                                    onChange={(event) =>
+                                        updateEntry(setEntries, index, "location", event.target.value, enforceSingleCurrent)
+                                    }
+                                    placeholder="Location (optional)"
+                                />
+                            </Field>
+                            <Field label="Status">
+                                <ChoiceLabel>
+                                    <ChoiceInput
+                                        type={enforceSingleCurrent ? "radio" : "checkbox"}
+                                        name={enforceSingleCurrent ? `${sectionKey}-current` : undefined}
+                                        disabled={disabled}
+                                        checked={entry.isCurrent}
+                                        onChange={(event) =>
+                                            updateEntry(setEntries, index, "isCurrent", event.target.checked, enforceSingleCurrent)
+                                        }
+                                    />
+                                    {currentLabel}
+                                </ChoiceLabel>
+                            </Field>
+                            <Field label="Start date" htmlFor={`${sectionKey}-start-${index}`}>
+                                <TextInput
+                                    id={`${sectionKey}-start-${index}`}
                                     type="date"
                                     disabled={disabled}
                                     value={entry.startDate}
                                     onChange={(event) =>
                                         updateEntry(setEntries, index, "startDate", event.target.value, enforceSingleCurrent)
                                     }
-                                    className="w-full p-2 border rounded-md"
                                 />
-                            </div>
-                            <div>
-                                <p className="text-xs text-gray-500 mb-1">End date</p>
-                                <input
+                            </Field>
+                            <Field label="End date" htmlFor={`${sectionKey}-end-${index}`}>
+                                <TextInput
+                                    id={`${sectionKey}-end-${index}`}
                                     type="date"
                                     disabled={disabled || entry.isCurrent}
                                     value={entry.endDate}
                                     onChange={(event) =>
                                         updateEntry(setEntries, index, "endDate", event.target.value, enforceSingleCurrent)
                                     }
-                                    className="w-full p-2 border rounded-md disabled:bg-gray-50"
                                 />
-                            </div>
+                            </Field>
                         </div>
 
-                        <AutoResizeTextarea
-                            disabled={disabled}
-                            value={entry.description}
-                            onChange={(event) =>
-                                updateEntry(setEntries, index, "description", event.target.value, enforceSingleCurrent)
-                            }
-                            className="w-full p-2 border rounded-md"
-                            rows={3}
-                            style={{ minHeight: "5rem" }}
-                            placeholder="Description (optional)"
-                        />
-                    </article>
+                        <Field
+                            label="Description"
+                            htmlFor={`${sectionKey}-description-${index}`}
+                            hint="Keep this concise. Candidates mostly need context and outcomes."
+                        >
+                            <TextAreaInput
+                                id={`${sectionKey}-description-${index}`}
+                                disabled={disabled}
+                                value={entry.description}
+                                onChange={(event) =>
+                                    updateEntry(setEntries, index, "description", event.target.value, enforceSingleCurrent)
+                                }
+                                rows={3}
+                                autoResize
+                                placeholder="Description (optional)"
+                            />
+                        </Field>
+                    </SurfaceCard>
                 ))}
             </div>
-        </section>
+        </FormSection>
     );
 }

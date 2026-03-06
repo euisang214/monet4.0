@@ -9,7 +9,8 @@ describe("LandingPageContent", () => {
             <LandingPageContent audience="candidate" onAudienceChange={() => {}} />
         );
 
-        expect(html).toContain("Career Advice That Actually Moves the Needle");
+        expect(html).toContain("Structured recruiting prep.");
+        expect(html).toContain("Real professionals.");
         expect(html).toContain("Browse Professionals");
         expect(html).toContain('href="/signup?role=candidate"');
     });
@@ -19,7 +20,8 @@ describe("LandingPageContent", () => {
             <LandingPageContent audience="professional" onAudienceChange={() => {}} />
         );
 
-        expect(html).toContain("Turn Your Experience Into Impact and Income");
+        expect(html).toContain("Turn Your Experience Into");
+        expect(html).toContain("Impact and Income");
         expect(html).toContain("Become a Professional");
         expect(html).toContain('href="/signup?role=professional"');
     });

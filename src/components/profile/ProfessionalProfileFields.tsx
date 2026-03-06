@@ -1,6 +1,6 @@
 "use client";
 
-import { AutoResizeTextarea } from "@/components/profile/shared/AutoResizeTextarea";
+import { Field, TextAreaInput, TextInput } from "@/components/ui";
 
 type ProfessionalProfileFieldsProps = {
     bio: string;
@@ -30,69 +30,74 @@ export function ProfessionalProfileFields({
     return (
         <div className="grid gap-4 md:grid-cols-2">
             <div className="md:col-span-2">
-                <label htmlFor="professional-bio" className="block text-sm font-medium mb-1">
-                    Bio
-                </label>
-                <AutoResizeTextarea
-                    id="professional-bio"
-                    required
-                    disabled={disabled}
-                    value={bio}
-                    onChange={(event) => onBioChange(event.target.value)}
-                    className="w-full p-2 border rounded-md"
-                    rows={5}
-                    style={{ minHeight: "7rem" }}
-                />
+                <Field
+                    label="Bio"
+                    htmlFor="professional-bio"
+                    hint="Focus on the perspective, industries, and outcomes candidates can expect from a session."
+                >
+                    <TextAreaInput
+                        id="professional-bio"
+                        required
+                        disabled={disabled}
+                        value={bio}
+                        onChange={(event) => onBioChange(event.target.value)}
+                        rows={5}
+                        autoResize
+                        tall
+                    />
+                </Field>
             </div>
 
             <div>
-                <label htmlFor="professional-price" className="block text-sm font-medium mb-1">
-                    Hourly rate ($)
-                </label>
-                <input
-                    id="professional-price"
-                    required
-                    disabled={disabled}
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    value={price}
-                    onChange={(event) => onPriceChange(event.target.value)}
-                    className="w-full p-2 border rounded-md"
-                />
+                <Field label="Hourly rate ($)" htmlFor="professional-price">
+                    <TextInput
+                        id="professional-price"
+                        required
+                        disabled={disabled}
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={price}
+                        onChange={(event) => onPriceChange(event.target.value)}
+                    />
+                </Field>
             </div>
 
             {showCorporateEmail ? (
                 <div>
-                    <label htmlFor="professional-corporate-email" className="block text-sm font-medium mb-1">
-                        Corporate email
-                    </label>
-                    <input
-                        id="professional-corporate-email"
-                        required
-                        disabled={disabled}
-                        type="email"
-                        value={corporateEmail}
-                        onChange={(event) => onCorporateEmailChange(event.target.value)}
-                        className="w-full p-2 border rounded-md"
-                    />
+                    <Field
+                        label="Corporate email"
+                        htmlFor="professional-corporate-email"
+                        hint="Use the inbox tied to your current employer for verification."
+                    >
+                        <TextInput
+                            id="professional-corporate-email"
+                            required
+                            disabled={disabled}
+                            type="email"
+                            value={corporateEmail}
+                            onChange={(event) => onCorporateEmailChange(event.target.value)}
+                        />
+                    </Field>
                 </div>
             ) : null}
 
             <div className="md:col-span-2">
-                <label htmlFor="professional-interests" className="block text-sm font-medium mb-1">
-                    Interests (comma separated)
-                </label>
-                <input
-                    id="professional-interests"
-                    required
-                    disabled={disabled}
-                    type="text"
-                    value={interests}
-                    onChange={(event) => onInterestsChange(event.target.value)}
-                    className="w-full p-2 border rounded-md"
-                    placeholder="Mentorship, Interview Coaching, Leadership"
-                />
+                <Field
+                    label="Interests (comma separated)"
+                    htmlFor="professional-interests"
+                    hint="This helps Monet position your profile in browse and booking flows."
+                >
+                    <TextInput
+                        id="professional-interests"
+                        required
+                        disabled={disabled}
+                        type="text"
+                        value={interests}
+                        onChange={(event) => onInterestsChange(event.target.value)}
+                        placeholder="Mentorship, Interview Coaching, Leadership"
+                    />
+                </Field>
             </div>
         </div>
     );

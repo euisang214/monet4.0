@@ -153,7 +153,7 @@ describe("ProfessionalProfileEditor", () => {
         );
 
         expect(html).toContain("Verify your corporate email to complete onboarding.");
-        expect(html).toContain('type="submit" disabled=""');
+        expect(html).toMatch(/<button type="submit"[^>]*disabled=""[^>]*>Complete onboarding<\/button>/);
     });
 
     it("enables submit when corporate verification is required and verified", () => {
@@ -202,6 +202,7 @@ describe("ProfessionalProfileEditor", () => {
         );
 
         expect(html).not.toContain("Verify your corporate email to complete onboarding.");
-        expect(html).not.toContain('type="submit" disabled=""');
+        expect(html).toMatch(/<button type="submit"[^>]*>Complete onboarding<\/button>/);
+        expect(html).not.toMatch(/<button type="submit"[^>]*disabled=""[^>]*>Complete onboarding<\/button>/);
     });
 });

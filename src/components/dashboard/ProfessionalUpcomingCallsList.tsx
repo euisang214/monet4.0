@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { appRoutes } from "@/lib/shared/routes";
 import { formatInTimeZone } from "@/lib/utils/timezones";
 import { normalizeTimezone } from "@/lib/utils/supported-timezones";
+import { Button, InlineNotice, SurfaceCard } from "@/components/ui";
 
 interface UpcomingCall {
     id: string;
@@ -108,9 +109,9 @@ export function ProfessionalUpcomingCallsList({ bookings, professionalTimezone }
     return (
         <div className="space-y-3">
             {error ? (
-                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                <InlineNotice tone="error" title="Action failed">
                     {error}
-                </div>
+                </InlineNotice>
             ) : null}
 
             {bookings.map((booking) => {
@@ -119,7 +120,7 @@ export function ProfessionalUpcomingCallsList({ bookings, professionalTimezone }
                 const joinUrl = booking.professionalZoomJoinUrl || booking.zoomJoinUrl;
 
                 return (
-                    <article key={booking.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                    <SurfaceCard key={booking.id} as="article">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <div>
                                 <p className="font-semibold text-gray-900">{booking.candidateLabel}</p>
@@ -127,33 +128,39 @@ export function ProfessionalUpcomingCallsList({ bookings, professionalTimezone }
                             </div>
 
                             <div className="flex flex-wrap gap-2">
-                                <button
+                                <Button
                                     type="button"
                                     onClick={() => handleCancel(booking.id)}
                                     disabled={Boolean(pendingAction)}
-                                    className="btn border border-red-200 bg-white text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                    variant="danger"
+                                    size="sm"
+                                    loading={cancelling}
+                                    loadingLabel="Cancelling..."
                                 >
-                                    {cancelling ? "Cancelling..." : "Cancel"}
-                                </button>
-                                <button
+                                    Cancel
+                                </Button>
+                                <Button
                                     type="button"
                                     onClick={() => handleReschedule(booking.id)}
                                     disabled={Boolean(pendingAction)}
-                                    className="btn border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                    variant="ghost"
+                                    size="sm"
+                                    loading={rescheduling}
+                                    loadingLabel="Rescheduling..."
                                 >
-                                    {rescheduling ? "Rescheduling..." : "Reschedule"}
-                                </button>
-                                <button
+                                    Reschedule
+                                </Button>
+                                <Button
                                     type="button"
                                     onClick={() => handleJoin(joinUrl)}
                                     disabled={!joinUrl}
-                                    className="btn bg-blue-600 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                    size="sm"
                                 >
                                     Join Zoom
-                                </button>
+                                </Button>
                             </div>
                         </div>
-                    </article>
+                    </SurfaceCard>
                 );
             })}
         </div>

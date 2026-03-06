@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { appRoutes } from "@/lib/shared/routes";
+import { Button, InlineNotice } from "@/components/ui";
+import { buttonVariants } from "@/components/ui/primitives/Button";
 
 interface ProfessionalRequestActionsProps {
     bookingId: string;
@@ -68,7 +70,7 @@ export function ProfessionalRequestActions({
     return (
         <div className="mt-4 space-y-2">
             <div className="flex gap-2 flex-wrap">
-                <Link href={reviewHref} className="btn bg-blue-600 text-white hover:bg-blue-700 text-sm">
+                <Link href={reviewHref} className={buttonVariants({ size: "sm" })}>
                     {reviewLabel}
                 </Link>
 
@@ -77,27 +79,34 @@ export function ProfessionalRequestActions({
                         href={resumeUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="btn bg-gray-100 text-gray-800 hover:bg-gray-200 text-sm"
+                        className={buttonVariants({ variant: "secondary", size: "sm" })}
                     >
                         View resume
                     </a>
                 ) : (
-                    <span className="btn bg-gray-100 text-gray-400 text-sm cursor-not-allowed">
+                    <span className={buttonVariants({ variant: "secondary", size: "sm" })}>
                         Resume unavailable
                     </span>
                 )}
 
-                <button
+                <Button
                     type="button"
                     onClick={handleReject}
                     disabled={isRejecting}
-                    className="btn bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 text-sm disabled:opacity-60"
+                    variant="danger"
+                    size="sm"
+                    loading={isRejecting}
+                    loadingLabel="Rejecting..."
                 >
-                    {isRejecting ? "Rejecting..." : rejectLabel}
-                </button>
+                    {rejectLabel}
+                </Button>
             </div>
 
-            {error ? <p className="text-xs text-red-600">{error}</p> : null}
+            {error ? (
+                <InlineNotice tone="error" title="Request update failed">
+                    {error}
+                </InlineNotice>
+            ) : null}
         </div>
     );
 }

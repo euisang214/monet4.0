@@ -2,13 +2,13 @@ import React from "react";
 import Link from "next/link";
 import { requireRole } from "@/lib/core/api-helpers";
 import { ProfessionalDashboardService, type ProfessionalDashboardView } from "@/lib/role/professional/dashboard";
-import { StatsCard } from "@/components/dashboard/StatsCard";
 import { ProfessionalRequestListItem } from "@/components/bookings/ProfessionalRequestListItem";
 import { FeedbackTaskCard } from "@/components/dashboard/FeedbackTaskCard";
 import { Role } from "@prisma/client";
-import { EmptyState } from "@/components/ui/composites/EmptyState";
+import { EmptyState, MetricCard, PageHeader, SectionTabs, SurfaceCard } from "@/components/ui";
 import { ProfessionalUpcomingCallsList } from "@/components/dashboard/ProfessionalUpcomingCallsList";
 import { appRoutes } from "@/lib/shared/routes";
+import { buttonVariants } from "@/components/ui/primitives/Button";
 
 const DASHBOARD_VIEWS: ProfessionalDashboardView[] = ["upcoming", "requested", "reschedule", "pending_feedback"];
 const DEFAULT_VIEW: ProfessionalDashboardView = "upcoming";
@@ -96,39 +96,28 @@ export default async function ProfessionalDashboardPage({
     const upcomingItems = items as Parameters<typeof ProfessionalUpcomingCallsList>[0]["bookings"];
     const requestItems = items as Array<Parameters<typeof ProfessionalRequestListItem>[0]["booking"]>;
     const feedbackItems = items as Array<Parameters<typeof FeedbackTaskCard>[0]["booking"]>;
+    const tabItems = DASHBOARD_VIEWS.map((view) => ({
+        value: view,
+        label: VIEW_META[view].title,
+        href: sectionUrl(view),
+        count: sectionCounts[view],
+    }));
 
     return (
-        <div className="container py-8">
-            <header className="mb-8">
-                <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Professional Dashboard</p>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Upcoming calls, tasks, and candidate feedback</h1>
-                <p className="text-gray-600">Stay on top of scheduled sessions, open tasks, and recent candidate ratings.</p>
-            </header>
+        <div className="space-y-8">
+            <PageHeader
+                eyebrow="Professional dashboard"
+                title="Upcoming calls, tasks, and candidate feedback"
+                description="Stay on top of scheduled sessions, open tasks, and recent candidate ratings."
+            />
 
             <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2">
-                <StatsCard label="Upcoming Bookings" value={stats.upcomingBookingsCount} />
-                <StatsCard label="Pending Feedback" value={stats.pendingFeedbackCount} />
+                <MetricCard label="Upcoming Bookings" value={stats.upcomingBookingsCount} />
+                <MetricCard label="Pending Feedback" value={stats.pendingFeedbackCount} />
             </div>
 
             <section className="mb-8 space-y-4">
-                <nav className="flex flex-wrap gap-2" aria-label="Dashboard sections">
-                    {DASHBOARD_VIEWS.map((view) => {
-                        const isActive = view === activeView;
-                        const label = VIEW_META[view].title;
-                        return (
-                            <Link
-                                key={view}
-                                href={sectionUrl(view)}
-                                className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors ${isActive
-                                        ? "border-blue-600 bg-blue-600 text-white"
-                                        : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"
-                                    }`}
-                            >
-                                {label} ({sectionCounts[view]})
-                            </Link>
-                        );
-                    })}
-                </nav>
+                <SectionTabs items={tabItems} currentValue={activeView} aria-label="Dashboard sections" />
 
                 <div className="flex items-start justify-between gap-4">
                     <div>
@@ -145,6 +134,7 @@ export default async function ProfessionalDashboardPage({
                         badge="Queue clear"
                         title={activeMeta.emptyTitle}
                         description={activeMeta.emptyDescription}
+                        layout="inline"
                     />
                 ) : null}
 
@@ -175,7 +165,7 @@ export default async function ProfessionalDashboardPage({
                     {resolvedSearchParams.cursor ? (
                         <Link
                             href={sectionUrl(activeView)}
-                            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                            className={buttonVariants({ variant: "secondary" })}
                         >
                             Back to first page
                         </Link>
@@ -184,7 +174,7 @@ export default async function ProfessionalDashboardPage({
                     {nextCursor ? (
                         <Link
                             href={sectionUrl(activeView, nextCursor)}
-                            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                            className={buttonVariants({ variant: "secondary" })}
                         >
                             Older
                         </Link>
@@ -193,8 +183,14 @@ export default async function ProfessionalDashboardPage({
             </section>
 
             <section>
-                <h2 className="mb-4 text-xl font-semibold text-gray-900">Recent Feedback</h2>
-                <div className="mb-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                <PageHeader
+                    eyebrow="Recent feedback"
+                    title="Rating summary"
+                    description="A quick view of recent candidate sentiment."
+                    meta={`${reviewStats.count} review${reviewStats.count === 1 ? "" : "s"}`}
+                    className="mb-4"
+                />
+                <SurfaceCard className="mb-4">
                     <p className="text-xs uppercase tracking-wide text-gray-500">Rating Summary</p>
                     <div className="mt-2 flex items-baseline gap-2">
                         <span className="text-3xl font-bold text-gray-900">{averageRating ?? "No ratings"}</span>
@@ -202,18 +198,19 @@ export default async function ProfessionalDashboardPage({
                             {reviewStats.count} total review{reviewStats.count === 1 ? "" : "s"}
                         </span>
                     </div>
-                </div>
+                </SurfaceCard>
 
                 {recentFeedback.length === 0 ? (
                     <EmptyState
                         badge="No reviews yet"
                         title="No recent feedback"
                         description="Candidate reviews will appear here after completed calls are rated."
+                        layout="inline"
                     />
                 ) : (
                     <div className="space-y-4">
                         {recentFeedback.map((review) => (
-                            <article key={review.bookingId} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                            <SurfaceCard key={review.bookingId} as="article">
                                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                                     <h4 className="font-semibold text-gray-900">{review.candidateLabel || "Candidate"}</h4>
                                     <p className="text-sm text-gray-500">
@@ -223,7 +220,7 @@ export default async function ProfessionalDashboardPage({
                                 <p className="mt-2 text-sm text-gray-700">
                                     {review.text?.trim() ? review.text : "No written feedback provided."}
                                 </p>
-                            </article>
+                            </SurfaceCard>
                         ))}
                     </div>
                 )}

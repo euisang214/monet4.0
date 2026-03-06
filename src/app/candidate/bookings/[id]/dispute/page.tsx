@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { DisputeReason } from '@prisma/client';
 import { appRoutes } from '@/lib/shared/routes';
 
-export default function DisputePage({ params }: { params: { id: string } }) {
+export default function DisputePage() {
+    const { id } = useParams<{ id: string }>();
     const router = useRouter();
     const [reason, setReason] = useState<DisputeReason | ''>('');
     const [description, setDescription] = useState('');
@@ -22,7 +23,7 @@ export default function DisputePage({ params }: { params: { id: string } }) {
         setError(null);
 
         try {
-            const res = await fetch(appRoutes.api.candidate.bookingDispute(params.id), {
+            const res = await fetch(appRoutes.api.candidate.bookingDispute(id), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ reason, description }),
@@ -33,7 +34,7 @@ export default function DisputePage({ params }: { params: { id: string } }) {
                 throw new Error(data.error || 'Failed to submit dispute');
             }
 
-            router.push(appRoutes.candidate.bookingDetails(params.id));
+            router.push(appRoutes.candidate.bookingDetails(id));
             router.refresh();
         } catch (err: any) {
             setError(err.message);

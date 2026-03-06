@@ -1,0 +1,54 @@
+.card {
+  display: grid;
+  gap: 1rem;
+}
+
+.line,
+.heading,
+.body {
+  position: relative;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(11, 29, 83, 0.08);
+}
+
+.heading {
+  width: 38%;
+  height: 0.95rem;
+}
+
+.line {
+  width: 52%;
+  height: 0.85rem;
+}
+
+.body {
+  width: 100%;
+  height: 5rem;
+  border-radius: 18px;
+}
+
+.heading::after,
+.line::after,
+.body::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.72), transparent);
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heading::after,
+  .line::after,
+  .body::after {
+    animation: none;
+  }
+}

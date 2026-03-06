@@ -4,9 +4,9 @@ import { ProfessionalRequestService } from '@/lib/role/professional/requests';
 import { Role } from '@prisma/client';
 export const GET = withRoleContext(
     Role.PROFESSIONAL,
-    async (req: Request, { user }, { params }: { params: { id: string } }) => {
+    async (req: Request, { user }, { params }: { params: Promise<{ id: string }> }) => {
     try {
-        const { id } = params;
+        const { id } = await params;
 
         const slots = await ProfessionalRequestService.getBookingCandidateAvailability(
             id,
@@ -26,9 +26,9 @@ const confirmSchema = z.object({
 
 export const POST = withRoleContext(
     Role.PROFESSIONAL,
-    async (req: Request, { user }, { params }: { params: { id: string } }) => {
+    async (req: Request, { user }, { params }: { params: Promise<{ id: string }> }) => {
     try {
-        const { id } = params;
+        const { id } = await params;
 
         const body = await req.json();
         const { startAt } = confirmSchema.parse(body);

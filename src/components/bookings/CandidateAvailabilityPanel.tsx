@@ -5,6 +5,7 @@ import { CandidateWeeklySlotPicker } from '@/components/bookings/WeeklySlotCalen
 import type { SlotInterval } from '@/components/bookings/calendar/types';
 import { countHalfHourSlots } from '@/components/bookings/calendar/interval-utils';
 import { useCandidateGoogleBusy } from '@/components/bookings/hooks/useCandidateGoogleBusy';
+import { Button } from '@/components/ui/primitives/Button';
 
 interface CandidateAvailabilityPanelProps {
     calendarTimezone?: string;
@@ -56,17 +57,18 @@ export function CandidateAvailabilityPanel({
     return (
         <div className={className}>
             <div className="mb-3 flex flex-wrap items-center gap-3">
-                <button
+                <Button
                     type="button"
                     onClick={() => {
                         if (!isGoogleCalendarConnected) return;
                         void refreshGoogleBusy();
                     }}
                     disabled={isLoadingBusy || !isGoogleCalendarConnected}
-                    className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
+                    variant="ghost"
+                    size="sm"
                 >
                     {isLoadingBusy ? 'Refreshing calendar...' : 'Refresh Google Calendar'}
-                </button>
+                </Button>
                 {lastBusyRefreshAt && (
                     <span className="text-xs text-gray-500">
                         Last synced {lastBusyRefreshAt.toLocaleTimeString()}

@@ -1,0 +1,40 @@
+.notice {
+  display: grid;
+  gap: 0.35rem;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  padding: 0.95rem 1rem;
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.title {
+  font-size: 0.84rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.toneSuccess {
+  background: var(--status-success-bg);
+  border-color: rgba(23, 97, 73, 0.18);
+  color: var(--status-success-fg);
+}
+
+.toneError {
+  background: var(--status-danger-bg);
+  border-color: rgba(166, 53, 53, 0.18);
+  color: var(--status-danger-fg);
+}
+
+.toneWarning {
+  background: var(--status-warning-bg);
+  border-color: rgba(137, 96, 17, 0.18);
+  color: var(--status-warning-fg);
+}
+
+.toneInfo {
+  background: var(--status-info-bg);
+  border-color: rgba(34, 77, 128, 0.18);
+  color: var(--status-info-fg);
+}

@@ -80,6 +80,11 @@
   transform: translateY(1px);
 }
 
+.navLink:focus-visible {
+  outline: 2px solid var(--tone-7);
+  outline-offset: 2px;
+}
+
 .navLinkCta {
   background: var(--primary);
   color: var(--button-text);
@@ -91,6 +96,11 @@
   box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
   transform: translateY(1px);
   color: var(--button-text);
+}
+
+.navLinkCta:focus-visible {
+  outline: 2px solid var(--tone-7);
+  outline-offset: 2px;
 }
 
 .hero {
@@ -375,6 +385,11 @@
   margin: 0 auto;
 }
 
+.pricingCtaWrap {
+  margin-top: 2rem;
+  text-align: center;
+}
+
 .feature {
   display: flex;
   align-items: center;
@@ -462,5 +477,19 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero,
+  .step,
+  .roleContentSwap {
+    animation: none !important;
+  }
+
+  .navLink,
+  .navLinkCta,
+  .audienceOption {
+    transition: none !important;
   }
 }

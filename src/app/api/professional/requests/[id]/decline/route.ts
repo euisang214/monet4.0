@@ -9,9 +9,9 @@ const declineSchema = z.object({
 
 export const POST = withRoleContext(
     Role.PROFESSIONAL,
-    async (req: Request, { user }, { params }: { params: { id: string } }) => {
+    async (req: Request, { user }, { params }: { params: Promise<{ id: string }> }) => {
     try {
-        const { id } = params;
+        const { id } = await params;
 
         const body = await req.json();
         const { reason } = declineSchema.parse(body);

@@ -1,0 +1,42 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  height: 100%;
+}
+
+.header {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.eyebrow {
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.bio {
+  min-height: 3.5rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  justify-content: space-between;
+  margin-top: auto;
+}
+
+.price {
+  margin-left: auto;
+  color: var(--text);
+  font-size: 1.4rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}

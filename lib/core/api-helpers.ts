@@ -84,7 +84,7 @@ export function withRoleContext<TArgs extends unknown[]>(role: Role, handler: Wi
 }
 
 export function withRole<TArgs extends unknown[]>(role: Role, handler: ApiHandler<TArgs>) {
-    return withRoleContext(role, async (req, _context, ...args) => {
+    return withRoleContext(role, async (req, _context, ...args: TArgs) => {
         return handler(req, ...args)
     })
 }

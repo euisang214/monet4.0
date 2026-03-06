@@ -1,7 +1,7 @@
 import { AdminUserService } from '@/lib/role/admin/users';
-import { AdminDataTable, type Column } from '@/components/ui/composites/AdminDataTable';
-import { StatusBadge } from '@/components/ui/composites/StatusBadge';
+import { DataTable, EmptyState, PageHeader, type DataColumn, StatusBadge } from '@/components/ui';
 import { appRoutes } from '@/lib/shared/routes';
+import { buttonVariants } from '@/components/ui/primitives/Button';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,18 +13,22 @@ function roleBadgeVariant(role: string) {
     return 'neutral' as const;
 }
 
-const columns: Column<UserRow>[] = [
+const columns: DataColumn<UserRow>[] = [
     {
+        key: 'email',
         header: 'Email',
-        accessor: (user) => <span className="font-medium text-gray-900">{user.email}</span>,
+        cell: (user) => <span className="font-medium text-gray-900">{user.email}</span>,
+        priority: 'primary',
     },
     {
+        key: 'role',
         header: 'Role',
-        accessor: (user) => <StatusBadge label={user.role} variant={roleBadgeVariant(user.role)} />,
+        cell: (user) => <StatusBadge label={user.role} variant={roleBadgeVariant(user.role)} />,
     },
     {
+        key: 'status',
         header: 'Status',
-        accessor: (user) =>
+        cell: (user) =>
             user.corporateEmailVerified && user.role === 'PROFESSIONAL' ? (
                 <span className="text-green-600 flex items-center gap-1">Verified</span>
             ) : (
@@ -38,21 +42,30 @@ export default async function UsersPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold text-gray-800">Users</h1>
-                <a
-                    href={appRoutes.api.admin.usersExport}
-                    className="px-4 py-2 bg-white border border-gray-300 rounded shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
-                >
+            <PageHeader
+                eyebrow="Admin users"
+                title="Users"
+                description="Audit account roles and corporate verification status."
+                actions={
+                    <a href={appRoutes.api.admin.usersExport} className={buttonVariants({ variant: 'secondary' })}>
                     Export CSV
-                </a>
-            </div>
+                    </a>
+                }
+            />
 
-            <AdminDataTable
+            <DataTable
                 columns={columns}
                 data={users}
                 getRowKey={(user) => user.id}
-                emptyMessage="No users found."
+                density="compact"
+                emptyState={
+                    <EmptyState
+                        title="No users found."
+                        description="There are no users matching the current data set."
+                        badge="Queue empty"
+                        layout="inline"
+                    />
+                }
             />
         </div>
     );

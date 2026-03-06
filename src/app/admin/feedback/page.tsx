@@ -1,9 +1,9 @@
 import { AdminFeedbackService } from '@/lib/role/admin/feedback';
 import { format } from 'date-fns';
 import Link from 'next/link';
-import { AdminDataTable, type Column } from '@/components/ui/composites/AdminDataTable';
-import { StatusBadge } from '@/components/ui/composites/StatusBadge';
+import { DataTable, EmptyState, PageHeader, type DataColumn, StatusBadge } from '@/components/ui';
 import { appRoutes } from '@/lib/shared/routes';
+import { buttonVariants } from '@/components/ui/primitives/Button';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,34 +15,40 @@ function qcStatusVariant(status: string) {
     return 'danger' as const;
 }
 
-const columns: Column<FeedbackRow>[] = [
+const columns: DataColumn<FeedbackRow>[] = [
     {
+        key: 'booking',
         header: 'Booking',
-        accessor: (fb) => (
+        cell: (fb) => (
             <Link href={appRoutes.admin.bookingDetails(fb.bookingId)} className="text-blue-600">
                 {fb.bookingId.slice(-8)}...
             </Link>
         ),
+        priority: 'primary',
     },
     {
+        key: 'qc-status',
         header: 'QC Status',
-        accessor: (fb) => <StatusBadge label={fb.qcStatus} variant={qcStatusVariant(fb.qcStatus)} />,
+        cell: (fb) => <StatusBadge label={fb.qcStatus} variant={qcStatusVariant(fb.qcStatus)} />,
     },
     {
+        key: 'ratings',
         header: 'Ratings (C/D/V)',
-        accessor: (fb) => (
+        cell: (fb) => (
             <span className="font-mono text-gray-700">
                 {fb.contentRating}/{fb.deliveryRating}/{fb.valueRating}
             </span>
         ),
     },
     {
+        key: 'word-count',
         header: 'Word Count',
-        accessor: (fb) => fb.wordCount,
+        cell: (fb) => fb.wordCount,
     },
     {
+        key: 'submitted',
         header: 'Submitted',
-        accessor: (fb) => format(fb.submittedAt, 'MMM d, HH:mm'),
+        cell: (fb) => format(fb.submittedAt, 'MMM d, HH:mm'),
     },
 ];
 
@@ -51,21 +57,30 @@ export default async function FeedbackPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold text-gray-800">Feedback</h1>
-                <a
-                    href={appRoutes.api.admin.feedbackExport}
-                    className="px-4 py-2 bg-white border border-gray-300 rounded shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
-                >
+            <PageHeader
+                eyebrow="Admin feedback"
+                title="Feedback"
+                description="Review QC status, ratings, and submission density across recent sessions."
+                actions={
+                    <a href={appRoutes.api.admin.feedbackExport} className={buttonVariants({ variant: 'secondary' })}>
                     Export CSV
-                </a>
-            </div>
+                    </a>
+                }
+            />
 
-            <AdminDataTable
+            <DataTable
                 columns={columns}
                 data={feedbacks}
                 getRowKey={(fb) => fb.bookingId}
-                emptyMessage="No feedback found."
+                density="compact"
+                emptyState={
+                    <EmptyState
+                        title="No feedback found."
+                        description="Feedback rows will appear here once sessions have been reviewed."
+                        badge="Queue empty"
+                        layout="inline"
+                    />
+                }
             />
         </div>
     );

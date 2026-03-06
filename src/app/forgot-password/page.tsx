@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { PublicNavbar } from "@/components/layout/PublicNavbar";
 import { appRoutes } from "@/lib/shared/routes";
+import { AuthCard, AuthField, AuthMessage } from "@/components/ui/primitives/Auth";
+import { Button } from "@/components/ui/primitives/Button";
 
 type RequestStatus = "idle" | "loading" | "success" | "error";
 
@@ -47,7 +49,7 @@ export default function ForgotPasswordPage() {
             <PublicNavbar />
 
             <div className="flex-1 flex items-center justify-center px-4 py-12">
-                <section className="w-full max-w-md bg-white p-8 rounded-xl border border-gray-200 shadow-lg space-y-6">
+                <AuthCard>
                     <header className="text-center">
                         <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Reset Password</p>
                         <h2 className="text-3xl font-extrabold text-gray-900 mb-2">Forgot your password?</h2>
@@ -55,40 +57,36 @@ export default function ForgotPasswordPage() {
                     </header>
 
                     {status === "success" ? (
-                        <div className="rounded-md bg-green-50 p-4 text-sm text-green-700 space-y-4">
+                        <AuthMessage tone="success" className="space-y-4 p-4">
                             <p>{message}</p>
-                            <Link href="/login" className="btn bg-green-50 text-green-800 hover:bg-green-100">
+                            <Link href="/login" className="btn w-full justify-center bg-gray-100 text-gray-800 hover:bg-gray-200">
                                 Return to login
                             </Link>
-                        </div>
+                        </AuthMessage>
                     ) : (
                         <form className="space-y-5" onSubmit={handleSubmit}>
-                            {status === "error" && (
-                                <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{message}</div>
-                            )}
+                            {status === "error" && <AuthMessage tone="error">{message}</AuthMessage>}
 
-                            <div>
-                                <label htmlFor="email-address" className="sr-only">Email address</label>
-                                <input
-                                    id="email-address"
-                                    name="email"
-                                    type="email"
-                                    autoComplete="email"
-                                    required
-                                    className="relative block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-black focus:outline-none focus:ring-black sm:text-sm"
-                                    placeholder="Email address"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                />
-                            </div>
+                            <AuthField
+                                id="email-address"
+                                name="email"
+                                label="Email address"
+                                type="email"
+                                autoComplete="email"
+                                required
+                                placeholder="Email address"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                            />
 
-                            <button
+                            <Button
                                 type="submit"
                                 disabled={status === "loading"}
-                                className="group relative flex w-full justify-center rounded-md border border-transparent bg-black py-2 px-4 text-sm font-medium text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50"
+                                variant="primary"
+                                className="w-full justify-center"
                             >
                                 {status === "loading" ? "Sending..." : "Send reset link"}
-                            </button>
+                            </Button>
                         </form>
                     )}
 
@@ -98,7 +96,7 @@ export default function ForgotPasswordPage() {
                             Sign in
                         </Link>
                     </div>
-                </section>
+                </AuthCard>
             </div>
         </main>
     );

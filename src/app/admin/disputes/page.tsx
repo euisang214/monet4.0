@@ -2,9 +2,9 @@
 import Link from 'next/link';
 import { AdminDisputeService } from '@/lib/role/admin/disputes';
 import { format } from 'date-fns';
-import { AdminDataTable, type Column } from '@/components/ui/composites/AdminDataTable';
-import { StatusBadge } from '@/components/ui/composites/StatusBadge';
+import { DataTable, EmptyState, PageHeader, type DataColumn, StatusBadge } from '@/components/ui';
 import { appRoutes } from '@/lib/shared/routes';
+import { buttonVariants } from '@/components/ui/primitives/Button';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,14 +16,17 @@ function disputeStatusVariant(status: string) {
     return 'success' as const;
 }
 
-const columns: Column<DisputeRow>[] = [
+const columns: DataColumn<DisputeRow>[] = [
     {
+        key: 'date',
         header: 'Date',
-        accessor: (dispute) => format(new Date(dispute.createdAt), 'MMM d, yyyy'),
+        cell: (dispute) => format(new Date(dispute.createdAt), 'MMM d, yyyy'),
+        priority: 'primary',
     },
     {
+        key: 'status',
         header: 'Status',
-        accessor: (dispute) => (
+        cell: (dispute) => (
             <StatusBadge
                 label={dispute.status.replace('_', ' ').toUpperCase()}
                 variant={disputeStatusVariant(dispute.status)}
@@ -31,25 +34,31 @@ const columns: Column<DisputeRow>[] = [
         ),
     },
     {
+        key: 'reason',
         header: 'Reason',
-        accessor: (dispute) => dispute.reason.replace('_', ' '),
+        cell: (dispute) => dispute.reason.replace('_', ' '),
     },
     {
+        key: 'initiator',
         header: 'Initiator',
-        accessor: (dispute) => dispute.initiator.email,
+        cell: (dispute) => dispute.initiator.email,
     },
     {
+        key: 'booking-id',
         header: 'Booking ID',
-        accessor: (dispute) => <span className="font-mono">{dispute.bookingId.slice(0, 8)}...</span>,
+        cell: (dispute) => <span className="font-mono">{dispute.bookingId.slice(0, 8)}...</span>,
     },
     {
+        key: 'view',
         header: '',
-        accessor: (dispute) => (
-            <Link href={appRoutes.admin.disputeDetails(dispute.id)} className="text-indigo-600 hover:text-indigo-900">
+        cell: (dispute) => (
+            <Link href={appRoutes.admin.disputeDetails(dispute.id)} className={buttonVariants({ variant: 'secondary', size: 'sm' })}>
                 View
             </Link>
         ),
         className: 'text-right',
+        align: 'right',
+        mobileLabel: 'Open',
     },
 ];
 
@@ -58,15 +67,25 @@ export default async function DisputesPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold text-gray-900">Disputes</h1>
-            </div>
+            <PageHeader
+                eyebrow="Admin disputes"
+                title="Disputes"
+                description="Track open disputes, review status, and jump directly into resolution detail."
+            />
 
-            <AdminDataTable
+            <DataTable
                 columns={columns}
                 data={disputes}
                 getRowKey={(dispute) => dispute.id}
-                emptyMessage="No disputes found."
+                density="compact"
+                emptyState={
+                    <EmptyState
+                        title="No disputes found."
+                        description="Open disputes will appear here once candidates or professionals raise them."
+                        badge="Queue empty"
+                        layout="inline"
+                    />
+                }
             />
         </div>
     );

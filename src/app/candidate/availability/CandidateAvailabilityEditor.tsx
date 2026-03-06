@@ -13,6 +13,7 @@ import {
     splitSlotsByEditableWindow,
 } from '@/components/bookings/calendar/interval-utils';
 import { appRoutes } from '@/lib/shared/routes';
+import { Button, InlineNotice, SurfaceCard } from '@/components/ui';
 
 interface CandidateAvailabilityEditorProps {
     initialAvailabilitySlots: SlotInterval[];
@@ -258,7 +259,7 @@ export function CandidateAvailabilityEditor({
     }, [saveAvailability]);
 
     return (
-        <section className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+        <SurfaceCard className="space-y-6">
             <CandidateAvailabilityPanel
                 calendarTimezone={resolvedCalendarTimezone}
                 isGoogleCalendarConnected={isGoogleCalendarConnected}
@@ -277,27 +278,28 @@ export function CandidateAvailabilityEditor({
                 <span className="text-sm text-gray-600">
                     {hasUnsavedChanges ? 'Unsaved changes' : 'All changes saved'}
                 </span>
-                <button
+                <Button
                     type="button"
                     onClick={() => void saveAvailability()}
                     disabled={!hasUnsavedChanges || isSaving}
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                    loading={isSaving}
+                    loadingLabel="Saving..."
                 >
-                    {isSaving ? 'Saving...' : 'Save availability'}
-                </button>
+                    Save availability
+                </Button>
             </div>
 
             {saveSuccess && (
-                <div className="mt-4 p-3 bg-green-50 text-green-700 rounded text-sm">
+                <InlineNotice tone="success" title="Saved">
                     {saveSuccess}
-                </div>
+                </InlineNotice>
             )}
 
             {saveError && (
-                <div className="mt-4 p-3 bg-red-50 text-red-700 rounded text-sm">
+                <InlineNotice tone="error" title="Save failed">
                     {saveError}
-                </div>
+                </InlineNotice>
             )}
-        </section>
+        </SurfaceCard>
     );
 }

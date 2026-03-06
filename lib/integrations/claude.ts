@@ -44,7 +44,7 @@ Atomic checks:
             // Strict timeout wrapper
             const response = await Promise.race([
                 anthropic.messages.create({
-                    model: 'claude-haiku-4-5-20251001', // Using Haiku for speed/cost, allows upgrade to Sonnet if needed
+                    model: 'claude-3-5-haiku-20241022', // Using Haiku for speed/cost, allows upgrade to Sonnet if needed
                     max_tokens: 1024,
                     messages: [{ role: 'user', content: prompt }],
                     temperature: 0,

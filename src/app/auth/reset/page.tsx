@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
 import { appRoutes } from '@/lib/shared/routes';
+import { AuthCard, AuthField, AuthMessage } from '@/components/ui/primitives/Auth';
+import { Button } from '@/components/ui/primitives/Button';
 
 type ResetStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -21,7 +23,7 @@ function ResetPasswordForm() {
         return (
             <main className="min-h-screen py-12">
                 <div className="container">
-                    <section className="max-w-md mx-auto bg-white p-8 rounded-xl border border-gray-200 shadow-lg text-center">
+                    <AuthCard className="max-w-md text-center">
                         <p className="text-xs uppercase tracking-wider text-red-600 mb-3">Reset Link Issue</p>
                         <h1 className="text-2xl font-bold text-gray-900 mb-3">Invalid or missing token</h1>
                         <p className="text-sm text-gray-600 mb-6">
@@ -30,7 +32,7 @@ function ResetPasswordForm() {
                         <Link href="/forgot-password" className="btn bg-blue-600 text-white hover:bg-blue-700">
                             Request new reset link
                         </Link>
-                    </section>
+                    </AuthCard>
                 </div>
             </main>
         );
@@ -83,7 +85,7 @@ function ResetPasswordForm() {
         return (
             <main className="min-h-screen py-12">
                 <div className="container">
-                    <section className="max-w-md mx-auto bg-white p-8 rounded-xl border border-gray-200 shadow-lg text-center">
+                    <AuthCard className="max-w-md text-center">
                         <p className="text-xs uppercase tracking-wider text-green-600 mb-3">Password Updated</p>
                         <h1 className="text-2xl font-bold text-gray-900 mb-3">Reset successful</h1>
                         <p className="text-sm text-gray-600 mb-6">
@@ -92,7 +94,7 @@ function ResetPasswordForm() {
                         <Link href="/login" className="btn bg-black text-white hover:bg-gray-800">
                             Go to login
                         </Link>
-                    </section>
+                    </AuthCard>
                 </div>
             </main>
         );
@@ -110,7 +112,7 @@ function ResetPasswordForm() {
                         </p>
                     </section>
 
-                    <section className="w-full max-w-md bg-white p-8 rounded-xl border border-gray-200 shadow-lg space-y-6">
+                    <AuthCard>
                         <header className="text-center">
                             <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Password Reset</p>
                             <h2 className="text-3xl font-extrabold text-gray-900 mb-2">Set a new password</h2>
@@ -118,48 +120,42 @@ function ResetPasswordForm() {
                         </header>
 
                         {errorMessage && (
-                            <div className="p-3 bg-red-50 text-red-600 text-sm rounded-md">
-                                {errorMessage}
-                            </div>
+                            <AuthMessage tone="error">{errorMessage}</AuthMessage>
                         )}
 
                         <form onSubmit={handleSubmit} className="space-y-5">
-                            <div className="-space-y-px rounded-md shadow-sm">
-                                <div>
-                                    <label htmlFor="password" className="sr-only">New Password</label>
-                                    <input
-                                        id="password"
-                                        type="password"
-                                        required
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        className="relative block w-full appearance-none rounded-none rounded-t-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-black focus:outline-none focus:ring-black sm:text-sm"
-                                        placeholder="New password"
-                                    />
-                                </div>
-                                <div>
-                                    <label htmlFor="confirm" className="sr-only">Confirm Password</label>
-                                    <input
-                                        id="confirm"
-                                        type="password"
-                                        required
-                                        value={confirmPassword}
-                                        onChange={(e) => setConfirmPassword(e.target.value)}
-                                        className="relative block w-full appearance-none rounded-none rounded-b-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-black focus:outline-none focus:ring-black sm:text-sm"
-                                        placeholder="Confirm password"
-                                    />
-                                </div>
+                            <div className="space-y-3">
+                                <AuthField
+                                    id="password"
+                                    name="password"
+                                    label="New Password"
+                                    type="password"
+                                    required
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="New password"
+                                />
+                                <AuthField
+                                    id="confirm"
+                                    name="confirm"
+                                    label="Confirm Password"
+                                    type="password"
+                                    required
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    placeholder="Confirm password"
+                                />
                             </div>
 
-                            <button
+                            <Button
                                 type="submit"
                                 disabled={status === 'loading'}
-                                className="w-full py-2 px-4 bg-black text-white rounded-md hover:bg-gray-800 disabled:opacity-50"
+                                className="w-full justify-center"
                             >
                                 {status === 'loading' ? 'Resetting...' : 'Reset password'}
-                            </button>
+                            </Button>
                         </form>
-                    </section>
+                    </AuthCard>
                 </div>
             </div>
         </main>

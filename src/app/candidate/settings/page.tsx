@@ -6,6 +6,7 @@ import { useNotification } from "@/components/ui/hooks/useNotification";
 import { NotificationBanner } from "@/components/ui/composites/NotificationBanner";
 import { ProviderConnections } from "@/components/auth/ProviderConnections";
 import { appRoutes } from "@/lib/shared/routes";
+import { LoadingCard, PageHeader, SurfaceCard } from "@/components/ui";
 import {
     CandidateProfileEditor,
     CandidateProfileEditorInitialData,
@@ -85,28 +86,29 @@ export default function CandidateSettingsPage() {
 
     if (loading) {
         return (
-            <main className="container py-8">
-                <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl border border-gray-200 shadow-sm">
-                    <p className="text-sm text-gray-600">Loading candidate settings...</p>
-                </div>
+            <main className="space-y-8">
+                <LoadingCard
+                    className="max-w-4xl mx-auto"
+                    title="Loading candidate settings"
+                    description="Preparing your profile and preferences."
+                />
             </main>
         );
     }
 
     return (
-        <main className="container py-8">
+        <main className="space-y-8">
             <div className="max-w-4xl mx-auto">
-                <header className="mb-8">
-                    <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Candidate Settings</p>
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">Profile and preferences</h1>
-                    <p className="text-gray-600">
-                        Keep your profile updated so professionals can tailor sessions to your background and goals.
-                    </p>
-                </header>
+                <PageHeader
+                    eyebrow="Candidate settings"
+                    title="Profile and preferences"
+                    description="Keep your profile updated so professionals can tailor sessions to your background and goals."
+                    className="mb-8"
+                />
 
-                <NotificationBanner notification={notification} />
+                <NotificationBanner notification={notification} className="mb-6" />
 
-                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <SurfaceCard>
                     <CandidateProfileEditor
                         mode="settings"
                         initialData={profile || undefined}
@@ -114,7 +116,7 @@ export default function CandidateSettingsPage() {
                         submittingLabel="Saving..."
                         onSubmit={handleSave}
                     />
-                </div>
+                </SurfaceCard>
 
                 <div className="mt-4">
                     <Link href={appRoutes.candidate.availability} className="text-sm font-medium text-gray-600 hover:text-black">

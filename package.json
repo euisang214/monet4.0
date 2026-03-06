@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "vitest run tests/e2e/",
+    "ui:audit": "node scripts/ui/audit-class-tokens.mjs",
     "seed": "tsx prisma/seed.ts",
     "seed:lite": "SEED_POPULATION_MODE=lite tsx prisma/seed.ts",
     "seed:full": "SEED_POPULATION_MODE=full tsx prisma/seed.ts"
@@ -20,6 +21,8 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
     "@prisma/client": "^6.19.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "@stripe/react-stripe-js": "^5.4.1",
     "@stripe/stripe-js": "^8.6.4",
     "bullmq": "^5.66.7",

@@ -23,8 +23,8 @@ export const ReviewsService = {
             throw new Error("Not authorized to review this booking");
         }
 
-        // 3. Status Check (Must be completed)
-        if (booking.status !== BookingStatus.completed) {
+        // 3. Status Check (Must be completed or completed_pending_feedback)
+        if (![BookingStatus.completed, BookingStatus.completed_pending_feedback].includes(booking.status)) {
             throw new Error("Can only review completed bookings");
         }
 

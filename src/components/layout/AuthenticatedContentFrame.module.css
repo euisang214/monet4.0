@@ -1,0 +1,17 @@
+.shell {
+  position: relative;
+  min-height: calc(100dvh - 4.5rem);
+  padding: 1.2rem 1rem 2.5rem;
+}
+
+.frame {
+  max-width: var(--page-max-width-wide);
+  margin: 0 auto;
+  min-width: 0;
+}
+
+@media (min-width: 960px) {
+  .shell {
+    padding-top: 1.45rem;
+  }
+}

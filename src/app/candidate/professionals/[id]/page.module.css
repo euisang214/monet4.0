@@ -1,0 +1,14 @@
+.aboutCopy {
+  line-height: 1.75;
+}
+
+.sidebarCard {
+  height: fit-content;
+}
+
+@media (min-width: 1024px) {
+  .sidebarCard {
+    position: sticky;
+    top: 6rem;
+  }
+}

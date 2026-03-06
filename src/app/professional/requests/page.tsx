@@ -1,7 +1,7 @@
 import { requireRole } from '@/lib/core/api-helpers';
 import { Role } from '@prisma/client';
 import { getPendingRequests } from '@/lib/shared/bookings/upcoming';
-import { EmptyState } from '@/components/ui/composites/EmptyState';
+import { EmptyState, PageHeader } from '@/components/ui';
 import { appRoutes } from '@/lib/shared/routes';
 import { ProfessionalRequestListItem } from '@/components/bookings/ProfessionalRequestListItem';
 
@@ -11,12 +11,12 @@ export default async function ProfessionalRequestsPage() {
     const requests = await getPendingRequests(user.id, 'PROFESSIONAL');
 
     return (
-        <main className="container py-8">
-            <header className="mb-8">
-                <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Professional Requests</p>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Incoming booking and reschedule requests</h1>
-                <p className="text-gray-600">Review candidate-provided times in calendar view and confirm one slot.</p>
-            </header>
+        <main className="space-y-8">
+            <PageHeader
+                eyebrow="Professional requests"
+                title="Incoming booking and reschedule requests"
+                description="Review candidate-provided times in calendar view and confirm one slot."
+            />
 
             {requests.length === 0 ? (
                 <EmptyState
@@ -25,6 +25,7 @@ export default async function ProfessionalRequestsPage() {
                     description="New candidate requests will appear here as soon as they are submitted."
                     actionLabel="Open dashboard"
                     actionHref={appRoutes.professional.dashboard}
+                    layout="inline"
                 />
             ) : (
                 <ul className="space-y-4">

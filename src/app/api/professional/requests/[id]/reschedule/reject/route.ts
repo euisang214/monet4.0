@@ -4,9 +4,9 @@ import { Role } from '@prisma/client';
 
 export const POST = withRoleContext(
     Role.PROFESSIONAL,
-    async (req: Request, { user }, { params }: { params: { id: string } }) => {
+    async (req: Request, { user }, { params }: { params: Promise<{ id: string }> }) => {
     try {
-        const { id } = params;
+        const { id } = await params;
 
         const booking = await ProfessionalRescheduleService.rejectReschedule(
             id,

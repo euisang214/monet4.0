@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { appRoutes } from '@/lib/shared/routes';
 
-export default function ReviewPage({ params }: { params: { id: string } }) {
+export default function ReviewPage() {
+    const { id } = useParams<{ id: string }>();
     const router = useRouter();
     const [rating, setRating] = useState(5);
     const [text, setText] = useState('');
@@ -27,7 +28,7 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    bookingId: params.id,
+                    bookingId: id,
                     rating,
                     text,
                     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -39,7 +40,7 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
                 throw new Error(data.error || 'Failed to submit review');
             }
 
-            router.push(appRoutes.candidate.bookingDetails(params.id));
+            router.push(appRoutes.candidate.bookingDetails(id));
             router.refresh();
         } catch (err: any) {
             setError(err.message);
