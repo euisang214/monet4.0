@@ -336,7 +336,7 @@ The `lib/` directory uses a **hybrid approach**:
 
 ### Prerequisites
 
-- Node.js 20+
+- Node.js 20.19.0+ (`20.19.x` recommended for local development)
 - PostgreSQL 14+
 - Redis 6+
 - npm

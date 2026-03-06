@@ -18,16 +18,20 @@ A full-stack marketplace platform connecting **Candidates** (job seekers) with *
 
 Ensure you have the following installed:
 
-- **Node.js** 20+ ([download](https://nodejs.org/))
+- **Node.js** 20.19.0+ ([download](https://nodejs.org/)) (`20.19.x` recommended for local development)
 - **npm** (comes with Node.js)
 - **Docker** and **Docker Compose** (for local Postgres + Redis)
 - Alternatively, you can use standalone Postgres 14+ and Redis 6+ installations
+
+This repo pins [.nvmrc](/Users/ethanshin/Documents/Coding Projects/Monet Gemini/monet gemini/.nvmrc) to `20.19.0`. If you use `nvm`, run `nvm use` before installing dependencies.
 
 ### Step 1: Install Dependencies
 
 ```bash
 npm install
 ```
+
+> **Troubleshooting**: If Next.js development surfaces a server-side deprecation warning in the browser console, verify `node -v` reports `v20.19.0` or newer before debugging application code.
 
 ### Step 2: Configure Environment Variables
 
