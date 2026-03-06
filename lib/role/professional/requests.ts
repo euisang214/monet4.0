@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/core/db';
 import { Role } from '@prisma/client';
-import { getGoogleBusyTimes } from '@/lib/integrations/calendar/google';
 import { stripe } from '@/lib/integrations/stripe';
 import {
     acceptBookingWithIntegrations,
@@ -12,8 +11,10 @@ import { TransitionConflictError, TransitionError } from '@/lib/domain/bookings/
 
 export const ProfessionalRequestService = {
     /**
-     * Calculates available time slots for a candidate for a specific booking.
-     * Merging logic: (Positive Availability - Manual Blocks - Google Busy)
+     * Returns the candidate-submitted availability for a specific booking.
+     * Candidate selections are authoritative here, including explicit overrides
+     * of advisory Google Calendar busy blocks. Only explicit manual busy rows
+     * remain subtractive when presenting slots to the professional.
      */
     async getBookingCandidateAvailability(bookingId: string, professionalId: string) {
         // 1. Fetch booking to get candidateId
@@ -31,9 +32,9 @@ export const ProfessionalRequestService = {
         const endWindow = new Date();
         endWindow.setDate(endWindow.getDate() + 30);
 
-        // 2. Fetch Positive Availability (busy=false)
-        // These are the "Working Hours" defined by the candidate
-        const workingHours = await prisma.availability.findMany({
+        // 2. Fetch candidate-submitted availability (busy=false).
+        // These rows are the source of truth for what the professional can select.
+        const submittedAvailability = await prisma.availability.findMany({
             where: {
                 userId: candidateId,
                 busy: false,
@@ -42,7 +43,7 @@ export const ProfessionalRequestService = {
             }
         });
 
-        // 3. Fetch Manual Blocks (busy=true)
+        // 3. Fetch explicit manual/internal busy blocks (busy=true).
         const manualBlocks = await prisma.availability.findMany({
             where: {
                 userId: candidateId,
@@ -52,30 +53,16 @@ export const ProfessionalRequestService = {
             }
         });
 
-        // 4. Fetch Google Busy Times
-        let googleBusy: { start: Date; end: Date }[] = [];
-        try {
-            googleBusy = await getGoogleBusyTimes(candidateId, startWindow, endWindow);
-        } catch (error) {
-            console.error('Failed to fetch Google busy times', error);
-            // Non-blocking fail, proceed with internal data only
-        }
-
-        // 5. Combine all blocks
-        const allBlocks = [...manualBlocks, ...googleBusy];
-
-        // 6. Subtract blocks from working hours to generate final slots
+        // 4. Subtract only explicit manual/internal blocks from submitted slots.
         // This is a simplified slot generator (30 min slots)
         const slots: { start: Date; end: Date }[] = [];
         const SLOT_DURATION_MINUTES = 30;
 
-        // If no working hours defined, assume NO availability (strict opt-in)
-        // Alternatively we could assume 9-5 M-F if array is empty, but strict is safer.
-        if (workingHours.length === 0) {
+        if (submittedAvailability.length === 0) {
             return [];
         }
 
-        for (const window of workingHours) {
+        for (const window of submittedAvailability) {
             let current = new Date(window.start);
             const windowEnd = new Date(window.end);
 
@@ -85,7 +72,7 @@ export const ProfessionalRequestService = {
                 if (isAfter(slotEnd, windowEnd)) break;
 
                 // Check overlap with any block
-                const isBlocked = allBlocks.some(block =>
+                const isBlocked = manualBlocks.some(block =>
                     areIntervalsOverlapping(
                         { start: current, end: slotEnd },
                         { start: block.start, end: block.end }

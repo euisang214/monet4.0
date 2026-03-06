@@ -43,7 +43,7 @@ export function ConfirmRescheduleForm({
             calendarTimezone={calendarTimezone}
             professionalTimezone={professionalTimezone}
             heading="Select a New Time"
-            description="Choose one of the candidate's submitted 30-minute slots to confirm this reschedule."
+            description="Choose one of the candidate's submitted 30-minute slots."
             confirmLabel="Confirm New Time"
             confirmingLabel="Confirming..."
             isConfirming={isConfirming}

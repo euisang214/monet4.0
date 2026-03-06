@@ -41,7 +41,7 @@ export function ConfirmBookingForm({
             calendarTimezone={calendarTimezone}
             professionalTimezone={professionalTimezone}
             heading="Select a Time"
-            description="Choose one of the candidate's submitted 30-minute slots (already filtered against Google busy blocks)."
+            description="Choose one of the candidate's submitted 30-minute slots."
             confirmLabel="Confirm & Schedule"
             confirmingLabel="Confirming..."
             isConfirming={isPending}
