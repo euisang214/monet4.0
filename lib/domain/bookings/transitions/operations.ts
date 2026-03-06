@@ -755,11 +755,23 @@ export async function cancelBooking(
             if (payment) {
                 if (payment.status === PaymentStatus.held) {
                     if (deps.stripe && payment.stripePaymentIntentId) {
-                        // Keep Stripe and DB states in lockstep: refund first, then persist refunded status.
-                        await deps.stripe.refunds.create({
-                            payment_intent: payment.stripePaymentIntentId,
-                            reason: 'requested_by_customer'
-                        });
+                        try {
+                            // Keep Stripe and DB states in lockstep.
+                            // For uncaptured ("held") intents, we must cancel rather than refund.
+                            await deps.stripe.paymentIntents.cancel(payment.stripePaymentIntentId, {
+                                cancellation_reason: 'requested_by_customer'
+                            });
+                        } catch (stripeError: any) {
+                            // If it was already captured somehow, fallback to a refund
+                            if (stripeError?.message?.includes('can only cancel a PaymentIntent') || stripeError?.message?.includes('already been captured')) {
+                                await deps.stripe.refunds.create({
+                                    payment_intent: payment.stripePaymentIntentId,
+                                    reason: 'requested_by_customer'
+                                });
+                            } else {
+                                throw stripeError;
+                            }
+                        }
                     }
                     await tx.payment.update({
                         where: { bookingId },
@@ -810,65 +822,65 @@ export async function initiateDispute(
         { actor, reason, metadata: { attendanceOutcome: options?.attendanceOutcome } },
         deps,
         async (tx) => {
-        const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
+            const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
 
-        const isParticipant = booking.candidateId === actor.userId || booking.professionalId === actor.userId;
-        if (!isParticipant && actor.role !== Role.ADMIN) {
-            throw new TransitionError('Not authorized');
-        }
-
-        if (booking.status === BookingStatus.dispute_pending) {
-            const existingDispute = await tx.dispute.findUnique({ where: { bookingId } });
-            if (!existingDispute) {
-                throw new StateInvariantError('Booking is dispute_pending but no Dispute record exists');
+            const isParticipant = booking.candidateId === actor.userId || booking.professionalId === actor.userId;
+            if (!isParticipant && actor.role !== Role.ADMIN) {
+                throw new TransitionError('Not authorized');
             }
 
-            if (
-                existingDispute.initiatorId !== actor.userId
-                || existingDispute.reason !== reason
-                || existingDispute.description !== description
-            ) {
-                throw new TransitionConflictError('Dispute already exists with different details');
+            if (booking.status === BookingStatus.dispute_pending) {
+                const existingDispute = await tx.dispute.findUnique({ where: { bookingId } });
+                if (!existingDispute) {
+                    throw new StateInvariantError('Booking is dispute_pending but no Dispute record exists');
+                }
+
+                if (
+                    existingDispute.initiatorId !== actor.userId
+                    || existingDispute.reason !== reason
+                    || existingDispute.description !== description
+                ) {
+                    throw new TransitionConflictError('Dispute already exists with different details');
+                }
+
+                if (options?.attendanceOutcome && booking.attendanceOutcome && booking.attendanceOutcome !== options.attendanceOutcome) {
+                    throw new TransitionConflictError('Dispute already exists with a different attendance outcome');
+                }
+
+                if (options?.attendanceOutcome && booking.attendanceOutcome !== options.attendanceOutcome) {
+                    return tx.booking.update({
+                        where: { id: bookingId },
+                        data: { attendanceOutcome: options.attendanceOutcome },
+                    });
+                }
+
+                return booking;
             }
 
-            if (options?.attendanceOutcome && booking.attendanceOutcome && booking.attendanceOutcome !== options.attendanceOutcome) {
-                throw new TransitionConflictError('Dispute already exists with a different attendance outcome');
+            const validOrigins: BookingStatus[] = [BookingStatus.accepted, BookingStatus.completed];
+            if (!validOrigins.includes(booking.status)) {
+                throw new TransitionError(`Cannot initiate dispute from ${booking.status}`);
             }
 
-            if (options?.attendanceOutcome && booking.attendanceOutcome !== options.attendanceOutcome) {
-                return tx.booking.update({
-                    where: { id: bookingId },
-                    data: { attendanceOutcome: options.attendanceOutcome },
-                });
-            }
+            const disputeReason = reason as DisputeReason;
 
-            return booking;
-        }
+            await tx.dispute.create({
+                data: {
+                    bookingId,
+                    initiatorId: actor.userId,
+                    reason: disputeReason,
+                    description,
+                    status: DisputeStatus.open
+                }
+            });
 
-        const validOrigins: BookingStatus[] = [BookingStatus.accepted, BookingStatus.completed];
-        if (!validOrigins.includes(booking.status)) {
-            throw new TransitionError(`Cannot initiate dispute from ${booking.status}`);
-        }
-
-        const disputeReason = reason as DisputeReason;
-
-        await tx.dispute.create({
-            data: {
-                bookingId,
-                initiatorId: actor.userId,
-                reason: disputeReason,
-                description,
-                status: DisputeStatus.open
-            }
-        });
-
-        return tx.booking.update({
-            where: { id: bookingId },
-            data: {
-                status: BookingStatus.dispute_pending,
-                attendanceOutcome: options?.attendanceOutcome,
-            }
-        });
+            return tx.booking.update({
+                where: { id: bookingId },
+                data: {
+                    status: BookingStatus.dispute_pending,
+                    attendanceOutcome: options?.attendanceOutcome,
+                }
+            });
         }
     );
 }
