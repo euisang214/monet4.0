@@ -2,11 +2,21 @@
   line-height: 1.75;
 }
 
+.profileLayout {
+  display: grid;
+  gap: 1.5rem;
+}
+
 .sidebarCard {
   height: fit-content;
 }
 
 @media (min-width: 1024px) {
+  .profileLayout {
+    grid-template-columns: minmax(0, 1fr) 22rem;
+    align-items: start;
+  }
+
   .sidebarCard {
     position: sticky;
     top: 6rem;

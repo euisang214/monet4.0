@@ -65,6 +65,11 @@ export type CandidateChatBooking = Omit<CandidateChatBookingRaw, "professional">
     };
 };
 
+export type CandidateBookingDetails = {
+    booking: CandidateChatBooking;
+    candidateTimezone: string;
+};
+
 function withDerivedProfessionalRole(booking: CandidateChatBookingRaw): CandidateChatBooking {
     if (!booking.professional) {
         return booking as unknown as CandidateChatBooking;
@@ -251,13 +256,21 @@ export async function getCandidateChatSectionPage(
     };
 }
 
-export async function getCandidateBookingDetails(bookingId: string, candidateId: string) {
+export async function getCandidateBookingDetails(
+    bookingId: string,
+    candidateId: string
+): Promise<CandidateBookingDetails | null> {
     const booking = await prisma.booking.findUnique({
         where: {
             id: bookingId,
             candidateId,
         },
         include: {
+            candidate: {
+                select: {
+                    timezone: true,
+                },
+            },
             professional: {
                 include: {
                     professionalProfile: {
@@ -279,5 +292,8 @@ export async function getCandidateBookingDetails(bookingId: string, candidateId:
         return null;
     }
 
-    return withDerivedProfessionalRole(booking);
+    return {
+        booking: withDerivedProfessionalRole(booking),
+        candidateTimezone: normalizeTimezone(booking.candidate?.timezone),
+    };
 }

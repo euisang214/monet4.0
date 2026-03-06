@@ -28,7 +28,7 @@ export default async function ProfessionalRequestsPage() {
                     layout="inline"
                 />
             ) : (
-                <ul className="space-y-4">
+                <ul className="list-none space-y-4">
                     {requests.map((request) => (
                         <ProfessionalRequestListItem key={request.id} booking={request} />
                     ))}

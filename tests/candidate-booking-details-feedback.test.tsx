@@ -25,7 +25,7 @@ const baseBooking = {
     priceCents: 12500,
     startAt: new Date("2026-02-20T16:00:00Z"),
     endAt: new Date("2026-02-20T16:30:00Z"),
-    timezone: "America/New_York",
+    timezone: "UTC",
     professional: {
         email: "pro@example.com",
         firstName: "Alex",
@@ -38,6 +38,8 @@ const baseBooking = {
     feedback: null,
 };
 
+const candidateTimezone = "America/New_York";
+
 describe("Candidate booking details feedback section", () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -46,19 +48,22 @@ describe("Candidate booking details feedback section", () => {
 
     it("renders full feedback details for completed bookings with feedback", async () => {
         getCandidateBookingDetailsMock.mockResolvedValue({
-            ...baseBooking,
-            feedback: {
-                text: "Strong session with clear structure and meaningful examples.",
-                actions: [
-                    "Refine your opening pitch for 90 seconds.",
-                    "Practice two profitability drills before next week.",
-                    "Build a concise story bank for behavioral interviews.",
-                ],
-                contentRating: 5,
-                deliveryRating: 4,
-                valueRating: 5,
-                submittedAt: new Date("2026-02-21T10:00:00Z"),
+            booking: {
+                ...baseBooking,
+                feedback: {
+                    text: "Strong session with clear structure and meaningful examples.",
+                    actions: [
+                        "Refine your opening pitch for 90 seconds.",
+                        "Practice two profitability drills before next week.",
+                        "Build a concise story bank for behavioral interviews.",
+                    ],
+                    contentRating: 5,
+                    deliveryRating: 4,
+                    valueRating: 5,
+                    submittedAt: new Date("2026-02-21T10:00:00Z"),
+                },
             },
+            candidateTimezone,
         });
 
         const html = renderToStaticMarkup(
@@ -76,12 +81,19 @@ describe("Candidate booking details feedback section", () => {
         expect(html).toContain("5/5");
         expect(html).toContain("4/5");
         expect(html).toContain("Alex Morgan - Engagement Manager @ Acme Consulting");
+        expect(html).toContain("Submitted February 21, 2026 at 5:00 AM");
+        expect(html).toContain("February 20, 2026");
+        expect(html).toContain("11:00 AM - 11:30 AM");
+        expect(html).toContain(candidateTimezone);
     });
 
     it("renders empty feedback notice for completed bookings without feedback", async () => {
         getCandidateBookingDetailsMock.mockResolvedValue({
-            ...baseBooking,
-            feedback: null,
+            booking: {
+                ...baseBooking,
+                feedback: null,
+            },
+            candidateTimezone,
         });
 
         const html = renderToStaticMarkup(
@@ -97,9 +109,12 @@ describe("Candidate booking details feedback section", () => {
 
     it("does not render feedback section for non-completed bookings", async () => {
         getCandidateBookingDetailsMock.mockResolvedValue({
-            ...baseBooking,
-            status: BookingStatus.accepted,
-            feedback: null,
+            booking: {
+                ...baseBooking,
+                status: BookingStatus.accepted,
+                feedback: null,
+            },
+            candidateTimezone,
         });
 
         const html = renderToStaticMarkup(
@@ -115,9 +130,12 @@ describe("Candidate booking details feedback section", () => {
 
     it("keeps professional header anonymized before acceptance lifecycle", async () => {
         getCandidateBookingDetailsMock.mockResolvedValue({
-            ...baseBooking,
-            status: BookingStatus.requested,
-            feedback: null,
+            booking: {
+                ...baseBooking,
+                status: BookingStatus.requested,
+                feedback: null,
+            },
+            candidateTimezone,
         });
 
         const html = renderToStaticMarkup(

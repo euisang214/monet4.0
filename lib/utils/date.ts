@@ -1,4 +1,4 @@
-import { format, addDays, isWeekend } from 'date-fns';
+import { addDays, isWeekend } from 'date-fns';
 import { formatInTimeZone } from '@/lib/utils/timezones';
 
 /**
@@ -6,6 +6,27 @@ import { formatInTimeZone } from '@/lib/utils/timezones';
  * 
  * Complements lib/utils/timezones.ts with additional date helpers.
  */
+
+/**
+ * Normalize a value for HTML date inputs.
+ */
+export function toDateInputValue(value: Date | string | null | undefined): string {
+    if (!value) return '';
+
+    if (typeof value === 'string') {
+        const dateMatch = value.match(/\d{4}-\d{2}-\d{2}/);
+        if (dateMatch) {
+            return dateMatch[0];
+        }
+    }
+
+    const parsed = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+        return '';
+    }
+
+    return parsed.toISOString().slice(0, 10);
+}
 
 /**
  * Format date for display (e.g., "January 24, 2026")

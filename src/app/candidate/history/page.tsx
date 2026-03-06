@@ -185,7 +185,7 @@ export default async function CandidateChatsPage({
                                 No conversations in this status bucket.
                             </div>
                         ) : (
-                            <ul className="space-y-4">
+                            <ul className="list-none space-y-4">
                                 {sectionPage.items.map((booking) => (
                                     <li key={booking.id} className="p-5 bg-white border border-gray-200 rounded-xl shadow-sm">
                                         <div className="flex justify-between items-start gap-4">

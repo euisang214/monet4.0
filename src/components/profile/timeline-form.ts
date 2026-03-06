@@ -1,3 +1,5 @@
+import { toDateInputValue } from "@/lib/utils/date";
+
 export type TimelineEntry = {
     company: string;
     location?: string | null;
@@ -105,8 +107,8 @@ export function mapTimelineEntries(
                   company: entry.company || "",
                   title: entry.title || "",
                   location: entry.location || "",
-                  startDate: entry.startDate || "",
-                  endDate: entry.endDate || "",
+                  startDate: toDateInputValue(entry.startDate),
+                  endDate: toDateInputValue(entry.endDate),
                   isCurrent: Boolean(entry.isCurrent),
                   description: entry.description || "",
               }));
@@ -128,8 +130,8 @@ export function mapEducationEntries(entries?: EducationEntry[] | null): Educatio
         degree: entry.degree || "",
         fieldOfStudy: entry.fieldOfStudy || "",
         location: entry.location || "",
-        startDate: entry.startDate || "",
-        endDate: entry.endDate || "",
+        startDate: toDateInputValue(entry.startDate),
+        endDate: toDateInputValue(entry.endDate),
         isCurrent: Boolean(entry.isCurrent),
         gpa: typeof entry.gpa === "number" ? entry.gpa.toString() : "",
         honors: entry.honors || "",

@@ -57,19 +57,20 @@ function AuthenticatedNavbar({ pathname }: { pathname: string }) {
         onboardingCompleted: session.user.onboardingCompleted,
     });
     const homeLink = navLinks[0]?.href ?? "/";
+    const userEmail = session.user.email ?? "Account";
 
     return (
-        <nav className={styles.nav}>
+        <nav className={styles.nav} aria-label="Authenticated navigation">
             <div className={styles.panel}>
-                <div className={styles.row}>
-                    <div className={styles.brandRow}>
-                        <Link
-                            href={homeLink}
-                            className={styles.brand}
-                        >
-                            <span className={styles.brandBadge} />
-                            Monet
-                        </Link>
+                <div className={styles.brandRow}>
+                    <Link href={homeLink} className={styles.brand}>
+                        <span className={styles.brandBadge} />
+                        Monet
+                    </Link>
+                </div>
+
+                <div className={styles.linksRow}>
+                    <div className={styles.navScroller}>
                         {navLinks.map((link) => {
                             const isCandidateChatsRoute =
                                 userRole === "CANDIDATE" &&
@@ -86,24 +87,27 @@ function AuthenticatedNavbar({ pathname }: { pathname: string }) {
                                     key={link.href}
                                     href={link.href}
                                     className={cn(styles.navLink, isActive && styles.navLinkActive)}
+                                    aria-current={isActive ? "page" : undefined}
                                 >
                                     {link.label}
                                 </Link>
                             );
                         })}
                     </div>
+                </div>
 
-                    <div className={styles.actionsRow}>
-                        <span className={styles.email}>{session.user.email}</span>
-                        <Button
-                            onClick={handleLogout}
-                            disabled={isPending}
-                            className={styles.logoutButton}
-                            variant="secondary"
-                        >
-                            {isPending ? "Signing out..." : "Log out"}
-                        </Button>
-                    </div>
+                <div className={styles.actionsRow}>
+                    <span className={styles.email} title={userEmail}>
+                        {userEmail}
+                    </span>
+                    <Button
+                        onClick={handleLogout}
+                        disabled={isPending}
+                        className={styles.logoutButton}
+                        variant="secondary"
+                    >
+                        {isPending ? "Signing out..." : "Log out"}
+                    </Button>
                 </div>
             </div>
         </nav>

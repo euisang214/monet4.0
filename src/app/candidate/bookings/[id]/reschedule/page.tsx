@@ -1,8 +1,9 @@
 import { requireRole } from '@/lib/core/api-helpers';
 import { prisma } from '@/lib/core/db';
 import { Role } from '@prisma/client';
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { ReschedulePageClient } from './ReschedulePageClient';
+import { normalizeTimezone } from '@/lib/utils/supported-timezones';
 
 interface PageProps {
     params: Promise<{ id: string }>;
@@ -17,7 +18,6 @@ export default async function ReschedulePage({ params }: PageProps) {
         select: {
             id: true,
             candidateId: true,
-            timezone: true,
             professional: {
                 select: {
                     timezone: true,
@@ -26,6 +26,7 @@ export default async function ReschedulePage({ params }: PageProps) {
             candidate: {
                 select: {
                     googleCalendarConnected: true,
+                    timezone: true,
                 },
             },
         },
@@ -38,7 +39,7 @@ export default async function ReschedulePage({ params }: PageProps) {
     return (
         <ReschedulePageClient
             bookingId={booking.id}
-            calendarTimezone={booking.timezone}
+            calendarTimezone={normalizeTimezone(booking.candidate.timezone)}
             professionalTimezone={booking.professional.timezone}
             isGoogleCalendarConnected={booking.candidate.googleCalendarConnected}
         />
