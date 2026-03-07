@@ -1,8 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
-import { useProfessionalRescheduleActions } from '@/components/bookings/hooks/useProfessionalRescheduleActions';
+import { useTrackedProfessionalBookingActions } from '@/components/bookings/hooks/useTrackedProfessionalBookingActions';
 import { SlotPickerForm, type Slot } from '@/components/bookings/SlotPickerForm';
 
 interface ConfirmRescheduleFormProps {
@@ -18,23 +17,38 @@ export function ConfirmRescheduleForm({
     calendarTimezone,
     professionalTimezone,
 }: ConfirmRescheduleFormProps) {
-    const router = useRouter();
-    const { isConfirming, isRejecting, error, confirm, reject } = useProfessionalRescheduleActions(bookingId);
+    const { confirmReschedule, rejectReschedule } = useTrackedProfessionalBookingActions();
+    const [isConfirming, setIsConfirming] = React.useState(false);
+    const [isRejecting, setIsRejecting] = React.useState(false);
+    const [error, setError] = React.useState<string | null>(null);
 
     const handleConfirm = async (selectedSlot: string) => {
-        const confirmed = await confirm(selectedSlot);
-        if (!confirmed) return;
+        if (!selectedSlot) {
+            setError('Please select a time slot.');
+            return;
+        }
 
-        router.push('/professional/dashboard');
-        router.refresh();
+        setIsConfirming(true);
+        setError(null);
+        try {
+            await confirmReschedule({ bookingId, startAt: selectedSlot });
+        } catch {
+            // Async failures are surfaced via tracked toast.
+        } finally {
+            setIsConfirming(false);
+        }
     };
 
     const handleReject = async () => {
-        const rejected = await reject();
-        if (!rejected) return;
-
-        router.push('/professional/dashboard');
-        router.refresh();
+        setIsRejecting(true);
+        setError(null);
+        try {
+            await rejectReschedule({ bookingId });
+        } catch {
+            // Async failures are surfaced via tracked toast.
+        } finally {
+            setIsRejecting(false);
+        }
     };
 
     return (

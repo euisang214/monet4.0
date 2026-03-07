@@ -213,6 +213,8 @@ model CallFeedback {
   deliveryRating  Int
   valueRating     Int
   qcStatus        QCStatus
+  qcReasons       String[] @default([])
+  qcReviewedAt    DateTime?
   submittedAt     DateTime
   
   booking         Booking  @relation(fields: [bookingId], references: [id])

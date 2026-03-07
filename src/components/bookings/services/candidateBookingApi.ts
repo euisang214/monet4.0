@@ -1,5 +1,6 @@
 import type { SlotInterval } from '@/components/bookings/calendar/types';
 import { appRoutes } from '@/lib/shared/routes';
+import type { DisputeReason } from '@prisma/client';
 
 interface BusySlotResponse {
     start?: string;
@@ -29,6 +30,23 @@ interface RescheduleRequestArgs {
     slots: SlotInterval[];
     reason?: string;
     timezone: string;
+}
+
+interface CancelBookingArgs {
+    bookingId: string;
+}
+
+interface SubmitReviewArgs {
+    bookingId: string;
+    rating: number;
+    text: string;
+    timezone: string;
+}
+
+interface SubmitDisputeArgs {
+    bookingId: string;
+    reason: DisputeReason;
+    description: string;
 }
 
 export async function fetchCandidateGoogleBusyIntervals(): Promise<SlotInterval[]> {
@@ -98,4 +116,63 @@ export async function submitCandidateRescheduleRequest({
 
     const payload = (await response.json()) as ApiErrorResponse;
     throw new Error(payload?.error || 'Failed to submit reschedule request.');
+}
+
+export async function cancelCandidateBooking({ bookingId }: CancelBookingArgs) {
+    const response = await fetch(appRoutes.api.shared.bookingCancel(bookingId), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+    });
+
+    if (response.ok) {
+        return;
+    }
+
+    const payload = (await response.json().catch(() => null)) as ApiErrorResponse | null;
+    throw new Error(payload?.error || 'Failed to cancel booking.');
+}
+
+export async function submitCandidateReview({
+    bookingId,
+    rating,
+    text,
+    timezone,
+}: SubmitReviewArgs) {
+    const response = await fetch(appRoutes.api.candidate.reviews, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            bookingId,
+            rating,
+            text,
+            timezone,
+        }),
+    });
+
+    if (response.ok) {
+        return;
+    }
+
+    const payload = (await response.json().catch(() => null)) as ApiErrorResponse | null;
+    throw new Error(payload?.error || 'Failed to submit review');
+}
+
+export async function submitCandidateDispute({
+    bookingId,
+    reason,
+    description,
+}: SubmitDisputeArgs) {
+    const response = await fetch(appRoutes.api.candidate.bookingDispute(bookingId), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason, description }),
+    });
+
+    if (response.ok) {
+        return;
+    }
+
+    const payload = (await response.json().catch(() => null)) as ApiErrorResponse | null;
+    throw new Error(payload?.error || 'Failed to submit dispute');
 }

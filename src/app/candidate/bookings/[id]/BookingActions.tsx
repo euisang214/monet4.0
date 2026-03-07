@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Booking } from '@prisma/client';
 import { useRouter } from 'next/navigation';
+import { useTrackedCandidateBookingActions } from '@/components/bookings/hooks/useTrackedCandidateBookingActions';
 import { getBookingActionVisibility } from '@/lib/shared/booking-actions';
 import { appRoutes } from '@/lib/shared/routes';
 
@@ -12,8 +13,8 @@ interface BookingActionsProps {
 
 export function BookingActions({ booking }: BookingActionsProps) {
     const router = useRouter();
+    const { cancelBooking } = useTrackedCandidateBookingActions();
     const [isLoading, setIsLoading] = useState(false);
-    const [message, setMessage] = useState<string | null>(null);
 
     const handleCancel = async () => {
         if (!confirm('Are you sure you want to cancel this booking? This action cannot be undone.')) {
@@ -21,26 +22,11 @@ export function BookingActions({ booking }: BookingActionsProps) {
         }
 
         setIsLoading(true);
-        setMessage(null);
 
         try {
-            const res = await fetch(appRoutes.api.shared.bookingCancel(booking.id), {
-                method: 'POST',
-            });
-
-            const data = await res.json();
-            if (!res.ok) {
-                throw new Error(data.error || 'Failed to cancel booking');
-            }
-
-            router.refresh();
-            setMessage('Booking cancelled successfully.');
-        } catch (error: unknown) {
-            if (error instanceof Error) {
-                setMessage(`Error: ${error.message}`);
-            } else {
-                setMessage('Error: An unexpected error occurred');
-            }
+            await cancelBooking({ bookingId: booking.id });
+        } catch {
+            // Async failures are surfaced via tracked toast.
         } finally {
             setIsLoading(false);
         }
@@ -72,12 +58,6 @@ export function BookingActions({ booking }: BookingActionsProps) {
 
     return (
         <div className="flex flex-col gap-4 mt-6">
-            {message && (
-                <div className={`p-3 rounded text-sm ${message.startsWith('Error') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                    {message}
-                </div>
-            )}
-
             <div className="flex flex-wrap gap-4">
                 {showJoin && (
                     <button

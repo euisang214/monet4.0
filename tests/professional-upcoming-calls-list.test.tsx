@@ -4,11 +4,21 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 const routerPushMock = vi.hoisted(() => vi.fn());
 const routerRefreshMock = vi.hoisted(() => vi.fn());
+const cancelUpcomingBookingMock = vi.hoisted(() => vi.fn());
+const requestRescheduleMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({
     useRouter: () => ({
         push: routerPushMock,
+        replace: vi.fn(),
         refresh: routerRefreshMock,
+    }),
+}));
+
+vi.mock('@/components/bookings/hooks/useTrackedProfessionalBookingActions', () => ({
+    useTrackedProfessionalBookingActions: () => ({
+        cancelUpcomingBooking: cancelUpcomingBookingMock,
+        requestReschedule: requestRescheduleMock,
     }),
 }));
 

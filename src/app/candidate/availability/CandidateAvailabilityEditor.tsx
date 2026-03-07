@@ -13,7 +13,10 @@ import {
     splitSlotsByEditableWindow,
 } from '@/components/bookings/calendar/interval-utils';
 import { appRoutes } from '@/lib/shared/routes';
-import { Button, InlineNotice, SurfaceCard } from '@/components/ui';
+import { Button, SurfaceCard } from '@/components/ui';
+import { useTrackedRequest } from '@/components/ui/providers/RequestToastProvider';
+import { executeTrackedAction } from '@/components/ui/actions/executeTrackedAction';
+import { buildErrorToastCopy } from '@/components/ui/hooks/requestToastController';
 
 interface CandidateAvailabilityEditorProps {
     initialAvailabilitySlots: SlotInterval[];
@@ -81,6 +84,16 @@ export function CandidateAvailabilityEditor({
     isGoogleCalendarConnected,
 }: CandidateAvailabilityEditorProps) {
     const router = useRouter();
+    const { runTrackedRequest } = useTrackedRequest();
+    const trackedRuntime = useMemo(
+        () => ({
+            runTrackedRequest,
+            push: router.push,
+            replace: router.replace,
+            refresh: router.refresh,
+        }),
+        [router, runTrackedRequest]
+    );
     const resolvedCalendarTimezone = React.useMemo(
         () => calendarTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
         [calendarTimezone]
@@ -98,8 +111,6 @@ export function CandidateAvailabilityEditor({
 
     const [baselineSlots, setBaselineSlots] = useState<SlotInterval[]>(() => initialMergedSlots);
     const [selectedEditableSlots, setSelectedEditableSlots] = useState<SlotInterval[]>(() => initialEditableSlots);
-    const [saveError, setSaveError] = useState<string | null>(null);
-    const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
     const latestSelectedSlotsRef = useRef<SlotInterval[]>(selectedEditableSlots);
@@ -157,7 +168,7 @@ export function CandidateAvailabilityEditor({
         [editableEnd, editableStart, resolvedCalendarTimezone]
     );
 
-    const saveAvailability = useCallback(async (): Promise<boolean> => {
+    const saveAvailabilityWithToast = useCallback(async (navigationHref?: string): Promise<boolean> => {
         if (!hasUnsavedChangesRef.current) {
             return true;
         }
@@ -166,41 +177,58 @@ export function CandidateAvailabilityEditor({
         }
 
         setIsSaving(true);
-        setSaveError(null);
-        setSaveSuccess(null);
         isSavingRef.current = true;
 
         const payload = createSavePayload();
 
         try {
-            const response = await fetch(appRoutes.api.candidate.availability, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
+            await executeTrackedAction(trackedRuntime, {
+                action: async () => {
+                    const response = await fetch(appRoutes.api.candidate.availability, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    });
+
+                    if (!response.ok) {
+                        const errorPayload = await response.json().catch(() => null) as { error?: string } | null;
+                        throw new Error(errorPayload?.error || 'Failed to save availability.');
+                    }
+
+                    const nextBaseline = mergeSlotIntervals(payload.slots);
+                    setBaselineSlots(nextBaseline);
+                    return true;
+                },
+                copy: {
+                    pending: {
+                        title: 'Saving availability',
+                        message: navigationHref
+                            ? 'Saving your availability before leaving this page.'
+                            : 'Updating your availability.',
+                    },
+                    success: {
+                        title: 'Availability saved',
+                        message: navigationHref
+                            ? 'Your availability was saved and the next page is ready.'
+                            : 'Your availability has been updated.',
+                    },
+                    error: (error) => buildErrorToastCopy(error, 'Availability save failed'),
+                },
+                postSuccess: navigationHref
+                    ? {
+                          kind: 'push',
+                          href: navigationHref,
+                      }
+                    : { kind: 'refresh' },
             });
-
-            if (!response.ok) {
-                const errorPayload = await response.json().catch(() => null) as { error?: string } | null;
-                throw new Error(errorPayload?.error || 'Failed to save availability.');
-            }
-
-            const nextBaseline = mergeSlotIntervals(payload.slots);
-            setBaselineSlots(nextBaseline);
-            setSaveSuccess('Availability saved.');
-            router.refresh();
             return true;
-        } catch (error: unknown) {
-            if (error instanceof Error) {
-                setSaveError(error.message);
-            } else {
-                setSaveError('Failed to save availability.');
-            }
+        } catch {
             return false;
         } finally {
             setIsSaving(false);
             isSavingRef.current = false;
         }
-    }, [createSavePayload, router]);
+    }, [createSavePayload, trackedRuntime]);
 
     const sendBestEffortSave = useCallback(() => {
         if (!hasUnsavedChangesRef.current || isSavingRef.current) return;
@@ -218,8 +246,6 @@ export function CandidateAvailabilityEditor({
     const handleSlotSelectionChange = useCallback(
         ({ availabilitySlots }: { availabilitySlots: SlotInterval[]; selectedCount: number }) => {
             setSelectedEditableSlots(availabilitySlots);
-            setSaveError(null);
-            setSaveSuccess(null);
         },
         []
     );
@@ -247,16 +273,17 @@ export function CandidateAvailabilityEditor({
             event.stopPropagation();
 
             void (async () => {
-                const saved = await saveAvailability();
+                const nextHref = `${destination.pathname}${destination.search}${destination.hash}`;
+                const saved = await saveAvailabilityWithToast(nextHref);
                 if (saved) {
-                    window.location.assign(destination.href);
+                    return;
                 }
             })();
         };
 
         document.addEventListener('click', handleClickCapture, true);
         return () => document.removeEventListener('click', handleClickCapture, true);
-    }, [saveAvailability]);
+    }, [saveAvailabilityWithToast]);
 
     return (
         <SurfaceCard className="space-y-6">
@@ -280,7 +307,7 @@ export function CandidateAvailabilityEditor({
                 </span>
                 <Button
                     type="button"
-                    onClick={() => void saveAvailability()}
+                    onClick={() => void saveAvailabilityWithToast()}
                     disabled={!hasUnsavedChanges || isSaving}
                     loading={isSaving}
                     loadingLabel="Saving..."
@@ -288,18 +315,6 @@ export function CandidateAvailabilityEditor({
                     Save availability
                 </Button>
             </div>
-
-            {saveSuccess && (
-                <InlineNotice tone="success" title="Saved">
-                    {saveSuccess}
-                </InlineNotice>
-            )}
-
-            {saveError && (
-                <InlineNotice tone="error" title="Save failed">
-                    {saveError}
-                </InlineNotice>
-            )}
         </SurfaceCard>
     );
 }

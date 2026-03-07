@@ -1,0 +1,3 @@
+ALTER TABLE "Feedback"
+ADD COLUMN "qcReasons" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+ADD COLUMN "qcReviewedAt" TIMESTAMP(3);

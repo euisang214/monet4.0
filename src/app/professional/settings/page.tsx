@@ -2,8 +2,10 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTrackedVerificationActions } from "@/components/auth/hooks/useTrackedVerificationActions";
 import { useNotification } from "@/components/ui/hooks/useNotification";
 import { NotificationBanner } from "@/components/ui/composites/NotificationBanner";
+import { useTrackedRequest } from "@/components/ui/providers/RequestToastProvider";
 import { ProviderConnections } from "@/components/auth/ProviderConnections";
 import { appRoutes } from "@/lib/shared/routes";
 import { Button, Field, FormSection, InlineNotice, LoadingCard, PageHeader, SurfaceCard, TextInput } from "@/components/ui";
@@ -36,6 +38,8 @@ function ProfessionalSettingsPageContent() {
     const [verifying, setVerifying] = useState(false);
     const [corporateEmail, setCorporateEmail] = useState("");
     const { notification, notify, clear } = useNotification();
+    const { showToast } = useTrackedRequest();
+    const { requestCode, confirmCode } = useTrackedVerificationActions("settings");
 
     const loadData = useCallback(async () => {
         const [settingsPayload, stripePayload] = await Promise.all([
@@ -78,7 +82,6 @@ function ProfessionalSettingsPageContent() {
     }, [successParam, errorParam, router, notify, loadData]);
 
     const handleProfileSave = async (payload: ProfessionalProfileSubmitPayload) => {
-        clear();
         const trimmedCorporateEmail = corporateEmail.trim();
         if (!trimmedCorporateEmail) {
             throw new Error("Corporate email is required.");
@@ -108,7 +111,6 @@ function ProfessionalSettingsPageContent() {
 
         await loadData();
         setCorporateEmail(payloadWithVerificationEmail.corporateEmail);
-        notify("success", "Profile settings saved.");
     };
 
     const handleConnectStripe = async () => {
@@ -133,54 +135,38 @@ function ProfessionalSettingsPageContent() {
 
     const handleVerifyEmail = async () => {
         if (!corporateEmail.trim()) {
-            notify("error", "Enter a corporate email before requesting verification.");
+            showToast("error", {
+                title: "Corporate email required",
+                message: "Enter a corporate email before requesting verification.",
+            });
             return;
         }
 
         try {
-            const res = await fetch(appRoutes.api.shared.verificationRequest, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: corporateEmail }),
-            });
-
-            if (!res.ok) {
-                throw new Error("Could not send verification email");
-            }
-
+            await requestCode({ email: corporateEmail });
             setVerificationSent(true);
-            notify("success", "Verification email sent. Check your inbox for the code.");
-        } catch (error) {
-            console.error(error);
-            notify("error", "Failed to send verification email.");
+        } catch {
+            // Async failures are surfaced via tracked toast.
         }
     };
 
     const handleConfirmVerification = async () => {
-        if (!verificationCode.trim()) return;
+        if (!verificationCode.trim()) {
+            showToast("warning", {
+                title: "Verification code required",
+                message: "Enter the most recent code before confirming verification.",
+            });
+            return;
+        }
 
         setVerifying(true);
-        clear();
         try {
-            const res = await fetch(appRoutes.api.shared.verificationConfirm, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ token: verificationCode }),
-            });
-
-            const data = await res.json();
-
-            if (!res.ok) {
-                throw new Error(data.error || "Verification failed");
-            }
-
+            await confirmCode({ token: verificationCode });
             setProfile((prev) => ({ ...(prev || {}), verifiedAt: new Date().toISOString() }));
             setVerificationSent(false);
             setVerificationCode("");
-            notify("success", "Email verified successfully.");
-        } catch (error) {
-            console.error(error);
-            notify("error", "Verification code is invalid or expired.");
+        } catch {
+            // Async failures are surfaced via tracked toast.
         } finally {
             setVerifying(false);
         }
@@ -246,6 +232,17 @@ function ProfessionalSettingsPageContent() {
                         onSubmit={handleProfileSave}
                         onCorporateEmailDraftChange={setCorporateEmail}
                         corporateEmailOverride={corporateEmail}
+                        asyncStatus={{
+                            pending: {
+                                title: "Saving professional settings",
+                                message: "Updating your public profile and payout details.",
+                            },
+                            success: {
+                                title: "Professional settings saved",
+                                message: "Your profile changes are now live.",
+                            },
+                            errorTitle: "Settings update failed",
+                        }}
                     />
 
                     <FormSection

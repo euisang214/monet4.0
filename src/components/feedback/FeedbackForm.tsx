@@ -1,9 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useTrackedProfessionalBookingActions } from '@/components/bookings/hooks/useTrackedProfessionalBookingActions';
 import { Button } from '@/components/ui/primitives/Button';
-import { appRoutes } from '@/lib/shared/routes';
 
 interface FeedbackFormProps {
     bookingId: string;
@@ -14,7 +13,7 @@ interface FeedbackFormProps {
 }
 
 export function FeedbackForm({ bookingId, initialData }: FeedbackFormProps) {
-    const router = useRouter();
+    const { submitFeedback } = useTrackedProfessionalBookingActions();
     const [text, setText] = useState(initialData?.text || '');
     const [actions, setActions] = useState<string[]>(initialData?.actions?.length === 3 ? initialData.actions : ['', '', '']);
     const [ratings, setRatings] = useState({
@@ -40,28 +39,16 @@ export function FeedbackForm({ bookingId, initialData }: FeedbackFormProps) {
 
         try {
             setIsSubmitting(true);
-            const res = await fetch(appRoutes.api.professional.feedback(bookingId), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    text,
-                    actions,
-                    contentRating: Number(ratings.content),
-                    deliveryRating: Number(ratings.delivery),
-                    valueRating: Number(ratings.value)
-                })
+            await submitFeedback({
+                bookingId,
+                text,
+                actions,
+                contentRating: Number(ratings.content),
+                deliveryRating: Number(ratings.delivery),
+                valueRating: Number(ratings.value),
             });
-
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.error || 'Failed to submit feedback');
-            }
-
-            // Success
-            router.push(appRoutes.professional.dashboard);
-            router.refresh();
-        } catch (err: any) {
-            setError(err.message);
+        } catch {
+            // Async failures are surfaced via tracked toast.
         } finally {
             setIsSubmitting(false);
         }

@@ -31,6 +31,7 @@ describe("ProfessionalDashboardPage search params", () => {
             nextCursor: undefined,
             professionalTimezone: "UTC",
             recentFeedback: [],
+            recentQcEvents: [],
             reviewStats: { average: null, count: 0 },
         });
     });

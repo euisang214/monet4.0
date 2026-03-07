@@ -4,6 +4,7 @@ import { BookingStatus } from '@prisma/client';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useTrackedCandidateBookingActions } from '@/components/bookings/hooks/useTrackedCandidateBookingActions';
 import { appRoutes } from '@/lib/shared/routes';
 import { getBookingActionVisibility } from '@/lib/shared/booking-actions';
 
@@ -21,8 +22,8 @@ export function CandidateHistoryActions({
     hasFeedback = false,
 }: CandidateHistoryActionsProps) {
     const router = useRouter();
+    const { cancelBooking } = useTrackedCandidateBookingActions();
     const [isCancelling, setIsCancelling] = useState(false);
-    const [error, setError] = useState<string | null>(null);
 
     const { showJoin, showReschedule, showCancel, showDispute, showReview } = getBookingActionVisibility(status, Boolean(joinUrl));
 
@@ -41,27 +42,11 @@ export function CandidateHistoryActions({
         }
 
         setIsCancelling(true);
-        setError(null);
 
         try {
-            const response = await fetch(appRoutes.api.shared.bookingCancel(bookingId), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({}),
-            });
-
-            const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-            if (!response.ok) {
-                throw new Error(payload?.error || 'Failed to cancel booking.');
-            }
-
-            router.refresh();
-        } catch (cancelError: unknown) {
-            if (cancelError instanceof Error) {
-                setError(cancelError.message);
-            } else {
-                setError('Failed to cancel booking.');
-            }
+            await cancelBooking({ bookingId });
+        } catch {
+            // Async failures are surfaced via tracked toast.
         } finally {
             setIsCancelling(false);
         }
@@ -137,7 +122,6 @@ export function CandidateHistoryActions({
                 </p>
             ) : null}
 
-            {error ? <p className="text-xs text-red-600">{error}</p> : null}
         </div>
     );
 }

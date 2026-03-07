@@ -5,11 +5,15 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 const routerPushMock = vi.hoisted(() => vi.fn());
 const routerRefreshMock = vi.hoisted(() => vi.fn());
+const routerReplaceMock = vi.hoisted(() => vi.fn());
 const updateMock = vi.hoisted(() => vi.fn());
+const requestCodeMock = vi.hoisted(() => vi.fn());
+const confirmCodeMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({
     useRouter: () => ({
         push: routerPushMock,
+        replace: routerReplaceMock,
         refresh: routerRefreshMock,
     }),
 }));
@@ -17,6 +21,13 @@ vi.mock("next/navigation", () => ({
 vi.mock("next-auth/react", () => ({
     useSession: () => ({
         update: updateMock,
+    }),
+}));
+
+vi.mock('@/components/auth/hooks/useTrackedVerificationActions', () => ({
+    useTrackedVerificationActions: () => ({
+        requestCode: requestCodeMock,
+        confirmCode: confirmCodeMock,
     }),
 }));
 
@@ -90,4 +101,3 @@ describe("OnboardingForm corporate verification", () => {
         expect(html).not.toContain("Verify your corporate email to complete onboarding.");
     });
 });
-

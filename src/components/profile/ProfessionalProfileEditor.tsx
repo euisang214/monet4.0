@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ProfessionalProfileFields } from "@/components/profile/ProfessionalProfileFields";
 import { TimelineEntriesEditor } from "@/components/profile/shared/TimelineEntriesEditor";
 import { EducationEntriesEditor } from "@/components/profile/shared/EducationEntriesEditor";
 import { SUPPORTED_TIMEZONES, normalizeTimezone } from "@/lib/utils/supported-timezones";
+import { useTrackedRequest } from "@/components/ui/providers/RequestToastProvider";
+import { executeTrackedAction } from "@/components/ui/actions/executeTrackedAction";
+import { buildErrorToastCopy, type ToastCopy } from "@/components/ui/hooks/requestToastController";
 import {
     Button,
     Field,
@@ -79,6 +83,17 @@ type ProfessionalProfileEditorProps = {
     requireCorporateVerification?: boolean;
     isCorporateEmailVerified?: boolean;
     corporateVerificationMessage?: string;
+    asyncStatus?: {
+        pending: ToastCopy;
+        success: ToastCopy;
+        error?: ToastCopy | ((error: unknown) => ToastCopy);
+        errorTitle?: string;
+        errorMessage?: string;
+        navigation?: {
+            href: string;
+            mode?: "push" | "replace";
+        };
+    };
 };
 
 function isPayoutReady(status?: ProfessionalStripeStatus | null) {
@@ -100,7 +115,16 @@ export function ProfessionalProfileEditor({
     requireCorporateVerification = false,
     isCorporateEmailVerified = true,
     corporateVerificationMessage = "Verify your corporate email to complete onboarding.",
+    asyncStatus,
 }: ProfessionalProfileEditorProps) {
+    const router = useRouter();
+    const { runTrackedRequest } = useTrackedRequest();
+    const trackedRuntime = {
+        runTrackedRequest,
+        push: router.push,
+        replace: router.replace,
+        refresh: router.refresh,
+    };
     const [firstName, setFirstName] = useState(initialData?.firstName || "");
     const [lastName, setLastName] = useState(initialData?.lastName || "");
     const [timezone, setTimezone] = useState(normalizeTimezone(initialData?.timezone));
@@ -210,18 +234,47 @@ export function ProfessionalProfileEditor({
                 throw new Error(corporateVerificationMessage);
             }
 
-            await onSubmit({
-                firstName: trimmedFirstName,
-                lastName: trimmedLastName,
-                timezone: normalizeTimezone(timezone),
-                bio: trimmedBio,
-                price: parsedPrice,
-                corporateEmail: trimmedCorporateEmail,
-                interests: normalizedInterests,
-                experience: serializeExperienceEntries(experienceEntries, "Experience"),
-                activities: serializeExperienceEntries(activityEntries, "Activity"),
-                education: serializeEducationEntries(educationEntries),
-            });
+            const submitAsync = () =>
+                onSubmit({
+                    firstName: trimmedFirstName,
+                    lastName: trimmedLastName,
+                    timezone: normalizeTimezone(timezone),
+                    bio: trimmedBio,
+                    price: parsedPrice,
+                    corporateEmail: trimmedCorporateEmail,
+                    interests: normalizedInterests,
+                    experience: serializeExperienceEntries(experienceEntries, "Experience"),
+                    activities: serializeExperienceEntries(activityEntries, "Activity"),
+                    education: serializeEducationEntries(educationEntries),
+                });
+
+            if (asyncStatus) {
+                const navigation = asyncStatus.navigation;
+                try {
+                    await executeTrackedAction(trackedRuntime, {
+                        action: submitAsync,
+                        copy: {
+                            pending: asyncStatus.pending,
+                            success: asyncStatus.success,
+                            error: asyncStatus.error || ((submitError) => buildErrorToastCopy(
+                                submitError,
+                                asyncStatus.errorTitle || "Profile save failed",
+                                asyncStatus.errorMessage,
+                            )),
+                        },
+                        postSuccess: navigation
+                            ? {
+                                  kind: navigation.mode === "replace" ? "replace" : "push",
+                                  href: navigation.href,
+                              }
+                            : { kind: "none" },
+                    });
+                } catch {
+                    // Async failures are surfaced via tracked toast.
+                }
+            } else {
+                await submitAsync();
+            }
         } catch (submitError) {
             if (submitError instanceof Error) {
                 setError(submitError.message);

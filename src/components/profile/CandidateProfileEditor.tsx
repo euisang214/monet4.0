@@ -1,10 +1,14 @@
 "use client";
 
 import { ReactNode, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { TimelineEntriesEditor } from "@/components/profile/shared/TimelineEntriesEditor";
 import { EducationEntriesEditor } from "@/components/profile/shared/EducationEntriesEditor";
 import { appRoutes } from "@/lib/shared/routes";
 import { SUPPORTED_TIMEZONES, normalizeTimezone } from "@/lib/utils/supported-timezones";
+import { useTrackedRequest } from "@/components/ui/providers/RequestToastProvider";
+import { executeTrackedAction } from "@/components/ui/actions/executeTrackedAction";
+import { buildErrorToastCopy, type ToastCopy } from "@/components/ui/hooks/requestToastController";
 import {
     Button,
     Field,
@@ -62,6 +66,17 @@ type CandidateProfileEditorProps = {
     submittingLabel?: string;
     disabled?: boolean;
     footerContent?: ReactNode;
+    asyncStatus?: {
+        pending: ToastCopy;
+        success: ToastCopy;
+        error?: ToastCopy | ((error: unknown) => ToastCopy);
+        errorTitle?: string;
+        errorMessage?: string;
+        navigation?: {
+            href: string;
+            mode?: "push" | "replace";
+        };
+    };
 };
 
 async function uploadCandidateResume(file: File) {
@@ -102,7 +117,16 @@ export function CandidateProfileEditor({
     submittingLabel = "Saving...",
     disabled = false,
     footerContent,
+    asyncStatus,
 }: CandidateProfileEditorProps) {
+    const router = useRouter();
+    const { runTrackedRequest } = useTrackedRequest();
+    const trackedRuntime = {
+        runTrackedRequest,
+        push: router.push,
+        replace: router.replace,
+        refresh: router.refresh,
+    };
     const [firstName, setFirstName] = useState(initialData?.firstName || "");
     const [lastName, setLastName] = useState(initialData?.lastName || "");
     const [timezone, setTimezone] = useState(normalizeTimezone(initialData?.timezone));
@@ -137,31 +161,21 @@ export function CandidateProfileEditor({
         setIsSaving(true);
 
         try {
-            let resumeUrl = candidateResumeUrl;
-            let resumeViewUrl = candidateResumeViewUrl;
+            if (!candidateResumeUrl && !candidateResumeFile) {
+                throw new Error("Resume is required.");
+            }
+
+            if (candidateResumeFile && candidateResumeFile.size > MAX_RESUME_SIZE_BYTES) {
+                throw new Error("Resume must be 4MB or smaller.");
+            }
 
             if (candidateResumeFile) {
-                if (candidateResumeFile.size > MAX_RESUME_SIZE_BYTES) {
-                    throw new Error("Resume must be 4MB or smaller.");
-                }
-
                 const isPdf =
                     candidateResumeFile.type === PDF_CONTENT_TYPE ||
                     candidateResumeFile.name.toLowerCase().endsWith(".pdf");
                 if (!isPdf) {
                     throw new Error("Resume must be a PDF.");
                 }
-
-                const uploaded = await uploadCandidateResume(candidateResumeFile);
-                resumeUrl = uploaded.storageUrl;
-                resumeViewUrl = uploaded.viewUrl;
-                setCandidateResumeUrl(uploaded.storageUrl);
-                setCandidateResumeViewUrl(uploaded.viewUrl);
-                setCandidateResumeFile(null);
-            }
-
-            if (!resumeUrl) {
-                throw new Error("Resume is required.");
             }
 
             const trimmedFirstName = firstName.trim();
@@ -179,18 +193,66 @@ export function CandidateProfileEditor({
                 throw new Error("At least one interest is required.");
             }
 
-            await onSubmit({
-                firstName: trimmedFirstName,
-                lastName: trimmedLastName,
-                timezone: normalizeTimezone(timezone),
-                resumeUrl,
-                interests,
-                experience: serializeExperienceEntries(experienceEntries, "Experience"),
-                activities: serializeExperienceEntries(activityEntries, "Activity"),
-                education: serializeEducationEntries(educationEntries),
-            });
+            const submitAsync = async () => {
+                let resumeUrl = candidateResumeUrl;
+                let resumeViewUrl = candidateResumeViewUrl;
 
-            setCandidateResumeViewUrl(resumeViewUrl || resumeUrl);
+                if (candidateResumeFile) {
+                    const uploaded = await uploadCandidateResume(candidateResumeFile);
+                    resumeUrl = uploaded.storageUrl;
+                    resumeViewUrl = uploaded.viewUrl;
+                    setCandidateResumeUrl(uploaded.storageUrl);
+                    setCandidateResumeViewUrl(uploaded.viewUrl);
+                    setCandidateResumeFile(null);
+                }
+
+                await onSubmit({
+                    firstName: trimmedFirstName,
+                    lastName: trimmedLastName,
+                    timezone: normalizeTimezone(timezone),
+                    resumeUrl,
+                    interests,
+                    experience: serializeExperienceEntries(experienceEntries, "Experience"),
+                    activities: serializeExperienceEntries(activityEntries, "Activity"),
+                    education: serializeEducationEntries(educationEntries),
+                });
+
+                return {
+                    resumeUrl,
+                    resumeViewUrl: resumeViewUrl || resumeUrl,
+                };
+            };
+
+            if (asyncStatus) {
+                const navigation = asyncStatus.navigation;
+                try {
+                    const result = await executeTrackedAction(trackedRuntime, {
+                        action: submitAsync,
+                        copy: {
+                            pending: asyncStatus.pending,
+                            success: asyncStatus.success,
+                            error: asyncStatus.error || ((submitError) => buildErrorToastCopy(
+                                submitError,
+                                asyncStatus.errorTitle || "Profile save failed",
+                                asyncStatus.errorMessage,
+                            )),
+                        },
+                        postSuccess: navigation
+                            ? {
+                                  kind: navigation.mode === "replace" ? "replace" : "push",
+                                  href: navigation.href,
+                              }
+                            : { kind: "none" },
+                    });
+
+                    setCandidateResumeViewUrl(result.resumeViewUrl);
+                } catch {
+                    // Async failures are surfaced via tracked toast.
+                }
+            } else {
+                const result = await submitAsync();
+                setCandidateResumeViewUrl(result.resumeViewUrl);
+            }
         } catch (submitError) {
             if (submitError instanceof Error) {
                 setError(submitError.message);

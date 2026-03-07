@@ -2,10 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { appRoutes } from "@/lib/shared/routes";
-import { Button, InlineNotice } from "@/components/ui";
+import { Button } from "@/components/ui";
 import { buttonVariants } from "@/components/ui/primitives/Button";
+import { useTrackedProfessionalBookingActions } from "@/components/bookings/hooks/useTrackedProfessionalBookingActions";
 
 interface ProfessionalRequestActionsProps {
     bookingId: string;
@@ -22,9 +21,8 @@ export function ProfessionalRequestActions({
     resumeUrl,
     isReschedule,
 }: ProfessionalRequestActionsProps) {
-    const router = useRouter();
+    const { rejectRequest } = useTrackedProfessionalBookingActions();
     const [isRejecting, setIsRejecting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
 
     const rejectLabel = isReschedule ? "Reject reschedule" : "Reject candidate";
 
@@ -37,31 +35,11 @@ export function ProfessionalRequestActions({
         if (!confirmed) return;
 
         setIsRejecting(true);
-        setError(null);
 
         try {
-            const endpoint = isReschedule
-                ? appRoutes.api.professional.requestRescheduleReject(bookingId)
-                : appRoutes.api.professional.requestDecline(bookingId);
-
-            const response = await fetch(endpoint, {
-                method: "POST",
-                headers: isReschedule ? undefined : { "Content-Type": "application/json" },
-                body: isReschedule ? undefined : JSON.stringify({ reason: "Declined by professional" }),
-            });
-
-            const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-            if (!response.ok) {
-                throw new Error(payload?.error || "Failed to reject request");
-            }
-
-            router.refresh();
-        } catch (rejectError: unknown) {
-            if (rejectError instanceof Error) {
-                setError(rejectError.message);
-            } else {
-                setError("Failed to reject request");
-            }
+            await rejectRequest({ bookingId, isReschedule });
+        } catch {
+            // Async failures are surfaced via tracked toast.
         } finally {
             setIsRejecting(false);
         }
@@ -101,12 +79,6 @@ export function ProfessionalRequestActions({
                     {rejectLabel}
                 </Button>
             </div>
-
-            {error ? (
-                <InlineNotice tone="error" title="Request update failed">
-                    {error}
-                </InlineNotice>
-            ) : null}
         </div>
     );
 }

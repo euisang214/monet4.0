@@ -7,6 +7,7 @@ import { FeedbackTaskCard } from "@/components/dashboard/FeedbackTaskCard";
 import { Role } from "@prisma/client";
 import { EmptyState, MetricCard, PageHeader, SectionTabs, SurfaceCard } from "@/components/ui";
 import { ProfessionalUpcomingCallsList } from "@/components/dashboard/ProfessionalUpcomingCallsList";
+import { ProfessionalQcToastEmitter } from "@/components/dashboard/ProfessionalQcToastEmitter";
 import { appRoutes } from "@/lib/shared/routes";
 import { buttonVariants } from "@/components/ui/primitives/Button";
 
@@ -81,6 +82,7 @@ export default async function ProfessionalDashboardPage({
         nextCursor,
         professionalTimezone,
         recentFeedback,
+        recentQcEvents,
         reviewStats,
     } = await ProfessionalDashboardService.getDashboardData(user.id, {
         view: activeView,
@@ -96,6 +98,10 @@ export default async function ProfessionalDashboardPage({
     const upcomingItems = items as Parameters<typeof ProfessionalUpcomingCallsList>[0]["bookings"];
     const requestItems = items as Array<Parameters<typeof ProfessionalRequestListItem>[0]["booking"]>;
     const feedbackItems = items as Array<Parameters<typeof FeedbackTaskCard>[0]["booking"]>;
+    const qcToastEvents = recentQcEvents.map((event) => ({
+        ...event,
+        qcReviewedAt: event.qcReviewedAt.toISOString(),
+    }));
     const tabItems = DASHBOARD_VIEWS.map((view) => ({
         value: view,
         label: VIEW_META[view].title,
@@ -105,6 +111,7 @@ export default async function ProfessionalDashboardPage({
 
     return (
         <div className="space-y-8">
+            <ProfessionalQcToastEmitter events={qcToastEvents} />
             <PageHeader
                 eyebrow="Professional dashboard"
                 title="Upcoming calls, tasks, and candidate feedback"

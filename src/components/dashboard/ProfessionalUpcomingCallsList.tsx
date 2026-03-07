@@ -1,11 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { appRoutes } from "@/lib/shared/routes";
 import { formatInTimeZone } from "@/lib/utils/timezones";
 import { normalizeTimezone } from "@/lib/utils/supported-timezones";
-import { Button, InlineNotice, SurfaceCard } from "@/components/ui";
+import { Button, SurfaceCard } from "@/components/ui";
+import { useTrackedProfessionalBookingActions } from "@/components/bookings/hooks/useTrackedProfessionalBookingActions";
 
 interface UpcomingCall {
     id: string;
@@ -33,9 +32,8 @@ function formatCallTime(startAt: Date | string | null, resolvedTimezone: string)
 }
 
 export function ProfessionalUpcomingCallsList({ bookings, professionalTimezone }: ProfessionalUpcomingCallsListProps) {
-    const router = useRouter();
+    const { cancelUpcomingBooking, requestReschedule } = useTrackedProfessionalBookingActions();
     const [pendingAction, setPendingAction] = useState<{ id: string; type: "cancel" | "reschedule" } | null>(null);
-    const [error, setError] = useState<string | null>(null);
     const displayTimezone = normalizeTimezone(professionalTimezone);
 
     const handleCancel = async (bookingId: string) => {
@@ -45,27 +43,11 @@ export function ProfessionalUpcomingCallsList({ bookings, professionalTimezone }
         }
 
         setPendingAction({ id: bookingId, type: "cancel" });
-        setError(null);
 
         try {
-            const response = await fetch(appRoutes.api.shared.bookingCancel(bookingId), {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({}),
-            });
-
-            const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-            if (!response.ok) {
-                throw new Error(payload?.error || "Failed to cancel booking.");
-            }
-
-            router.refresh();
-        } catch (cancelError: unknown) {
-            if (cancelError instanceof Error) {
-                setError(cancelError.message);
-            } else {
-                setError("Failed to cancel booking.");
-            }
+            await cancelUpcomingBooking({ bookingId });
+        } catch {
+            // Async failures are surfaced via tracked toast.
         } finally {
             setPendingAction(null);
         }
@@ -73,27 +55,11 @@ export function ProfessionalUpcomingCallsList({ bookings, professionalTimezone }
 
     const handleReschedule = async (bookingId: string) => {
         setPendingAction({ id: bookingId, type: "reschedule" });
-        setError(null);
 
         try {
-            const response = await fetch(appRoutes.api.professional.requestRescheduleRequest(bookingId), {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({}),
-            });
-
-            const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-            if (!response.ok) {
-                throw new Error(payload?.error || "Failed to request reschedule.");
-            }
-
-            router.push(appRoutes.professional.requestReschedule(bookingId));
-        } catch (rescheduleError: unknown) {
-            if (rescheduleError instanceof Error) {
-                setError(rescheduleError.message);
-            } else {
-                setError("Failed to request reschedule.");
-            }
+            await requestReschedule({ bookingId });
+        } catch {
+            // Async failures are surfaced via tracked toast.
         } finally {
             setPendingAction(null);
         }
@@ -108,12 +74,6 @@ export function ProfessionalUpcomingCallsList({ bookings, professionalTimezone }
 
     return (
         <div className="space-y-3">
-            {error ? (
-                <InlineNotice tone="error" title="Action failed">
-                    {error}
-                </InlineNotice>
-            ) : null}
-
             {bookings.map((booking) => {
                 const cancelling = pendingAction?.id === booking.id && pendingAction.type === "cancel";
                 const rescheduling = pendingAction?.id === booking.id && pendingAction.type === "reschedule";

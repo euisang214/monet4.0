@@ -2,11 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { useNotification } from "@/components/ui/hooks/useNotification";
-import { NotificationBanner } from "@/components/ui/composites/NotificationBanner";
 import { ProviderConnections } from "@/components/auth/ProviderConnections";
 import { appRoutes } from "@/lib/shared/routes";
-import { LoadingCard, PageHeader, SurfaceCard } from "@/components/ui";
+import { InlineNotice, LoadingCard, PageHeader, SurfaceCard } from "@/components/ui";
 import {
     CandidateProfileEditor,
     CandidateProfileEditorInitialData,
@@ -16,7 +14,7 @@ import {
 export default function CandidateSettingsPage() {
     const [profile, setProfile] = useState<CandidateProfileEditorInitialData | null>(null);
     const [loading, setLoading] = useState(true);
-    const { notification, notify, clear } = useNotification();
+    const [loadError, setLoadError] = useState<string | null>(null);
 
     const fetchSettings = useCallback(async () => {
         const response = await fetch(appRoutes.api.shared.settings);
@@ -39,10 +37,11 @@ export default function CandidateSettingsPage() {
                 const initialSettings = await fetchSettings();
                 if (isMounted) {
                     setProfile(initialSettings);
+                    setLoadError(null);
                 }
             } catch {
                 if (isMounted) {
-                    notify("error", "Could not load profile settings.");
+                    setLoadError("Could not load profile settings.");
                 }
             } finally {
                 if (isMounted) {
@@ -56,11 +55,9 @@ export default function CandidateSettingsPage() {
         return () => {
             isMounted = false;
         };
-    }, [fetchSettings, notify]);
+    }, [fetchSettings]);
 
     const handleSave = async (payload: CandidateProfileSubmitPayload) => {
-        clear();
-
         const response = await fetch(appRoutes.api.shared.settings, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -81,7 +78,6 @@ export default function CandidateSettingsPage() {
 
         const refreshedSettings = await fetchSettings();
         setProfile(refreshedSettings);
-        notify("success", "Settings saved.");
     };
 
     if (loading) {
@@ -106,7 +102,11 @@ export default function CandidateSettingsPage() {
                     className="mb-8"
                 />
 
-                <NotificationBanner notification={notification} className="mb-6" />
+                {loadError ? (
+                    <InlineNotice tone="error" title="Load failed" className="mb-6">
+                        {loadError}
+                    </InlineNotice>
+                ) : null}
 
                 <SurfaceCard>
                     <CandidateProfileEditor
@@ -115,6 +115,16 @@ export default function CandidateSettingsPage() {
                         submitLabel="Save changes"
                         submittingLabel="Saving..."
                         onSubmit={handleSave}
+                        asyncStatus={{
+                            pending: {
+                                title: "Saving candidate settings",
+                                message: "Updating your profile and preferences.",
+                            },
+                            success: {
+                                title: "Candidate settings saved",
+                                message: "Your profile changes are now live.",
+                            },
+                        }}
                     />
                 </SurfaceCard>
 

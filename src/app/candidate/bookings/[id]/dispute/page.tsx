@@ -3,11 +3,12 @@
 import React, { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { DisputeReason } from '@prisma/client';
-import { appRoutes } from '@/lib/shared/routes';
+import { useTrackedCandidateBookingActions } from '@/components/bookings/hooks/useTrackedCandidateBookingActions';
 
 export default function DisputePage() {
     const { id } = useParams<{ id: string }>();
     const router = useRouter();
+    const { submitDispute } = useTrackedCandidateBookingActions();
     const [reason, setReason] = useState<DisputeReason | ''>('');
     const [description, setDescription] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -23,21 +24,13 @@ export default function DisputePage() {
         setError(null);
 
         try {
-            const res = await fetch(appRoutes.api.candidate.bookingDispute(id), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ reason, description }),
+            await submitDispute({
+                bookingId: id,
+                reason,
+                description,
             });
-
-            const data = await res.json();
-            if (!res.ok) {
-                throw new Error(data.error || 'Failed to submit dispute');
-            }
-
-            router.push(appRoutes.candidate.bookingDetails(id));
-            router.refresh();
-        } catch (err: any) {
-            setError(err.message);
+        } catch {
+            // Async failures are surfaced via tracked toast.
         } finally {
             setIsLoading(false);
         }

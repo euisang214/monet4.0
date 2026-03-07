@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { Role } from "@prisma/client";
-import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useTrackedVerificationActions } from "@/components/auth/hooks/useTrackedVerificationActions";
 import { appRoutes } from "@/lib/shared/routes";
-import { NotificationBanner } from "@/components/ui/composites/NotificationBanner";
-import { useNotification } from "@/components/ui/hooks/useNotification";
+import { useTrackedRequest } from "@/components/ui/providers/RequestToastProvider";
 import { Button, Field, FormSection, InlineNotice, PageHeader, SurfaceCard, TextInput } from "@/components/ui";
 import {
     CandidateProfileEditor,
@@ -45,8 +44,9 @@ export function OnboardingForm({
     initialProfessional,
     initialProfessionalEmailVerified = false,
 }: OnboardingFormProps) {
-    const router = useRouter();
     const { update } = useSession();
+    const { showToast } = useTrackedRequest();
+    const { requestCode, confirmCode } = useTrackedVerificationActions("onboarding");
     const [stripeStatus, setStripeStatus] = useState<ProfessionalStripeStatus | null>(null);
     const [corporateEmail, setCorporateEmail] = useState(initialProfessional?.corporateEmail || "");
     const [verificationSent, setVerificationSent] = useState(false);
@@ -58,8 +58,6 @@ export function OnboardingForm({
         if (!initialProfessionalEmailVerified || !initialProfessional?.verifiedAt) return "";
         return normalizeCorporateEmail(initialProfessional?.corporateEmail);
     });
-    const { notification, notify, clear } = useNotification();
-
     useEffect(() => {
         let isMounted = true;
 
@@ -132,7 +130,6 @@ export function OnboardingForm({
             normalizedCorporateEmail === initialVerifiedEmailNormalized);
 
     const submitOnboarding = async (payload: OnboardingSubmitPayload) => {
-        clear();
         const response = await fetch(appRoutes.api.auth.onboarding, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -164,9 +161,6 @@ export function OnboardingForm({
                 onboardingCompleted: result?.data?.onboardingCompleted ?? true,
             },
         });
-
-        router.push(postOnboardingPath(role));
-        router.refresh();
     };
 
     const handleConnectStripe = async () => {
@@ -187,56 +181,41 @@ export function OnboardingForm({
 
     const handleVerifyEmail = async () => {
         if (!normalizedCorporateEmail) {
-            notify("error", "Enter a corporate email before requesting verification.");
+            showToast("error", {
+                title: "Corporate email required",
+                message: "Enter a corporate email before requesting verification.",
+            });
             return;
         }
 
-        clear();
         try {
-            const response = await fetch(appRoutes.api.shared.verificationRequest, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: corporateEmail }),
-            });
-            if (!response.ok) {
-                throw new Error("request_failed");
-            }
-
+            await requestCode({ email: corporateEmail });
             setVerificationTargetEmailNormalized(normalizedCorporateEmail);
             setVerificationSent(true);
             setVerificationCode("");
-            notify("success", "Verification email sent. Check your inbox for the code.");
-        } catch (error) {
-            console.error(error);
-            notify("error", "Failed to send verification email.");
+        } catch {
+            // Async failures are surfaced via tracked toast.
         }
     };
 
     const handleConfirmVerification = async () => {
-        if (!verificationCode.trim()) return;
+        if (!verificationCode.trim()) {
+            showToast("warning", {
+                title: "Verification code required",
+                message: "Enter the most recent code before confirming verification.",
+            });
+            return;
+        }
 
         setVerifying(true);
-        clear();
         try {
-            const response = await fetch(appRoutes.api.shared.verificationConfirm, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ token: verificationCode.trim() }),
-            });
-            const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-
-            if (!response.ok) {
-                throw new Error(payload?.error || "verification_failed");
-            }
-
+            await confirmCode({ token: verificationCode.trim() });
             setVerifiedEmailNormalized(verificationTargetEmailNormalized || normalizedCorporateEmail);
             setVerificationSent(false);
             setVerificationCode("");
             setVerificationTargetEmailNormalized("");
-            notify("success", "Corporate email verified successfully.");
-        } catch (error) {
-            console.error(error);
-            notify("error", "Verification code is invalid or expired.");
+        } catch {
+            // Async failures are surfaced via tracked toast.
         } finally {
             setVerifying(false);
         }
@@ -252,7 +231,6 @@ export function OnboardingForm({
                 }.`}
                 className="mb-6"
             />
-            <NotificationBanner notification={notification} className="mb-6" />
 
             {role === Role.CANDIDATE ? (
                 <CandidateProfileEditor
@@ -270,6 +248,20 @@ export function OnboardingForm({
                     submitLabel="Complete onboarding"
                     submittingLabel="Saving..."
                     onSubmit={submitOnboarding}
+                    asyncStatus={{
+                        pending: {
+                            title: "Completing onboarding",
+                            message: "Saving your profile and preparing your workspace.",
+                        },
+                        success: {
+                            title: "Onboarding completed",
+                            message: "Your profile is ready.",
+                        },
+                        errorTitle: "Onboarding failed",
+                        navigation: {
+                            href: postOnboardingPath(role),
+                        },
+                    }}
                 />
             ) : (
                 <div className="space-y-6">
@@ -299,6 +291,20 @@ export function OnboardingForm({
                         requireCorporateVerification
                         isCorporateEmailVerified={isVerifiedForCurrentEmail}
                         corporateVerificationMessage="Verify your corporate email to complete onboarding."
+                        asyncStatus={{
+                            pending: {
+                                title: "Completing onboarding",
+                                message: "Saving your profile and preparing your workspace.",
+                            },
+                            success: {
+                                title: "Onboarding completed",
+                                message: "Your professional workspace is ready.",
+                            },
+                            errorTitle: "Onboarding failed",
+                            navigation: {
+                                href: postOnboardingPath(role),
+                            },
+                        }}
                     />
 
                     <FormSection

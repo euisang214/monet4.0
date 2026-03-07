@@ -7,6 +7,9 @@ const mockPrisma = vi.hoisted(() => ({
         groupBy: vi.fn(),
         count: vi.fn(),
     },
+    callFeedback: {
+        findMany: vi.fn(),
+    },
     user: {
         findUnique: vi.fn(),
     },
@@ -43,6 +46,7 @@ describe("ProfessionalDashboardService.getDashboardData", () => {
             { status: BookingStatus.reschedule_pending, _count: { _all: 1 } },
         ]);
         mockPrisma.booking.count.mockResolvedValueOnce(4).mockResolvedValueOnce(3);
+        mockPrisma.callFeedback.findMany.mockResolvedValue([]);
         mockPrisma.user.findUnique.mockResolvedValue({ timezone: "America/New_York" });
         getProfessionalReviewsMock.mockResolvedValue({
             reviews: [],
@@ -128,6 +132,7 @@ describe("ProfessionalDashboardService.getDashboardData", () => {
         expect((data.items[0] as { candidateLabel: string }).candidateLabel).toBe(
             "John Doe - Columbia University, Intern @ Blackstone"
         );
+        expect(data.recentQcEvents).toEqual([]);
     });
 
     it("paginates pending feedback section", async () => {
@@ -187,5 +192,52 @@ describe("ProfessionalDashboardService.getDashboardData", () => {
         );
         expect(data.professionalTimezone).toBe("UTC");
         expect((data.items[0] as { candidateLabel: string }).candidateLabel).toBe("Casey Lee - Analyst @ Centerview");
+    });
+
+    it("returns recent QC events with candidate labels and stored reasons", async () => {
+        mockPrisma.booking.findMany.mockResolvedValue([]);
+        mockPrisma.callFeedback.findMany.mockResolvedValue([
+            {
+                bookingId: "booking-qc-1",
+                qcStatus: "revise",
+                qcReasons: ["Content is repetitive"],
+                qcReviewedAt: new Date("2026-03-01T09:00:00.000Z"),
+                booking: {
+                    candidate: {
+                        firstName: "Morgan",
+                        lastName: "Lee",
+                        candidateProfile: {
+                            resumeUrl: null,
+                            experience: [
+                                {
+                                    id: "exp-3",
+                                    title: "Associate",
+                                    company: "Evercore",
+                                    startDate: new Date("2024-01-01"),
+                                    endDate: null,
+                                    isCurrent: true,
+                                },
+                            ],
+                            education: [],
+                        },
+                    },
+                },
+            },
+        ]);
+
+        const data = await ProfessionalDashboardService.getDashboardData("pro-1", {
+            view: "upcoming",
+            take: 10,
+        });
+
+        expect(data.recentQcEvents).toEqual([
+            {
+                bookingId: "booking-qc-1",
+                candidateLabel: "Morgan Lee - Associate @ Evercore",
+                qcStatus: "revise",
+                qcReasons: ["Content is repetitive"],
+                qcReviewedAt: new Date("2026-03-01T09:00:00.000Z"),
+            },
+        ]);
     });
 });

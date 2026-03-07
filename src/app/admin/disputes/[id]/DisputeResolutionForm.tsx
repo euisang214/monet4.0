@@ -2,8 +2,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { appRoutes } from '@/lib/shared/routes';
+import { type DisputeResolutionAction } from '@/components/admin/services/adminMutationApi';
+import { useTrackedAdminActions } from '@/components/admin/hooks/useTrackedAdminActions';
 
 interface DisputeResolutionFormProps {
     disputeId: string;
@@ -11,8 +11,8 @@ interface DisputeResolutionFormProps {
 }
 
 export default function DisputeResolutionForm({ disputeId, maxRefundAmount }: DisputeResolutionFormProps) {
-    const router = useRouter();
-    const [action, setAction] = useState<'dismiss' | 'full_refund' | 'partial_refund'>('dismiss');
+    const { resolveDispute } = useTrackedAdminActions();
+    const [action, setAction] = useState<DisputeResolutionAction>('dismiss');
     const [resolution, setResolution] = useState('');
     const [refundAmount, setRefundAmount] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -24,7 +24,11 @@ export default function DisputeResolutionForm({ disputeId, maxRefundAmount }: Di
         setError(null);
 
         try {
-            const body: any = {
+            const body: {
+                action: DisputeResolutionAction;
+                resolution: string;
+                refundAmountCents?: number;
+            } = {
                 action,
                 resolution,
             };
@@ -37,20 +41,16 @@ export default function DisputeResolutionForm({ disputeId, maxRefundAmount }: Di
                 body.refundAmountCents = cents;
             }
 
-            const res = await fetch(appRoutes.api.admin.disputeResolve(disputeId), {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
+            await resolveDispute({
+                disputeId,
+                action: body.action,
+                resolution: body.resolution,
+                refundAmountCents: body.refundAmountCents,
             });
-
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.error || 'Failed to resolve dispute');
+        } catch (submitError: unknown) {
+            if (submitError instanceof Error && submitError.message === 'Invalid refund amount') {
+                setError(submitError.message);
             }
-
-            router.refresh();
-        } catch (err: any) {
-            setError(err.message);
         } finally {
             setIsSubmitting(false);
         }
@@ -70,7 +70,7 @@ export default function DisputeResolutionForm({ disputeId, maxRefundAmount }: Di
                 <label className="block text-sm font-medium text-gray-700">Action</label>
                 <select
                     value={action}
-                    onChange={(e) => setAction(e.target.value as any)}
+                    onChange={(e) => setAction(e.target.value as DisputeResolutionAction)}
                     className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
                 >
                     <option value="dismiss">Dismiss (Pay Professional)</option>

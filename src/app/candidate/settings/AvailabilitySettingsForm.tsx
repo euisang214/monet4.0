@@ -1,43 +1,48 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Availability } from '@prisma/client';
 import { useRouter } from 'next/navigation';
 import { appRoutes } from '@/lib/shared/routes';
+import { useTrackedRequest } from '@/components/ui/providers/RequestToastProvider';
+import { executeTrackedAction } from '@/components/ui/actions/executeTrackedAction';
+import { buildErrorToastCopy } from '@/components/ui/hooks/requestToastController';
 
 interface Props {
-    initialAvailability: Availability[];
+    initialAvailability: Array<{
+        start: Date | string;
+        end: Date | string;
+    }>;
 }
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+type DailySchedule = { enabled: boolean; start: string; end: string };
+type WeeklySchedule = Record<number, DailySchedule>;
 
 export function AvailabilitySettingsForm({ initialAvailability }: Props) {
     const router = useRouter();
-    const [availability, setAvailability] = useState<Availability[]>(initialAvailability);
-    const [isLoading, setIsLoading] = useState(false);
-    const [message, setMessage] = useState<string | null>(null);
-
-    const handleTimeChange = (index: number, field: 'startTime' | 'endTime', value: string) => {
-        const newAvail = [...availability];
-        // Simple update logic - in real app, might fetch by ID or day index
-        // Here we assume we are editing a list. 
-        // BUT, Prisma returns an array. If we want to Add/Remove days... simpler UI needed.
-
-        // Simplified: Just 9-5 defaults toggle? Or text inputs?
-        // Let's assume text inputs for now.
-        // TODO: Strict UI
-
-        (newAvail[index] as any)[field] = value;
-        setAvailability(newAvail);
+    const { runTrackedRequest } = useTrackedRequest();
+    const trackedRuntime = {
+        runTrackedRequest,
+        push: router.push,
+        replace: router.replace,
+        refresh: router.refresh,
     };
+    const [isLoading, setIsLoading] = useState(false);
 
     // Actually, let's just make a simple day toggle + time range for MVP
     // Mapping 0=Sun, 1=Mon... Prisma usually stores dayOfWeek as Int (0-6)
 
-    const [schedule, setSchedule] = useState<{ [key: number]: { enabled: boolean, start: string, end: string } }>(() => {
-        const map: any = {};
+    const [schedule, setSchedule] = useState<WeeklySchedule>(() => {
+        const map: WeeklySchedule = {
+            0: { enabled: false, start: '09:00', end: '17:00' },
+            1: { enabled: false, start: '09:00', end: '17:00' },
+            2: { enabled: false, start: '09:00', end: '17:00' },
+            3: { enabled: false, start: '09:00', end: '17:00' },
+            4: { enabled: false, start: '09:00', end: '17:00' },
+            5: { enabled: false, start: '09:00', end: '17:00' },
+            6: { enabled: false, start: '09:00', end: '17:00' },
+        };
         // Init all days disabled
-        [0, 1, 2, 3, 4, 5, 6].forEach(d => map[d] = { enabled: false, start: '09:00', end: '17:00' });
 
         // Fill from initial (simplified: take first occurrence of a day to determine rules)
         initialAvailability.forEach(a => {
@@ -66,7 +71,6 @@ export function AvailabilitySettingsForm({ initialAvailability }: Props) {
 
     const save = async () => {
         setIsLoading(true);
-        setMessage(null);
         try {
             // Generate slots for next 4 weeks based on schedule
             const slots: { start: Date, end: Date }[] = [];
@@ -96,18 +100,35 @@ export function AvailabilitySettingsForm({ initialAvailability }: Props) {
                 cursor.setDate(cursor.getDate() + 1);
             }
 
-            const res = await fetch(appRoutes.api.candidate.availability, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ slots })
+            await executeTrackedAction(trackedRuntime, {
+                action: async () => {
+                    const res = await fetch(appRoutes.api.candidate.availability, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ slots })
+                    });
+
+                    if (!res.ok) {
+                        throw new Error('Failed to save');
+                    }
+
+                    return true;
+                },
+                copy: {
+                    pending: {
+                        title: 'Saving availability settings',
+                        message: 'Generating the next four weeks of availability.',
+                    },
+                    success: {
+                        title: 'Availability settings saved',
+                        message: 'Your generated schedule is up to date.',
+                    },
+                    error: (error) => buildErrorToastCopy(error, 'Availability save failed'),
+                },
+                postSuccess: { kind: 'refresh' },
             });
-
-            if (!res.ok) throw new Error('Failed to save');
-
-            setMessage('Settings saved successfully (generated for next 4 weeks)');
-            router.refresh();
-        } catch (e) {
-            setMessage('Error saving settings');
+        } catch {
+            // Async failures are surfaced via tracked toast.
         } finally {
             setIsLoading(false);
         }
@@ -115,8 +136,6 @@ export function AvailabilitySettingsForm({ initialAvailability }: Props) {
 
     return (
         <div>
-            {message && <div className={`p-4 mb-4 rounded ${message.includes('Error') ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>{message}</div>}
-
             <div className="space-y-4">
                 {DAYS.map((dayName, idx) => {
                     // Adjust index to match 0=Sunday if desired, or 1=Monday. 

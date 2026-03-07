@@ -84,7 +84,11 @@ export const QCService = {
             // Update status to revise immediately
             await prisma.callFeedback.update({
                 where: { bookingId },
-                data: { qcStatus: QCStatus.revise }
+                data: {
+                    qcStatus: QCStatus.revise,
+                    qcReasons: ruleCheck.reasons,
+                    qcReviewedAt: new Date(),
+                }
             });
 
             return { processed: true, status: QCStatus.revise };
@@ -92,12 +96,14 @@ export const QCService = {
 
         // 2. LLM Check (Content Quality) via Claude
         let finalStatus: QCStatus = QCStatus.passed;
+        let finalReasons: string[] = [];
 
         try {
             const claudeResult = await ClaudeService.validateFeedback(text, actions);
 
             if (!claudeResult.passed) {
                 finalStatus = QCStatus.revise;
+                finalReasons = claudeResult.reasons;
                 console.log(`[QC] Booking ${bookingId} failed Claude check: ${claudeResult.reasons.join(', ')}`);
 
                 await notificationsQueue.add('send-email', {
@@ -144,6 +150,8 @@ export const QCService = {
             where: { bookingId },
             data: {
                 qcStatus: finalStatus,
+                qcReasons: finalStatus === QCStatus.passed ? [] : finalReasons,
+                qcReviewedAt: new Date(),
             }
         });
 
