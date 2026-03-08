@@ -317,6 +317,36 @@ export const ProfessionalDashboardService = {
                 throw error;
             },
         );
+        const recentQcEventsPromise = prisma.callFeedback?.findMany
+            ? prisma.callFeedback.findMany({
+                  where: {
+                      booking: {
+                          professionalId,
+                      },
+                      qcReviewedAt: {
+                          not: null,
+                      },
+                      qcStatus: {
+                          in: ['passed', 'revise'],
+                      },
+                  },
+                  orderBy: [{ qcReviewedAt: 'desc' }, { bookingId: 'desc' }],
+                  take: 5,
+                  select: {
+                      bookingId: true,
+                      qcStatus: true,
+                      qcReasons: true,
+                      qcReviewedAt: true,
+                      booking: {
+                          select: {
+                              candidate: {
+                                  select: candidateIdentitySelect,
+                              },
+                          },
+                      },
+                  },
+              })
+            : Promise.resolve([]);
 
         const [bookingsCount, upcomingVisibleCount, pendingFeedbackCount, recentFeedbackData, recentQcEventsData, activeViewPage, professional] =
             await Promise.all([
@@ -334,34 +364,7 @@ export const ProfessionalDashboardService = {
                     where: pendingFeedbackWhere(professionalId),
                 }),
                 ReviewsService.getProfessionalReviews(professionalId, { take: 5 }),
-                prisma.callFeedback.findMany({
-                    where: {
-                        booking: {
-                            professionalId,
-                        },
-                        qcReviewedAt: {
-                            not: null,
-                        },
-                        qcStatus: {
-                            in: ['passed', 'revise'],
-                        },
-                    },
-                    orderBy: [{ qcReviewedAt: 'desc' }, { bookingId: 'desc' }],
-                    take: 5,
-                    select: {
-                        bookingId: true,
-                        qcStatus: true,
-                        qcReasons: true,
-                        qcReviewedAt: true,
-                        booking: {
-                            select: {
-                                candidate: {
-                                    select: candidateIdentitySelect,
-                                },
-                            },
-                        },
-                    },
-                }),
+                recentQcEventsPromise,
                 activeViewPromise,
                 prisma.user.findUnique({
                     where: { id: professionalId },

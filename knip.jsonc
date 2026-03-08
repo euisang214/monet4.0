@@ -1,0 +1,5 @@
+{
+  // Intentionally exported public helpers and type contracts create persistent noise here.
+  // Keep Knip focused on dead files and dependency hygiene for this repo.
+  "exclude": ["exports", "types"]
+}

@@ -24,7 +24,7 @@ vi.mock('@/lib/integrations/calendar/google', () => ({
 }));
 
 import { prisma } from '@/lib/core/db';
-import { AvailabilityService } from '@/lib/shared/availability';
+import { AvailabilityService } from '@/lib/domain/availability/service';
 
 type MockFn = ReturnType<typeof vi.fn>;
 

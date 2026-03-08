@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { cn } from "../../../../lib/ui/cn";
+import { cn } from "@/lib/ui/cn";
 import { buttonVariants, type ButtonVariantProps } from "./buttonVariants";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>, ButtonVariantProps {

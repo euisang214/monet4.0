@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapEducationEntries, mapTimelineEntries } from "@/components/profile/timeline-form";
+import { mapEducationEntries, mapTimelineEntries } from "@/components/profile/shared/profileFormAdapters";
 
 describe("timeline-form mappers", () => {
     it("normalizes ISO timestamps before binding timeline entries to date inputs", () => {

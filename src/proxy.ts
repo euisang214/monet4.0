@@ -13,7 +13,7 @@ function isStaticAssetPath(pathname: string) {
     return /\.[^/]+$/.test(pathname)
 }
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
     const pathname = req.nextUrl.pathname
     const isOnboardingRoute = pathname === "/onboarding" || pathname.startsWith("/onboarding/")
     const protectedRoute = protectedRolePrefixes.find(({ prefix }) => pathname.startsWith(prefix))

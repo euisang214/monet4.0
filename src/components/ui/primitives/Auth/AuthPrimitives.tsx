@@ -1,6 +1,6 @@
 import React from "react";
 import { cva } from "class-variance-authority";
-import { cn } from "../../../../lib/ui/cn";
+import { cn } from "@/lib/ui/cn";
 
 const authMessageVariants = cva("rounded-md p-3 text-sm", {
     variants: {

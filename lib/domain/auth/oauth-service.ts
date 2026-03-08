@@ -2,7 +2,7 @@ import { prisma } from "@/lib/core/db";
 import { Role } from "@prisma/client";
 import { AuthService } from "@/lib/domain/auth/services";
 
-export const SUPPORTED_OAUTH_PROVIDERS = ["google", "linkedin"] as const;
+const SUPPORTED_OAUTH_PROVIDERS = ["google", "linkedin"] as const;
 export type SupportedOAuthProvider = (typeof SUPPORTED_OAUTH_PROVIDERS)[number];
 
 export class OAuthRoleRequiredError extends Error {

@@ -1,0 +1,248 @@
+next.config.ts:13 - default
+vitest.config.ts:4 - default
+prisma/seed-stripe.ts:4 - SeedStripePaymentStage (used in module)
+prisma/seed-stripe.ts:6 - StripeSeedEnv (used in module)
+prisma/seed-stripe.ts:11 - SeedStripeCounters (used in module)
+prisma/seed-stripe.ts:19 - SeedStripePaymentResult (used in module)
+prisma/seed-stripe.ts:29 - SeedStripePaymentProcessor (used in module)
+prisma/seed-stripe.ts:39 - SeedPaymentCreateDataInput (used in module)
+prisma/seed-stripe.ts:47 - SeedPaymentCreateData (used in module)
+src/auth.ts:39 - signIn (used in module)
+src/auth.ts:39 - signOut
+src/auth.ts:39 - unstable_update
+src/proxy.ts:49 - config
+.next/types/routes.d.ts:104 - ParamsOf
+.next/types/routes.d.ts:114 - PageRoutes (used in module)
+.next/types/routes.d.ts:114 - RedirectRoutes (used in module)
+.next/types/routes.d.ts:114 - RewriteRoutes (used in module)
+lib/core/admin-export-config.ts:13 - ExportTableEntry (used in module)
+lib/core/admin-export.ts:38 - flattenObject (used in module)
+lib/core/api-helpers.ts:20 - currentUser (used in module)
+lib/core/api-helpers.ts:25 - requireAuth (used in module)
+lib/integrations/resume-storage.ts:4 - DEFAULT_RESUME_BUCKET (used in module)
+lib/integrations/resume-storage.ts:5 - RESUME_SIGNED_URL_TTL_SECONDS (used in module)
+lib/integrations/zoom-attendance.ts:67 - sha256Hex (used in module)
+lib/integrations/zoom-attendance.ts:79 - computeZoomWebhookExpectedSignature (used in module)
+lib/integrations/zoom-attendance.ts:84 - timingSafeEqualHex (used in module)
+lib/integrations/zoom-attendance.ts:3 - ZOOM_WEBHOOK_SECRET_TOKEN (used in module)
+lib/integrations/zoom-attendance.ts:50 - ParsedZoomAttendancePayload (used in module)
+lib/queues/bookings.ts:1 - BOOKING_QUEUE_NAME
+lib/queues/index.ts:15 - qcQueue (used in module)
+lib/queues/index.ts:16 - notificationsQueue (used in module)
+lib/queues/index.ts:17 - paymentsQueue (used in module)
+lib/shared/audit.ts:12 - AuditEntity (used in module)
+lib/shared/audit.ts:36 - AuditActions
+lib/shared/booking-actions.ts:23 - BookingActionVisibility
+lib/shared/time-slot.ts:56 - doSlotsOverlap
+lib/shared/time-slot.ts:63 - mergeOverlappingSlots
+lib/shared/time-slot.ts:93 - generateTimeSlots
+lib/shared/time-slot.ts:10 - TimeSlot (used in module)
+lib/types/profile-schemas.ts:57 - ProfessionalProfileUpsertSchema (used in module)
+lib/types/profile-schemas.ts:80 - CandidateProfileUpsertSchema (used in module)
+lib/types/profile-schemas.ts:90 - ExperienceInput
+lib/types/profile-schemas.ts:91 - EducationInput
+tests/e2e/fixtures.ts:10 - E2EActors (used in module)
+tests/e2e/fixtures.ts:15 - RequestedBooking (used in module)
+tests/e2e/fixtures.ts:22 - AcceptedBooking (used in module)
+tests/helpers/stripe-live.ts:197 - capturePaymentIntentWithChargeDetails (used in module)
+.next/dev/types/routes.d.ts:104 - ParamsOf
+.next/dev/types/routes.d.ts:114 - PageRoutes (used in module)
+.next/dev/types/routes.d.ts:114 - RedirectRoutes (used in module)
+.next/dev/types/routes.d.ts:114 - RewriteRoutes (used in module)
+lib/domain/auth/oauth-service.ts:5 - SUPPORTED_OAUTH_PROVIDERS (used in module)
+lib/domain/users/current-role.ts:27 - getCanonicalProfessionalExperience (used in module)
+lib/domain/users/current-role.ts:1 - CurrentRole (used in module)
+lib/domain/users/current-role.ts:6 - ProfessionalExperienceLike (used in module)
+lib/domain/users/identity-labels.ts:3 - IdentityExperience (used in module)
+lib/domain/users/identity-labels.ts:12 - IdentityEducation (used in module)
+lib/domain/users/professional-stripe-status.ts:4 - ProfessionalStripeStatus (used in module)
+lib/domain/users/profile-service.ts:9 - candidateProfileSchema (used in module)
+lib/domain/users/profile-service.ts:14 - professionalProfileSchema (used in module)
+lib/domain/users/profile-service.ts:37 - CandidateProfileInput (used in module)
+lib/domain/users/profile-service.ts:38 - ProfessionalProfileInput (used in module)
+lib/domain/users/profile-submit-service.ts:34 - ProfileSubmissionResult (used in module)
+lib/domain/users/profile-upsert-service.ts:50 - CandidateProfilePayload (used in module)
+lib/domain/users/profile-upsert-service.ts:51 - ProfessionalProfilePayload (used in module)
+lib/domain/users/profile-upsert-service.ts:53 - CandidateProfileUpsertResult (used in module)
+lib/integrations/calendar/google.ts:16 - getGoogleOAuthClient (used in module)
+lib/integrations/stripe/index.ts:39 - isMissingOrInvalidConnectAccountError
+lib/integrations/stripe/index.ts:50 - createPaymentIntent
+lib/integrations/stripe/index.ts:73 - capturePayment
+lib/integrations/stripe/index.ts:81 - cancelPaymentIntent
+lib/integrations/stripe/index.ts:89 - createTransfer
+lib/integrations/stripe/index.ts:115 - refundPayment
+lib/integrations/stripe/index.ts:131 - createCustomer
+lib/integrations/stripe/index.ts:142 - createConnectAccount
+lib/integrations/stripe/index.ts:156 - createAccountLink
+lib/integrations/stripe/index.ts:169 - retrieveAccount
+lib/integrations/stripe/index.ts:177 - constructEvent (used in module)
+lib/integrations/stripe/index.ts:185 - retrieveBalanceTransaction
+lib/integrations/stripe/index.ts:31 - stripe (used in module)
+lib/role/admin/bookings.ts:3 - BookingFilters (used in module)
+lib/role/candidate/availability.ts:4 - SavedAvailabilitySeed (used in module)
+lib/role/candidate/browse.ts:9 - ListingCardRow (used in module)
+lib/role/candidate/chats.ts:68 - CandidateBookingDetails (used in module)
+lib/role/professional/dashboard.ts:46 - UpcomingBooking (used in module)
+lib/role/professional/dashboard.ts:55 - RequestBooking (used in module)
+lib/role/professional/dashboard.ts:68 - PendingFeedbackBooking (used in module)
+lib/role/professional/dashboard.ts:78 - RecentQcEvent (used in module)
+lib/role/professional/dashboard.ts:86 - ProfessionalDashboardItem (used in module)
+lib/shared/bookings/upcoming.ts:53 - getUpcomingBookings
+src/app/forgot-password/page.tsx:12 - default
+src/app/onboarding/page.tsx:14 - default
+src/app/signup/page.tsx:5 - default
+src/components/bookings/UnifiedWeeklyCalendar.tsx:88 - UnifiedWeeklyCalendarProps (used in module)
+src/components/bookings/WeeklySlotCalendar.tsx:9 - SlotInterval (used in module)
+src/components/landing/landing-content.ts:3 - LandingCta (used in module)
+src/components/landing/landing-content.ts:8 - LandingHero (used in module)
+src/components/landing/landing-content.ts:14 - LandingStat (used in module)
+src/components/landing/landing-content.ts:19 - LandingStep (used in module)
+src/components/landing/landing-content.ts:24 - LandingFaq (used in module)
+src/components/landing/landing-content.ts:29 - LandingContent (used in module)
+src/components/layout/auth-navbar-links.ts:5 - NavLink (used in module)
+src/components/layout/RoleAppShell.tsx:34 - SectionNav (used in module)
+src/components/layout/RoleAppShell.tsx:8 - SectionNavItem (used in module)
+src/components/ui/index.ts:1 - Button
+src/components/ui/index.ts:2 - AuthCard
+src/components/ui/index.ts:2 - AuthField
+src/components/ui/index.ts:2 - AuthMessage
+src/components/ui/index.ts:2 - AuthShell
+src/components/ui/index.ts:4 - ChoiceInput
+src/components/ui/index.ts:5 - ChoiceLabel
+src/components/ui/index.ts:6 - Field
+src/components/ui/index.ts:7 - FileInput
+src/components/ui/index.ts:8 - FormSection
+src/components/ui/index.ts:9 - SelectInput
+src/components/ui/index.ts:10 - TextAreaInput
+src/components/ui/index.ts:11 - TextInput
+src/components/ui/index.ts:13 - DataTable
+src/components/ui/index.ts:13 - DataColumn
+src/components/ui/index.ts:13 - DataTableProps
+src/components/ui/index.ts:14 - InlineNotice
+src/components/ui/index.ts:15 - LoadingCard
+src/components/ui/index.ts:16 - MetricCard
+src/components/ui/index.ts:17 - EmptyState
+src/components/ui/index.ts:18 - NotificationBanner
+src/components/ui/index.ts:19 - PageHeader
+src/components/ui/index.ts:20 - SectionTabs
+src/components/ui/index.ts:20 - SectionTabItem
+src/components/ui/index.ts:21 - StatusBadge
+src/components/ui/index.ts:22 - SurfaceCard
+src/components/ui/index.ts:24 - RequestToastProvider
+src/components/ui/index.ts:25 - useTrackedRequest
+src/components/ui/index.ts:26 - RequestToastContextValue
+src/components/ui/index.ts:29 - RequestToastTone
+src/components/ui/index.ts:30 - ToastCopy
+src/components/ui/index.ts:31 - TrackedRequestOptions
+.next/dev/types/app/layout.ts:56 - PageProps
+.next/dev/types/app/layout.ts:60 - LayoutProps (used in module)
+.next/dev/types/app/page.ts:56 - PageProps (used in module)
+.next/dev/types/app/page.ts:60 - LayoutProps
+lib/domain/bookings/transitions/shared.ts:8 - TransitionActor (used in module)
+src/app/(public)/pricing/page.tsx:4 - default
+src/app/admin/bookings/page.tsx:10 - dynamic
+src/app/admin/disputes/page.tsx:65 - default
+src/app/admin/disputes/page.tsx:9 - dynamic
+src/app/admin/feedback/page.tsx:55 - default
+src/app/admin/feedback/page.tsx:8 - dynamic
+src/app/admin/payments/page.tsx:65 - default
+src/app/admin/payments/page.tsx:8 - dynamic
+src/app/admin/users/page.tsx:40 - default
+src/app/admin/users/page.tsx:6 - dynamic
+src/app/auth/reset/page.tsx:165 - default
+src/app/candidate/availability/page.tsx:7 - default
+src/app/candidate/browse/page.tsx:11 - revalidate
+src/app/candidate/dashboard/page.tsx:4 - default
+src/app/professional/earnings/page.tsx:6 - default
+src/components/bookings/calendar/interval-utils.ts:98 - BuildAvailabilitySavePayloadArgs (used in module)
+src/components/bookings/calendar/slot-utils.ts:111 - overlaps
+src/components/bookings/calendar/slot-utils.ts:6 - SLOTS_PER_DAY
+src/components/bookings/calendar/slot-utils.ts:9 - VISIBLE_START_HOUR (used in module)
+src/components/bookings/calendar/slot-utils.ts:10 - VISIBLE_END_HOUR (used in module)
+src/components/bookings/calendar/slot-utils.ts:15 - NormalizedSlotInterval (used in module)
+src/components/bookings/hooks/useUnifiedWeeklyCalendarState.ts:18 - SingleSelectCellMeta (used in module)
+src/components/bookings/hooks/useUnifiedWeeklyCalendarState.ts:24 - MultiToggleCellMeta (used in module)
+src/components/bookings/hooks/useUnifiedWeeklyCalendarState.ts:44 - UnifiedWeeklyCalendarArgs (used in module)
+src/components/bookings/hooks/useUnifiedWeeklyCalendarState.ts:71 - UnifiedWeeklyCalendarState (used in module)
+src/components/ui/actions/executeTrackedAction.ts:6 - TrackedPostSuccess (used in module)
+src/components/ui/actions/executeTrackedAction.ts:12 - TrackedActionCopy (used in module)
+src/components/ui/hooks/useNotification.ts:5 - NotificationType (used in module)
+.next/dev/types/app/(public)/layout.ts:56 - PageProps
+.next/dev/types/app/(public)/layout.ts:60 - LayoutProps (used in module)
+.next/dev/types/app/(public)/page.ts:56 - PageProps (used in module)
+.next/dev/types/app/(public)/page.ts:60 - LayoutProps
+.next/dev/types/app/login/page.ts:56 - PageProps (used in module)
+.next/dev/types/app/login/page.ts:60 - LayoutProps
+.next/dev/types/app/professional/layout.ts:56 - PageProps
+.next/dev/types/app/professional/layout.ts:60 - LayoutProps (used in module)
+src/app/admin/bookings/[id]/page.tsx:9 - default
+src/app/admin/disputes/[id]/page.tsx:10 - default
+src/app/admin/disputes/[id]/page.tsx:8 - dynamic
+src/app/api/admin/disputes/route.ts:6 - GET
+src/app/api/auth/forgot-password/route.ts:9 - POST
+src/app/api/auth/linked-providers/route.ts:4 - GET
+src/app/api/auth/reset-password/route.ts:10 - POST
+src/app/api/auth/role/route.ts:8 - GET
+src/app/api/auth/signup/route.ts:22 - POST
+src/app/api/candidate/availability/route.ts:22 - POST
+src/app/api/candidate/availability/route.ts:55 - GET
+src/app/api/candidate/busy/route.ts:5 - GET
+src/app/api/candidate/reviews/route.ts:13 - POST
+src/app/api/shared/reviews/route.ts:15 - GET
+src/app/candidate/professionals/[id]/page.tsx:68 - default
+src/app/professional/feedback/[bookingId]/page.tsx:11 - default
+src/app/professional/requests/[id]/page.tsx:11 - default
+src/components/ui/composites/EmptyState/index.ts:1 - EmptyState
+src/components/ui/primitives/Auth/index.ts:1 - AuthCard
+src/components/ui/primitives/Auth/index.ts:1 - AuthField
+src/components/ui/primitives/Auth/index.ts:1 - AuthMessage
+src/components/ui/primitives/Auth/index.ts:1 - AuthShell
+src/components/ui/primitives/Button/index.ts:1 - Button
+src/components/ui/primitives/Button/index.ts:2 - buttonVariants
+src/components/ui/primitives/Button/index.ts:2 - ButtonVariantProps
+src/components/ui/primitives/Form/index.ts:2 - ChoiceInput
+src/components/ui/primitives/Form/index.ts:3 - ChoiceLabel
+src/components/ui/primitives/Form/index.ts:4 - Field
+src/components/ui/primitives/Form/index.ts:5 - FileInput
+src/components/ui/primitives/Form/index.ts:6 - FormSection
+src/components/ui/primitives/Form/index.ts:7 - SelectInput
+src/components/ui/primitives/Form/index.ts:8 - TextAreaInput
+src/components/ui/primitives/Form/index.ts:9 - TextInput
+.next/dev/types/app/professional/requests/page.ts:56 - PageProps (used in module)
+.next/dev/types/app/professional/requests/page.ts:60 - LayoutProps
+src/app/api/admin/disputes/[id]/route.ts:6 - GET
+src/app/api/admin/disputes/export/route.ts:6 - GET
+src/app/api/admin/export/[table]/route.ts:7 - GET
+src/app/api/admin/payments/export/route.ts:6 - GET
+src/app/api/admin/payments/payout/route.ts:11 - POST
+src/app/api/auth/linked-providers/[provider]/route.ts:8 - DELETE
+src/app/api/candidate/professionals/[id]/route.ts:5 - GET
+src/app/api/candidate/professionals/search/route.ts:5 - GET
+src/app/api/candidate/profile/[id]/route.ts:11 - GET
+src/app/api/professional/feedback/[bookingId]/route.ts:14 - POST
+src/app/api/shared/stripe/account/route.ts:10 - GET
+src/app/api/shared/stripe/webhook/route.ts:30 - POST
+src/app/api/shared/verification/confirm/route.ts:11 - POST
+src/app/api/shared/verification/request/route.ts:16 - POST
+src/app/api/shared/verification/status/route.ts:10 - GET
+src/app/candidate/bookings/[id]/dispute/page.tsx:8 - default
+src/app/candidate/bookings/[id]/reschedule/page.tsx:12 - default
+src/app/candidate/bookings/[id]/review/page.tsx:7 - default
+src/app/professional/requests/[id]/reschedule/page.tsx:16 - default
+.next/dev/types/app/api/auth/[...nextauth]/route.ts:316 - PageProps
+.next/dev/types/app/api/auth/[...nextauth]/route.ts:320 - LayoutProps
+src/app/api/admin/bookings/[id]/zoom-link/route.ts:32 - PUT
+src/app/api/candidate/bookings/[id]/dispute/route.ts:11 - POST
+src/app/api/candidate/professionals/[id]/bookings/route.ts:11 - POST
+src/app/api/candidate/professionals/[id]/reviews/route.ts:5 - GET
+src/app/api/professional/requests/[id]/confirm-and-schedule/route.ts:27 - POST
+src/app/api/professional/requests/[id]/decline/route.ts:10 - POST
+src/app/api/professional/requests/[id]/reschedule/route.ts:5 - GET
+src/app/api/shared/bookings/[id]/cancel/route.ts:13 - POST
+src/app/api/shared/qc/[bookingId]/recheck/route.ts:9 - POST
+.next/dev/types/app/professional/requests/[id]/confirm-and-schedule/page.ts:56 - PageProps (used in module)
+.next/dev/types/app/professional/requests/[id]/confirm-and-schedule/page.ts:60 - LayoutProps
+src/app/api/candidate/bookings/[id]/reschedule/request/route.ts:15 - POST
+src/app/api/professional/requests/[id]/reschedule/confirm/route.ts:10 - POST
+src/app/api/professional/requests/[id]/reschedule/reject/route.ts:5 - POST
+src/app/api/professional/requests/[id]/reschedule/request/route.ts:10 - POST

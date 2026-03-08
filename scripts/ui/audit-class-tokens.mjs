@@ -12,6 +12,7 @@ const DISALLOWED_BUTTON_IMPORT = /from\s+["']@\/components\/ui\/primitives\/Butt
 
 const WRITE_ALLOWLIST = process.argv.includes("--write-allowlist");
 const SHOW_METRICS = process.argv.includes("--metrics");
+const REPORT_UNUSED = process.argv.includes("--report-unused");
 
 function walk(dirPath, out = []) {
     if (!fs.existsSync(dirPath)) return out;
@@ -80,8 +81,25 @@ function collectFromExpression(expression, file, usage) {
     }
 
     if (ts.isBinaryExpression(expression)) {
-        collectFromExpression(expression.left, file, usage);
-        collectFromExpression(expression.right, file, usage);
+        if (expression.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+            collectFromExpression(expression.left, file, usage);
+            collectFromExpression(expression.right, file, usage);
+            return;
+        }
+
+        if (
+            expression.operatorToken.kind === ts.SyntaxKind.BarBarToken
+            || expression.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken
+        ) {
+            collectFromExpression(expression.left, file, usage);
+            collectFromExpression(expression.right, file, usage);
+            return;
+        }
+
+        if (expression.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) {
+            collectFromExpression(expression.right, file, usage);
+        }
+
         return;
     }
 
@@ -161,6 +179,9 @@ for (const sourceDir of SOURCE_DIRS) {
 const definedClasses = getDefinedClasses();
 const usedTokens = toSortedArray(new Set(usage.keys()));
 const undefinedTokens = usedTokens.filter((token) => !definedClasses.has(token));
+const unusedDefinedTokens = toSortedArray(
+    new Set([...definedClasses].filter((token) => !usage.has(token)))
+);
 
 const allowlistFilePath = path.join(ROOT, ALLOWLIST_PATH);
 const inlineStyleAllowlistPath = path.join(ROOT, INLINE_STYLE_ALLOWLIST_PATH);
@@ -226,6 +247,11 @@ if (SHOW_METRICS) {
     console.log(`globals_css_lines=${globalsLines}`);
     console.log(`undefined_class_tokens=${undefinedTokens.length}`);
     console.log(`inline_style_occurrences=${inlineStyleCount}`);
+    console.log(`unused_defined_class_tokens=${unusedDefinedTokens.length}`);
+}
+
+if (REPORT_UNUSED) {
+    console.log(JSON.stringify(unusedDefinedTokens, null, 2));
 }
 
 if (undefinedTokens.length > 0) {

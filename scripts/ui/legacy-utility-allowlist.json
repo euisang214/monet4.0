@@ -151,6 +151,7 @@
   "lg:items-center",
   "lg:justify-between",
   "list-disc",
+  "list-none",
   "max-w-2xl",
   "max-w-3xl",
   "max-w-4xl",

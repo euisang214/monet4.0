@@ -1,4 +1,8 @@
-import { areIntervalsOverlapping, isBefore } from 'date-fns';
+import {
+    mergeTimeRanges,
+    subtractTimeRangeFromRanges,
+    timeRangesOverlap,
+} from '@/lib/shared/time-intervals';
 
 /**
  * Time Slot Utilities
@@ -23,64 +27,39 @@ export function subtractIntervalFromSlots(
     currentSlots: TimeSlot[],
     busy: TimeSlot
 ): TimeSlot[] {
-    const result: TimeSlot[] = [];
-
-    for (const slot of currentSlots) {
-        // If no overlap, keep slot as is
-        if (!areIntervalsOverlapping(slot, busy)) {
-            result.push(slot);
-            continue;
-        }
-
-        // Overlap exists. We might need to split the slot.
-
-        // Case 1: Slot starts before busy starts -> Available chunk before busy
-        if (isBefore(slot.start, busy.start)) {
-            result.push({ start: slot.start, end: busy.start });
-        }
-
-        // Case 2: Slot ends after busy ends -> Available chunk after busy
-        if (isBefore(busy.end, slot.end)) {
-            result.push({ start: busy.end, end: slot.end });
-        }
-
-        // If busy fully covers slot (Case 3), nothing is pushed.
-    }
-
-    return result;
+    return currentSlots.flatMap((slot) => subtractTimeRangeFromRanges([slot], busy).map((range) => ({
+        start: range.start,
+        end: range.end,
+        timezone: slot.timezone,
+    })));
 }
 
 /**
  * Checks if two time slots overlap.
  */
 export function doSlotsOverlap(a: TimeSlot, b: TimeSlot): boolean {
-    return areIntervalsOverlapping(a, b);
+    return timeRangesOverlap(a, b);
 }
 
 /**
  * Merges overlapping or adjacent time slots into consolidated slots.
  */
 export function mergeOverlappingSlots(slots: TimeSlot[]): TimeSlot[] {
-    if (slots.length === 0) return [];
+    const sorted = [...slots].sort((left, right) => left.start.getTime() - right.start.getTime());
+    const mergedRanges = mergeTimeRanges(sorted);
 
-    // Sort by start time
-    const sorted = [...slots].sort((a, b) => a.start.getTime() - b.start.getTime());
+    return mergedRanges.map((range) => {
+        const source = sorted.find((slot) => (
+            slot.start.getTime() <= range.start.getTime()
+            && slot.end.getTime() >= range.start.getTime()
+        ));
 
-    const merged: TimeSlot[] = [sorted[0]];
-
-    for (let i = 1; i < sorted.length; i++) {
-        const current = sorted[i];
-        const last = merged[merged.length - 1];
-
-        // If current overlaps or is adjacent to last, merge them
-        if (current.start.getTime() <= last.end.getTime()) {
-            last.end = new Date(Math.max(last.end.getTime(), current.end.getTime()));
-        } else {
-            merged.push(current);
-        }
-    }
-
-    return merged;
+        return {
+            start: range.start,
+            end: range.end,
+            timezone: source?.timezone,
+        };
+    });
 }
 
 /**

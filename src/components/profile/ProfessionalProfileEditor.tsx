@@ -1,34 +1,39 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm, type FieldErrors } from "react-hook-form";
 import { ProfessionalProfileFields } from "@/components/profile/ProfessionalProfileFields";
 import { TimelineEntriesEditor } from "@/components/profile/shared/TimelineEntriesEditor";
 import { EducationEntriesEditor } from "@/components/profile/shared/EducationEntriesEditor";
-import { SUPPORTED_TIMEZONES, normalizeTimezone } from "@/lib/utils/supported-timezones";
-import { useTrackedRequest } from "@/components/ui/providers/RequestToastProvider";
-import { executeTrackedAction } from "@/components/ui/actions/executeTrackedAction";
-import { buildErrorToastCopy, type ToastCopy } from "@/components/ui/hooks/requestToastController";
+import { normalizeTimezone } from "@/lib/utils/supported-timezones";
 import {
     Button,
-    Field,
     FormSection,
     InlineNotice,
-    SelectInput,
-    TextInput,
 } from "@/components/ui";
 import {
-    EducationEntry,
-    ensureExactlyOneCurrentExperience,
-    mapEducationEntries,
-    mapTimelineEntries,
     normalizeCommaSeparated,
     serializeEducationEntries,
     serializeExperienceEntries,
-    TimelineEntry,
+    type EducationEntry,
     type SerializedEducationEntry,
     type SerializedTimelineEntry,
+    type TimelineEntry,
 } from "@/components/profile/shared/profileFormAdapters";
+import {
+    getProfessionalProfileDefaultValues,
+    getProfileFormErrorMessage,
+    professionalProfileFormSchema,
+    type ProfessionalProfileFormValues,
+} from "@/components/profile/shared/profileEditorSchemas";
+import {
+    useTrackedProfileSubmit,
+    type ProfileAsyncStatus,
+} from "@/components/profile/shared/useTrackedProfileSubmit";
+import { ProfileBasicsFields } from "@/components/profile/shared/ProfileBasicsFields";
+import { ProfileFormNotice } from "@/components/profile/shared/ProfileFormNotice";
+import { ProfileSubmitButton } from "@/components/profile/shared/ProfileSubmitButton";
 
 type ProfessionalProfileEditorMode = "onboarding" | "settings";
 
@@ -83,17 +88,7 @@ type ProfessionalProfileEditorProps = {
     requireCorporateVerification?: boolean;
     isCorporateEmailVerified?: boolean;
     corporateVerificationMessage?: string;
-    asyncStatus?: {
-        pending: ToastCopy;
-        success: ToastCopy;
-        error?: ToastCopy | ((error: unknown) => ToastCopy);
-        errorTitle?: string;
-        errorMessage?: string;
-        navigation?: {
-            href: string;
-            mode?: "push" | "replace";
-        };
-    };
+    asyncStatus?: ProfileAsyncStatus<void>;
 };
 
 function isPayoutReady(status?: ProfessionalStripeStatus | null) {
@@ -117,184 +112,98 @@ export function ProfessionalProfileEditor({
     corporateVerificationMessage = "Verify your corporate email to complete onboarding.",
     asyncStatus,
 }: ProfessionalProfileEditorProps) {
-    const router = useRouter();
-    const { runTrackedRequest } = useTrackedRequest();
-    const trackedRuntime = {
-        runTrackedRequest,
-        push: router.push,
-        replace: router.replace,
-        refresh: router.refresh,
-    };
-    const [firstName, setFirstName] = useState(initialData?.firstName || "");
-    const [lastName, setLastName] = useState(initialData?.lastName || "");
-    const [timezone, setTimezone] = useState(normalizeTimezone(initialData?.timezone));
-    const [bio, setBio] = useState(initialData?.bio || "");
-    const [price, setPrice] = useState(
-        typeof initialData?.price === "number" ? initialData.price.toString() : ""
-    );
-    const [corporateEmail, setCorporateEmail] = useState(initialData?.corporateEmail || "");
-    const [interests, setInterests] = useState(initialData?.interests?.join(", ") || "");
-    const [experienceEntries, setExperienceEntries] = useState(
-        mapTimelineEntries(initialData?.experience, { enforceSingleCurrent: true })
-    );
-    const [activityEntries, setActivityEntries] = useState(mapTimelineEntries(initialData?.activities));
-    const [educationEntries, setEducationEntries] = useState(mapEducationEntries(initialData?.education));
-    const [error, setError] = useState("");
-    const [isSaving, setIsSaving] = useState(false);
+    const runTrackedProfileSubmit = useTrackedProfileSubmit();
+    const form = useForm<ProfessionalProfileFormValues>({
+        resolver: zodResolver(professionalProfileFormSchema),
+        defaultValues: getProfessionalProfileDefaultValues(initialData),
+    });
+    const [submissionError, setSubmissionError] = useState<string | null>(null);
     const [isConnectingStripe, setIsConnectingStripe] = useState(false);
 
     useEffect(() => {
-        setFirstName(initialData?.firstName || "");
-        setLastName(initialData?.lastName || "");
-        setTimezone(normalizeTimezone(initialData?.timezone));
-        setBio(initialData?.bio || "");
-        setPrice(typeof initialData?.price === "number" ? initialData.price.toString() : "");
-        const nextCorporateEmail = initialData?.corporateEmail || "";
-        setCorporateEmail(nextCorporateEmail);
-        onCorporateEmailDraftChange?.(nextCorporateEmail);
-        setInterests(initialData?.interests?.join(", ") || "");
-        setExperienceEntries(mapTimelineEntries(initialData?.experience, { enforceSingleCurrent: true }));
-        setActivityEntries(mapTimelineEntries(initialData?.activities));
-        setEducationEntries(mapEducationEntries(initialData?.education));
-    }, [initialData, onCorporateEmailDraftChange]);
+        form.reset(getProfessionalProfileDefaultValues(initialData));
+        onCorporateEmailDraftChange?.(initialData?.corporateEmail || "");
+        setSubmissionError(null);
+    }, [form, initialData, onCorporateEmailDraftChange]);
 
     const payoutReady = isPayoutReady(stripeStatus);
-    const effectiveCorporateEmail =
-        mode === "settings" && typeof corporateEmailOverride === "string"
-            ? corporateEmailOverride
-            : corporateEmail;
-
-    const handleCorporateEmailChange = (value: string) => {
-        setCorporateEmail(value);
-        onCorporateEmailDraftChange?.(value);
-    };
+    const timezone = form.watch("timezone");
+    const currentValues = form.getValues();
+    const effectiveDisabled = disabled || form.formState.isSubmitting;
+    const errorMessage = submissionError || getProfileFormErrorMessage(form.formState.errors);
 
     const handleConnectStripe = async () => {
         if (!onConnectStripe || isConnectingStripe) return;
 
-        setError("");
+        setSubmissionError(null);
         setIsConnectingStripe(true);
         try {
             await onConnectStripe();
         } catch (connectError) {
             if (connectError instanceof Error) {
-                setError(connectError.message);
+                setSubmissionError(connectError.message);
             } else {
-                setError("Unable to initiate Stripe onboarding.");
+                setSubmissionError("Unable to initiate Stripe onboarding.");
             }
         } finally {
             setIsConnectingStripe(false);
         }
     };
 
-    const handleSubmit = async (event: React.FormEvent) => {
-        event.preventDefault();
-        setError("");
-        setIsSaving(true);
+    const handleValidSubmit = async (values: ProfessionalProfileFormValues) => {
+        setSubmissionError(null);
 
         try {
             if (requirePayoutReady && !payoutReady) {
                 throw new Error("Connect Stripe payouts before completing onboarding.");
             }
 
-            if (!ensureExactlyOneCurrentExperience(experienceEntries)) {
-                throw new Error("Select exactly one current role in your experience.");
-            }
+            const effectiveCorporateEmail = (
+                mode === "settings" && typeof corporateEmailOverride === "string"
+                    ? corporateEmailOverride
+                    : values.corporateEmail
+            ).trim();
 
-            const trimmedFirstName = firstName.trim();
-            if (!trimmedFirstName) {
-                throw new Error("First name is required.");
-            }
-
-            const trimmedLastName = lastName.trim();
-            if (!trimmedLastName) {
-                throw new Error("Last name is required.");
-            }
-
-            const parsedPrice = Number.parseFloat(price);
-            if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
-                throw new Error("Enter a valid hourly rate greater than zero.");
-            }
-
-            const normalizedInterests = normalizeCommaSeparated(interests);
-            if (normalizedInterests.length === 0) {
-                throw new Error("At least one interest is required.");
-            }
-
-            const trimmedBio = bio.trim();
-            if (!trimmedBio) {
-                throw new Error("Bio is required.");
-            }
-
-            const trimmedCorporateEmail = effectiveCorporateEmail.trim();
-            if (!trimmedCorporateEmail) {
+            if (!effectiveCorporateEmail) {
                 throw new Error("Corporate email is required.");
             }
+
             if (requireCorporateVerification && !isCorporateEmailVerified) {
                 throw new Error(corporateVerificationMessage);
             }
 
-            const submitAsync = () =>
-                onSubmit({
-                    firstName: trimmedFirstName,
-                    lastName: trimmedLastName,
-                    timezone: normalizeTimezone(timezone),
-                    bio: trimmedBio,
-                    price: parsedPrice,
-                    corporateEmail: trimmedCorporateEmail,
-                    interests: normalizedInterests,
-                    experience: serializeExperienceEntries(experienceEntries, "Experience"),
-                    activities: serializeExperienceEntries(activityEntries, "Activity"),
-                    education: serializeEducationEntries(educationEntries),
-                });
-
-            if (asyncStatus) {
-                const navigation = asyncStatus.navigation;
-                try {
-                    await executeTrackedAction(trackedRuntime, {
-                        action: submitAsync,
-                        copy: {
-                            pending: asyncStatus.pending,
-                            success: asyncStatus.success,
-                            error: asyncStatus.error || ((submitError) => buildErrorToastCopy(
-                                submitError,
-                                asyncStatus.errorTitle || "Profile save failed",
-                                asyncStatus.errorMessage,
-                            )),
-                        },
-                        postSuccess: navigation
-                            ? {
-                                  kind: navigation.mode === "replace" ? "replace" : "push",
-                                  href: navigation.href,
-                              }
-                            : { kind: "none" },
-                    });
-                } catch {
-                    // Async failures are surfaced via tracked toast.
-                }
-            } else {
-                await submitAsync();
-            }
+            await runTrackedProfileSubmit(
+                () => onSubmit({
+                    firstName: values.firstName.trim(),
+                    lastName: values.lastName.trim(),
+                    timezone: normalizeTimezone(values.timezone),
+                    bio: values.bio.trim(),
+                    price: Number.parseFloat(values.price),
+                    corporateEmail: effectiveCorporateEmail,
+                    interests: normalizeCommaSeparated(values.interestsText),
+                    experience: serializeExperienceEntries(values.experience, "Experience"),
+                    activities: serializeExperienceEntries(values.activities, "Activity"),
+                    education: serializeEducationEntries(values.education),
+                }),
+                asyncStatus,
+            );
         } catch (submitError) {
             if (submitError instanceof Error) {
-                setError(submitError.message);
+                setSubmissionError(submitError.message);
             } else {
-                setError("Unable to save professional profile.");
+                setSubmissionError("Unable to save professional profile.");
             }
-        } finally {
-            setIsSaving(false);
         }
     };
 
-    const effectiveDisabled = disabled || isSaving;
+    const handleInvalidSubmit = (errors: FieldErrors<ProfessionalProfileFormValues>) => {
+        setSubmissionError(getProfileFormErrorMessage(errors) || "Unable to save professional profile.");
+    };
 
     return (
-        <form className="space-y-8" onSubmit={handleSubmit}>
-            {error ? (
-                <InlineNotice tone="error" title="Profile issue">
-                    {error}
-                </InlineNotice>
-            ) : null}
+        <form className="space-y-8" onSubmit={form.handleSubmit(handleValidSubmit, handleInvalidSubmit)}>
+            <input type="hidden" value={timezone} {...form.register("timezone")} />
+            <ProfileFormNotice errorMessage={errorMessage} />
 
             {initialData?.title || initialData?.employer ? (
                 <InlineNotice tone="info" title="Current role">
@@ -305,10 +214,10 @@ export function ProfessionalProfileEditor({
 
             {requirePayoutReady ? (
                 <FormSection
-                    title="Stripe payouts"
-                    description="Connect Stripe and enable payouts before completing professional onboarding."
-                    tone="muted"
-                    actions={
+                title="Stripe payouts"
+                description="Connect Stripe and enable payouts before completing professional onboarding."
+                tone="muted"
+                actions={
                         <Button
                             type="button"
                             disabled={effectiveDisabled || isConnectingStripe}
@@ -332,63 +241,40 @@ export function ProfessionalProfileEditor({
                 title="Account basics"
                 description="This is the foundation candidates will use to evaluate credibility and fit."
             >
-                <div className="grid gap-4 md:grid-cols-2">
-                    <Field label="First name" htmlFor={`professional-first-name-${mode}`}>
-                        <TextInput
-                            id={`professional-first-name-${mode}`}
-                            required
-                            disabled={effectiveDisabled}
-                            type="text"
-                            value={firstName}
-                            onChange={(event) => setFirstName(event.target.value)}
-                            placeholder="First name"
-                        />
-                    </Field>
+                <ProfileBasicsFields
+                    mode={mode}
+                    prefix="professional"
+                    register={form.register}
+                    setValue={form.setValue}
+                    errors={form.formState.errors}
+                    defaults={{
+                        firstName: currentValues.firstName,
+                        lastName: currentValues.lastName,
+                        timezone: currentValues.timezone,
+                    }}
+                    timezone={timezone}
+                    disabled={effectiveDisabled}
+                />
 
-                    <Field label="Last name" htmlFor={`professional-last-name-${mode}`}>
-                        <TextInput
-                            id={`professional-last-name-${mode}`}
-                            required
-                            disabled={effectiveDisabled}
-                            type="text"
-                            value={lastName}
-                            onChange={(event) => setLastName(event.target.value)}
-                            placeholder="Last name"
-                        />
-                    </Field>
-                </div>
-
-                <Field label="Timezone" htmlFor={`professional-timezone-${mode}`}>
-                    <SelectInput
-                        id={`professional-timezone-${mode}`}
-                        required
-                        disabled={effectiveDisabled}
-                        value={timezone}
-                        onChange={(event) => setTimezone(event.target.value)}
-                    >
-                        {SUPPORTED_TIMEZONES.map((timezoneOption) => (
-                            <option key={timezoneOption} value={timezoneOption}>
-                                {timezoneOption}
-                            </option>
-                        ))}
-                    </SelectInput>
-                </Field>
+                {mode === "settings" ? <input type="hidden" {...form.register("corporateEmail")} /> : null}
 
                 <ProfessionalProfileFields
-                    bio={bio}
-                    onBioChange={setBio}
-                    price={price}
-                    onPriceChange={setPrice}
-                    corporateEmail={corporateEmail}
-                    onCorporateEmailChange={handleCorporateEmailChange}
+                    register={form.register}
+                    errors={form.formState.errors}
+                    defaults={{
+                        bio: currentValues.bio,
+                        price: currentValues.price,
+                        corporateEmail: currentValues.corporateEmail,
+                        interestsText: currentValues.interestsText,
+                    }}
+                    onCorporateEmailChange={onCorporateEmailDraftChange}
                     showCorporateEmail={mode !== "settings"}
-                    interests={interests}
-                    onInterestsChange={setInterests}
                     disabled={effectiveDisabled}
                 />
             </FormSection>
 
             <TimelineEntriesEditor
+                name="experience"
                 sectionTitle="Experience"
                 sectionDescription="Add one or more experience entries. Select exactly one current role."
                 addLabel="Add experience"
@@ -396,13 +282,16 @@ export function ProfessionalProfileEditor({
                 titlePlaceholder="Title"
                 companyPlaceholder="Company"
                 currentLabel="Current role"
-                entries={experienceEntries}
-                setEntries={setExperienceEntries}
+                control={form.control}
+                register={form.register}
+                setValue={form.setValue}
+                errors={form.formState.errors}
                 enforceSingleCurrent
                 disabled={effectiveDisabled}
             />
 
             <TimelineEntriesEditor
+                name="activities"
                 sectionTitle="Activities"
                 sectionDescription="Add one or more activity entries."
                 addLabel="Add activity"
@@ -410,31 +299,32 @@ export function ProfessionalProfileEditor({
                 titlePlaceholder="Role / activity title"
                 companyPlaceholder="Organization"
                 currentLabel="Ongoing activity"
-                entries={activityEntries}
-                setEntries={setActivityEntries}
+                control={form.control}
+                register={form.register}
+                setValue={form.setValue}
+                errors={form.formState.errors}
                 disabled={effectiveDisabled}
             />
 
             <EducationEntriesEditor
-                entries={educationEntries}
-                setEntries={setEducationEntries}
+                control={form.control}
+                register={form.register}
+                setValue={form.setValue}
+                errors={form.formState.errors}
                 disabled={effectiveDisabled}
             />
 
-            <Button
-                type="submit"
+            <ProfileSubmitButton
+                submitLabel={submitLabel}
+                submittingLabel={submittingLabel}
                 disabled={
-                    effectiveDisabled ||
-                    (requirePayoutReady && !payoutReady) ||
-                    (requireCorporateVerification && !isCorporateEmailVerified)
+                    effectiveDisabled
+                    || (requirePayoutReady && !payoutReady)
+                    || (requireCorporateVerification && !isCorporateEmailVerified)
                 }
-                className="w-full"
-                size="lg"
-                loading={isSaving}
-                loadingLabel={submittingLabel}
-            >
-                {submitLabel}
-            </Button>
+                loading={form.formState.isSubmitting}
+            />
+
             {requireCorporateVerification && !isCorporateEmailVerified ? (
                 <InlineNotice tone="warning" title="Verification required">
                     {corporateVerificationMessage}

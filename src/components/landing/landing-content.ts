@@ -1,32 +1,32 @@
 export type LandingAudience = "candidate" | "professional";
 
-export interface LandingCta {
+interface LandingCta {
     label: string;
     href: string;
 }
 
-export interface LandingHero {
+interface LandingHero {
     title: string;
     subtitle: string;
     primaryCta: LandingCta;
 }
 
-export interface LandingStat {
+interface LandingStat {
     value: string;
     label: string;
 }
 
-export interface LandingStep {
+interface LandingStep {
     title: string;
     description: string;
 }
 
-export interface LandingFaq {
+interface LandingFaq {
     question: string;
     answer: string;
 }
 
-export interface LandingContent {
+interface LandingContent {
     hero: LandingHero;
     stats: LandingStat[];
     steps: LandingStep[];

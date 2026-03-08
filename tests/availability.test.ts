@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getCombinedAvailability } from '@/lib/domain/shared/availability';
+import { AvailabilityService } from '@/lib/domain/availability/service';
 import { prisma } from '@/lib/core/db';
 import * as GoogleIntegration from '@/lib/integrations/calendar/google';
 import { addHours, parseISO } from 'date-fns';
@@ -47,7 +47,7 @@ describe('getCombinedAvailability', () => {
         (prisma.booking.findMany as any).mockResolvedValue([]);
         (GoogleIntegration.getGoogleBusyTimes as any).mockResolvedValue([]);
 
-        const result = await getCombinedAvailability(userId, baseDate, endOfDay);
+        const result = await AvailabilityService.getCombinedAvailability(userId, baseDate, endOfDay);
 
         expect(result).toHaveLength(1);
         expect(result[0].start).toEqual(manualSlots[0].start);
@@ -74,7 +74,7 @@ describe('getCombinedAvailability', () => {
         (prisma.booking.findMany as any).mockResolvedValue(bookings);
         (GoogleIntegration.getGoogleBusyTimes as any).mockResolvedValue([]);
 
-        const result = await getCombinedAvailability(userId, baseDate, endOfDay);
+        const result = await AvailabilityService.getCombinedAvailability(userId, baseDate, endOfDay);
 
         // Expect split: 9-12 and 13-17
         expect(result).toHaveLength(2);
@@ -103,7 +103,7 @@ describe('getCombinedAvailability', () => {
         (prisma.booking.findMany as any).mockResolvedValue([]);
         (GoogleIntegration.getGoogleBusyTimes as any).mockResolvedValue(googleBusy);
 
-        const result = await getCombinedAvailability(userId, baseDate, endOfDay);
+        const result = await AvailabilityService.getCombinedAvailability(userId, baseDate, endOfDay);
 
         // Expect split: 9-10 and 11-17
         expect(result).toHaveLength(2);
@@ -139,7 +139,7 @@ describe('getCombinedAvailability', () => {
         (prisma.booking.findMany as any).mockResolvedValue(bookings);
         (GoogleIntegration.getGoogleBusyTimes as any).mockResolvedValue(googleBusy);
 
-        const result = await getCombinedAvailability(userId, baseDate, endOfDay);
+        const result = await AvailabilityService.getCombinedAvailability(userId, baseDate, endOfDay);
 
         // Expect split: 9-12 and 13.5-17
         // 12-13 is booked.
