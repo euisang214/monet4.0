@@ -1,12 +1,14 @@
 .shell {
   position: relative;
   min-height: calc(100dvh - 4.5rem);
-  padding: 1.2rem 1rem 2.5rem;
+  padding: 1.2rem 0 2.5rem;
+  overflow-x: clip;
 }
 
 .frame {
-  max-width: var(--page-max-width-wide);
+  width: min(var(--page-shell-max-width), calc(100% - (var(--page-shell-gutter) * 2)));
   margin: 0 auto;
+  min-width: 0;
 }
 
 .mobileNav {
@@ -113,6 +115,12 @@
   font-size: 0.84rem;
   line-height: 1.6;
   color: var(--text-subtle);
+}
+
+@media (max-width: 959px) {
+  .frame {
+    width: min(var(--page-shell-max-width), calc(100% - (var(--page-shell-gutter-compact) * 2)));
+  }
 }
 
 @media (min-width: 960px) {

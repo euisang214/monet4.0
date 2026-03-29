@@ -60,7 +60,7 @@ export function RoleAppShell({ title, description, navItems, children }: RoleApp
 
     return (
         <div className={styles.shell}>
-            <div className={styles.frame}>
+            <div className={styles.frame} data-page-shell="true">
                 <div className={styles.mobileNav}>
                     <SectionNav items={navItems} orientation="mobile" />
                 </div>

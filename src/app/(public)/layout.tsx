@@ -9,7 +9,7 @@ export default function PublicLayout({
     return (
         <div className={styles.publicLayout}>
             <PublicNavbar />
-            <main className={styles.main}>
+            <main className={styles.main} data-page-shell="true">
                 {children}
             </main>
             <footer className={styles.footer}>

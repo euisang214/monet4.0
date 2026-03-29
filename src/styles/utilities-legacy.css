@@ -16,7 +16,7 @@
 /* Utility shim for existing pages (Tailwind-like classes) */
 .container {
   width: 100%;
-  max-width: var(--app-shell-max-width);
+  max-width: var(--page-shell-max-width);
   margin-inline: auto;
   padding-inline: 1.25rem;
 }

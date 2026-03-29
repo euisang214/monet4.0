@@ -48,6 +48,9 @@
   --radius-md: 16px;
   --radius-lg: 22px;
   --z-toast: 60;
-  --app-shell-max-width: 1180px;
-  --page-max-width-wide: 1320px;
+  --page-shell-max-width: 1320px;
+  --page-shell-gutter: 1rem;
+  --page-shell-gutter-compact: 0.75rem;
+  --app-shell-max-width: var(--page-shell-max-width);
+  --page-max-width-wide: var(--page-shell-max-width);
 }
