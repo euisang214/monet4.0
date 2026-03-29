@@ -124,7 +124,6 @@
 .sectionLead {
   text-align: center;
   color: var(--muted);
-  max-width: 740px;
   margin: 0 auto;
 }
 

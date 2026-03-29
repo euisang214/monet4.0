@@ -40,7 +40,7 @@ export const LANDING_AUDIENCE_STORAGE_KEY = "monet:landing:audience";
 export const LANDING_CONTENT: Record<LandingAudience, LandingContent> = {
     candidate: {
         hero: {
-            title: "Structured recruiting prep. \nReal professionals.",
+            title: "Structured Recruiting Prep. \nReal Professionals.",
             subtitle:
                 "Connect with verified analysts and associates in finance and consulting. \nClear feedback. Actionable next steps. No cold DMs.",
             primaryCta: {
@@ -99,7 +99,7 @@ export const LANDING_CONTENT: Record<LandingAudience, LandingContent> = {
         hero: {
             title: "Turn Your Experience Into \nImpact and Income",
             subtitle:
-                "Help candidates focus on the right things through structured, 30-minute chats. \nYou choose your rate and availability. We handle the logistics.",
+                "Help candidates focus on the right things through 30-minute chats. \nYou choose your rate and availability. We handle the logistics.",
             primaryCta: {
                 label: "Become a Professional",
                 href: "/signup?role=professional",
