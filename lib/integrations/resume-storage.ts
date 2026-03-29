@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { createClient } from "@supabase/supabase-js";
 
 export const DEFAULT_RESUME_BUCKET = "candidate-resumes";
 export const RESUME_SIGNED_URL_TTL_SECONDS = 15 * 60;
@@ -14,13 +15,39 @@ interface ResumeStorageConfig {
     supabaseUrl: string;
 }
 
+function getLocalStorageHint(supabaseUrl: string): string | null {
+    try {
+        const { hostname } = new URL(supabaseUrl);
+        if (hostname === "127.0.0.1" || hostname === "localhost") {
+            return "STORAGE_SUPABASE_URL points to local Supabase, but the local Supabase stack does not appear to be running. Start Supabase locally or switch STORAGE_SUPABASE_URL and STORAGE_SUPABASE_SERVICE_ROLE_KEY to your cloud project values."
+        }
+    } catch {
+        return null;
+    }
+
+    return null;
+}
+
+function formatStorageErrorMessage(config: ResumeStorageConfig, errorMessage: string): string {
+    const localHint = getLocalStorageHint(config.supabaseUrl);
+
+    return [
+        `Failed to upload resume to Supabase Storage: ${errorMessage}`,
+        `Storage URL: ${config.supabaseUrl}`,
+        `Bucket: ${config.bucket}`,
+        localHint,
+    ]
+        .filter(Boolean)
+        .join("\n");
+}
+
 function normalizeEnvValue(rawValue: string | undefined): string | null {
     const trimmed = rawValue?.trim();
     if (!trimmed) return null;
 
     if (
-        (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-        (trimmed.startsWith("'") && trimmed.endsWith("'"))
+        (trimmed.startsWith('"') && trimmed.endsWith('"'))
+        || (trimmed.startsWith("'") && trimmed.endsWith("'"))
     ) {
         const unquoted = trimmed.slice(1, -1).trim();
         return unquoted || null;
@@ -36,6 +63,20 @@ function getBucketName(): string {
 function getSupabaseUrl(): string | null {
     const raw = normalizeEnvValue(process.env.STORAGE_SUPABASE_URL);
     if (!raw) return null;
+
+    try {
+        const parsed = new URL(raw);
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+            throw new Error("STORAGE_SUPABASE_URL must be an http(s) project URL, not a Postgres connection string.")
+        }
+    } catch (error) {
+        if (error instanceof Error && error.message.includes("STORAGE_SUPABASE_URL must be")) {
+            throw error;
+        }
+
+        throw new Error("STORAGE_SUPABASE_URL must be a valid http(s) URL.")
+    }
+
     return raw.replace(/\/+$/, "");
 }
 
@@ -53,6 +94,15 @@ function getResumeStorageConfig(): ResumeStorageConfig {
         serviceRoleKey,
         supabaseUrl,
     };
+}
+
+function getResumeStorageClient(config: ResumeStorageConfig) {
+    return createClient(config.supabaseUrl, config.serviceRoleKey, {
+        auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+        },
+    });
 }
 
 function encodePath(path: string): string {
@@ -154,26 +204,26 @@ export async function uploadResume(
     scope: ResumeUploadScope,
     fileBuffer: ArrayBuffer,
     contentType: string,
-    userId?: string
+    userId?: string,
 ): Promise<{ path: string; storageUrl: string }> {
-    const { bucket, serviceRoleKey, supabaseUrl } = getResumeStorageConfig();
+    const config = getResumeStorageConfig();
+    const client = getResumeStorageClient(config);
     const path = getUploadPath(scope, userId);
-    const uploadEndpoint = `${supabaseUrl}/storage/v1/object/${encodeURIComponent(bucket)}/${encodePath(path)}`;
 
-    const response = await fetch(uploadEndpoint, {
-        method: "POST",
-        headers: {
-            apikey: serviceRoleKey,
-            Authorization: `Bearer ${serviceRoleKey}`,
-            "Content-Type": contentType,
-            "x-upsert": "false",
-        },
-        body: fileBuffer,
-    });
+    try {
+        const { error } = await client.storage
+            .from(config.bucket)
+            .upload(path, new Blob([fileBuffer], { type: contentType }), {
+                contentType,
+                upsert: false,
+            });
 
-    if (!response.ok) {
-        const details = await response.text().catch(() => "");
-        throw new Error(`Failed to upload resume to Supabase Storage (${response.status}): ${details}`);
+        if (error) {
+            throw new Error(formatStorageErrorMessage(config, error.message));
+        }
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(formatStorageErrorMessage(config, message));
     }
 
     return {
@@ -184,7 +234,7 @@ export async function uploadResume(
 
 export async function getSignedResumeViewUrl(
     storageUrl: string,
-    ttlSeconds = RESUME_SIGNED_URL_TTL_SECONDS
+    ttlSeconds = RESUME_SIGNED_URL_TTL_SECONDS,
 ): Promise<string> {
     if (!isSupabaseResumeUrl(storageUrl)) {
         return storageUrl;
@@ -193,30 +243,20 @@ export async function getSignedResumeViewUrl(
     const path = extractPathFromStorageUrl(storageUrl);
     if (!path) return storageUrl;
 
-    const { bucket, serviceRoleKey, supabaseUrl } = getResumeStorageConfig();
-    const signEndpoint = `${supabaseUrl}/storage/v1/object/sign/${encodeURIComponent(bucket)}/${encodePath(path)}`;
+    const config = getResumeStorageConfig();
+    const client = getResumeStorageClient(config);
+    const { data, error } = await client.storage.from(config.bucket).createSignedUrl(path, ttlSeconds);
 
-    const response = await fetch(signEndpoint, {
-        method: "POST",
-        headers: {
-            apikey: serviceRoleKey,
-            Authorization: `Bearer ${serviceRoleKey}`,
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ expiresIn: ttlSeconds }),
-    });
-
-    if (!response.ok) {
-        const details = await response.text().catch(() => "");
-        throw new Error(`Failed to create signed resume URL (${response.status}): ${details}`);
+    if (error) {
+        throw new Error(`Failed to create signed resume URL: ${error.message}`);
     }
 
-    const payload = (await response.json()) as { signedURL?: string };
-    if (!payload.signedURL) {
+    const signedUrl = data?.signedUrl;
+    if (!signedUrl) {
         throw new Error("Supabase did not return a signed URL");
     }
 
-    return normalizeSignedUrl(payload.signedURL, supabaseUrl);
+    return normalizeSignedUrl(signedUrl, config.supabaseUrl);
 }
 
 export function createResumeUrlSigner(ttlSeconds = RESUME_SIGNED_URL_TTL_SECONDS) {

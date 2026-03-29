@@ -4,7 +4,7 @@ import React, { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CandidateAvailabilityPanel } from '@/components/bookings/CandidateAvailabilityPanel';
 import type { SlotInterval } from '@/components/bookings/calendar/types';
-import { useCandidateRescheduleRequest } from '@/components/bookings/hooks/useCandidateRescheduleRequest';
+import { useTrackedCandidateBookingActions } from '@/components/bookings/hooks/useTrackedCandidateBookingActions';
 
 interface ReschedulePageClientProps {
     bookingId: string;
@@ -20,16 +20,14 @@ export function ReschedulePageClient({
     isGoogleCalendarConnected,
 }: ReschedulePageClientProps) {
     const router = useRouter();
+    const { submitRescheduleRequest } = useTrackedCandidateBookingActions();
     const [availabilitySlots, setAvailabilitySlots] = useState<SlotInterval[]>([]);
     const [reason, setReason] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const resolvedCalendarTimezone = React.useMemo(
         () => calendarTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
         [calendarTimezone]
-    );
-
-    const { isSubmitting, error, submitRequest } = useCandidateRescheduleRequest(
-        bookingId,
-        resolvedCalendarTimezone
     );
 
     const handleSlotSelectionChange = useCallback(
@@ -40,17 +38,29 @@ export function ReschedulePageClient({
     );
 
     const handleSubmit = async () => {
-        const success = await submitRequest({
-            slots: availabilitySlots,
-            reason,
-        });
-
-        if (!success || !bookingId) {
+        if (!bookingId) {
             return;
         }
 
-        router.push(`/candidate/bookings/${bookingId}`);
-        router.refresh();
+        if (availabilitySlots.length === 0) {
+            setError('Please propose at least one time slot.');
+            return;
+        }
+
+        setIsSubmitting(true);
+        setError(null);
+        try {
+            await submitRescheduleRequest({
+                bookingId,
+                slots: availabilitySlots,
+                reason,
+                timezone: resolvedCalendarTimezone,
+            });
+        } catch {
+            // Async failures are surfaced via tracked toast.
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (

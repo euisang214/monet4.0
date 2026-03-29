@@ -13,7 +13,7 @@ export function getBookingActionVisibility(
         showReschedule: status === BookingStatus.accepted,
         showCancel: ([BookingStatus.requested, BookingStatus.accepted] as BookingStatus[]).includes(status),
         showDispute: ([BookingStatus.accepted, BookingStatus.completed] as BookingStatus[]).includes(status),
-        showReview: status === BookingStatus.completed,
+        showReview: ([BookingStatus.completed, BookingStatus.completed_pending_feedback] as BookingStatus[]).includes(status),
     };
 }
 

@@ -2,12 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { Role } from "@prisma/client";
-import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useTrackedVerificationActions } from "@/components/auth/hooks/useTrackedVerificationActions";
 import { appRoutes } from "@/lib/shared/routes";
-import { Button } from "@/components/ui/primitives/Button";
-import { NotificationBanner } from "@/components/ui/composites/NotificationBanner";
-import { useNotification } from "@/components/ui/hooks/useNotification";
+import { useTrackedRequest } from "@/components/ui/providers/RequestToastProvider";
+import { Button, Field, FormSection, InlineNotice, PageHeader, SurfaceCard, TextInput } from "@/components/ui";
 import {
     CandidateProfileEditor,
     CandidateProfileEditorInitialData,
@@ -45,8 +44,9 @@ export function OnboardingForm({
     initialProfessional,
     initialProfessionalEmailVerified = false,
 }: OnboardingFormProps) {
-    const router = useRouter();
     const { update } = useSession();
+    const { showToast } = useTrackedRequest();
+    const { requestCode, confirmCode } = useTrackedVerificationActions("onboarding");
     const [stripeStatus, setStripeStatus] = useState<ProfessionalStripeStatus | null>(null);
     const [corporateEmail, setCorporateEmail] = useState(initialProfessional?.corporateEmail || "");
     const [verificationSent, setVerificationSent] = useState(false);
@@ -58,8 +58,6 @@ export function OnboardingForm({
         if (!initialProfessionalEmailVerified || !initialProfessional?.verifiedAt) return "";
         return normalizeCorporateEmail(initialProfessional?.corporateEmail);
     });
-    const { notification, notify, clear } = useNotification();
-
     useEffect(() => {
         let isMounted = true;
 
@@ -92,6 +90,25 @@ export function OnboardingForm({
     }, [role, initialProfessional?.corporateEmail]);
 
     useEffect(() => {
+        if (role !== Role.PROFESSIONAL) {
+            setVerifiedEmailNormalized("");
+            return;
+        }
+
+        if (!initialProfessionalEmailVerified || !initialProfessional?.verifiedAt) {
+            setVerifiedEmailNormalized("");
+            return;
+        }
+
+        setVerifiedEmailNormalized(normalizeCorporateEmail(initialProfessional?.corporateEmail));
+    }, [
+        initialProfessional?.corporateEmail,
+        initialProfessional?.verifiedAt,
+        initialProfessionalEmailVerified,
+        role,
+    ]);
+
+    useEffect(() => {
         if (!verificationSent) return;
 
         const normalizedCurrentEmail = normalizeCorporateEmail(corporateEmail);
@@ -103,11 +120,16 @@ export function OnboardingForm({
     }, [corporateEmail, verificationSent, verificationTargetEmailNormalized]);
 
     const normalizedCorporateEmail = normalizeCorporateEmail(corporateEmail);
+    const initialVerifiedEmailNormalized =
+        role === Role.PROFESSIONAL && initialProfessionalEmailVerified && initialProfessional?.verifiedAt
+            ? normalizeCorporateEmail(initialProfessional?.corporateEmail)
+            : "";
     const isVerifiedForCurrentEmail =
-        normalizedCorporateEmail.length > 0 && normalizedCorporateEmail === verifiedEmailNormalized;
+        normalizedCorporateEmail.length > 0 &&
+        (normalizedCorporateEmail === verifiedEmailNormalized ||
+            normalizedCorporateEmail === initialVerifiedEmailNormalized);
 
     const submitOnboarding = async (payload: OnboardingSubmitPayload) => {
-        clear();
         const response = await fetch(appRoutes.api.auth.onboarding, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -139,9 +161,6 @@ export function OnboardingForm({
                 onboardingCompleted: result?.data?.onboardingCompleted ?? true,
             },
         });
-
-        router.push(postOnboardingPath(role));
-        router.refresh();
     };
 
     const handleConnectStripe = async () => {
@@ -162,71 +181,56 @@ export function OnboardingForm({
 
     const handleVerifyEmail = async () => {
         if (!normalizedCorporateEmail) {
-            notify("error", "Enter a corporate email before requesting verification.");
+            showToast("error", {
+                title: "Corporate email required",
+                message: "Enter a corporate email before requesting verification.",
+            });
             return;
         }
 
-        clear();
         try {
-            const response = await fetch(appRoutes.api.shared.verificationRequest, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: corporateEmail }),
-            });
-            if (!response.ok) {
-                throw new Error("request_failed");
-            }
-
+            await requestCode({ email: corporateEmail });
             setVerificationTargetEmailNormalized(normalizedCorporateEmail);
             setVerificationSent(true);
             setVerificationCode("");
-            notify("success", "Verification email sent. Check your inbox for the code.");
-        } catch (error) {
-            console.error(error);
-            notify("error", "Failed to send verification email.");
+        } catch {
+            // Async failures are surfaced via tracked toast.
         }
     };
 
     const handleConfirmVerification = async () => {
-        if (!verificationCode.trim()) return;
+        if (!verificationCode.trim()) {
+            showToast("warning", {
+                title: "Verification code required",
+                message: "Enter the most recent code before confirming verification.",
+            });
+            return;
+        }
 
         setVerifying(true);
-        clear();
         try {
-            const response = await fetch(appRoutes.api.shared.verificationConfirm, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ token: verificationCode.trim() }),
-            });
-            const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-
-            if (!response.ok) {
-                throw new Error(payload?.error || "verification_failed");
-            }
-
+            await confirmCode({ token: verificationCode.trim() });
             setVerifiedEmailNormalized(verificationTargetEmailNormalized || normalizedCorporateEmail);
             setVerificationSent(false);
             setVerificationCode("");
             setVerificationTargetEmailNormalized("");
-            notify("success", "Corporate email verified successfully.");
-        } catch (error) {
-            console.error(error);
-            notify("error", "Verification code is invalid or expired.");
+        } catch {
+            // Async failures are surfaced via tracked toast.
         } finally {
             setVerifying(false);
         }
     };
 
     return (
-        <section className="w-full max-w-4xl mx-auto bg-white p-8 rounded-xl border border-gray-200 shadow-lg">
-            <header className="mb-6">
-                <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Onboarding</p>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Finish setting up your profile</h1>
-                <p className="text-sm text-gray-600">
-                    Complete required fields to continue as a {role === Role.PROFESSIONAL ? "professional" : "candidate"}.
-                </p>
-            </header>
-            <NotificationBanner notification={notification} />
+        <SurfaceCard className="w-full max-w-4xl mx-auto" padding="lg">
+            <PageHeader
+                eyebrow="Onboarding"
+                title="Finish setting up your profile"
+                description={`Complete required fields to continue as a ${
+                    role === Role.PROFESSIONAL ? "professional" : "candidate"
+                }.`}
+                className="mb-6"
+            />
 
             {role === Role.CANDIDATE ? (
                 <CandidateProfileEditor
@@ -244,6 +248,20 @@ export function OnboardingForm({
                     submitLabel="Complete onboarding"
                     submittingLabel="Saving..."
                     onSubmit={submitOnboarding}
+                    asyncStatus={{
+                        pending: {
+                            title: "Completing onboarding",
+                            message: "Saving your profile and preparing your workspace.",
+                        },
+                        success: {
+                            title: "Onboarding completed",
+                            message: "Your profile is ready.",
+                        },
+                        errorTitle: "Onboarding failed",
+                        navigation: {
+                            href: postOnboardingPath(role),
+                        },
+                    }}
                 />
             ) : (
                 <div className="space-y-6">
@@ -273,56 +291,76 @@ export function OnboardingForm({
                         requireCorporateVerification
                         isCorporateEmailVerified={isVerifiedForCurrentEmail}
                         corporateVerificationMessage="Verify your corporate email to complete onboarding."
+                        asyncStatus={{
+                            pending: {
+                                title: "Completing onboarding",
+                                message: "Saving your profile and preparing your workspace.",
+                            },
+                            success: {
+                                title: "Onboarding completed",
+                                message: "Your professional workspace is ready.",
+                            },
+                            errorTitle: "Onboarding failed",
+                            navigation: {
+                                href: postOnboardingPath(role),
+                            },
+                        }}
                     />
 
-                    <section className="space-y-4 rounded-md border border-gray-200 p-4 bg-gray-50">
-                        <h2 className="text-lg font-semibold text-gray-900">Corporate Email Verification</h2>
-                        <p className="text-sm text-gray-600">
-                            Verify the corporate email listed in your profile before completing onboarding.
-                        </p>
-                        <div className="flex flex-wrap gap-2">
+                    <FormSection
+                        title="Corporate Email Verification"
+                        description="Verify the corporate email listed in your profile before completing onboarding."
+                        tone="muted"
+                        actions={
                             <Button
                                 type="button"
                                 onClick={handleVerifyEmail}
                                 disabled={verificationSent || !normalizedCorporateEmail}
+                                variant="secondary"
                             >
                                 {verificationSent ? "Sent" : "Send Code"}
                             </Button>
-                        </div>
+                        }
+                    >
+                        {isVerifiedForCurrentEmail ? (
+                            <InlineNotice tone="success" title="Verified">
+                                Corporate email is verified.
+                            </InlineNotice>
+                        ) : null}
 
                         {verificationSent ? (
-                            <div className="space-y-2">
-                                <label className="block text-sm font-medium" htmlFor="onboarding-verification-code">
-                                    Verification code
-                                </label>
-                                <div className="flex gap-2">
-                                    <input
+                            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+                                <Field
+                                    label="Verification code"
+                                    htmlFor="onboarding-verification-code"
+                                    hint="Use the most recent code sent to your corporate email."
+                                >
+                                    <TextInput
                                         id="onboarding-verification-code"
                                         type="text"
                                         value={verificationCode}
                                         onChange={(event) => setVerificationCode(event.target.value)}
-                                        className="flex-1 p-2 border rounded-md"
                                         placeholder="XXXXXX"
                                     />
-                                    <Button
-                                        type="button"
-                                        onClick={handleConfirmVerification}
-                                        disabled={verifying || !verificationCode.trim()}
-                                    >
-                                        {verifying ? "Verifying..." : "Confirm"}
-                                    </Button>
-                                </div>
+                                </Field>
+                                <Button
+                                    type="button"
+                                    onClick={handleConfirmVerification}
+                                    disabled={verifying || !verificationCode.trim()}
+                                    loading={verifying}
+                                    loadingLabel="Verifying..."
+                                >
+                                    Confirm
+                                </Button>
                             </div>
-                        ) : isVerifiedForCurrentEmail ? (
-                            <p className="text-sm text-green-700">Corporate email is verified.</p>
-                        ) : (
-                            <p className="text-sm text-amber-700">
+                        ) : !isVerifiedForCurrentEmail ? (
+                            <InlineNotice tone="warning" title="Verification required">
                                 Verify your corporate email to complete onboarding.
-                            </p>
-                        )}
-                    </section>
+                            </InlineNotice>
+                        ) : null}
+                    </FormSection>
                 </div>
             )}
-        </section>
+        </SurfaceCard>
     );
 }

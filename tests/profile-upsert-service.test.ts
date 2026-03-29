@@ -173,7 +173,7 @@ describe("profile-upsert-service", () => {
             interests: ["Mentorship"],
             experience: [
                 {
-                    company: "Monet",
+                    company: "Kafei",
                     title: "Principal",
                     startDate: new Date("2022-01-01"),
                     isCurrent: true,
@@ -239,7 +239,7 @@ describe("profile-upsert-service", () => {
             interests: ["Mentorship"],
             experience: [
                 {
-                    company: "Monet",
+                    company: "Kafei",
                     title: "Principal",
                     startDate: new Date("2022-01-01"),
                     isCurrent: true,

@@ -4,8 +4,9 @@ import { auth } from '@/auth';
 import { CandidateBrowse } from '@/lib/role/candidate/browse';
 import { ListingCard } from '@/components/browse/ListingCard';
 import { redirect } from 'next/navigation';
-import { EmptyState } from '@/components/ui/composites/EmptyState';
+import { EmptyState, PageHeader } from '@/components/ui';
 import { appRoutes } from '@/lib/shared/routes';
+import { buttonVariants } from '@/components/ui/primitives/Button';
 
 export const revalidate = 60;
 
@@ -44,12 +45,12 @@ export default async function BrowsePage({
     });
 
     return (
-        <main className="container py-8">
-            <header className="mb-8">
-                <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Browse Professionals</p>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Find Your Next Career Mentor</h1>
-                <p className="text-gray-600">Connect with vetted experts and top professionals from leading companies</p>
-            </header>
+        <main className="space-y-8">
+            <PageHeader
+                eyebrow="Browse professionals"
+                title="Find your next career mentor"
+                description="Connect with vetted experts and top professionals from leading companies."
+            />
 
             {professionals.length === 0 ? (
                 <EmptyState
@@ -58,6 +59,7 @@ export default async function BrowsePage({
                     description="Profiles may be temporarily unavailable. Check back soon or review your account setup."
                     actionLabel="Go to chats"
                     actionHref={appRoutes.candidate.chats}
+                    layout="inline"
                 />
             ) : (
                 <div className="space-y-6">
@@ -71,7 +73,7 @@ export default async function BrowsePage({
                         {searchParams?.cursor ? (
                             <Link
                                 href={browsePageUrl()}
-                                className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                                className={buttonVariants({ variant: 'secondary' })}
                             >
                                 Back to first page
                             </Link>
@@ -79,7 +81,7 @@ export default async function BrowsePage({
                         {nextCursor ? (
                             <Link
                                 href={browsePageUrl(nextCursor)}
-                                className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                                className={buttonVariants({ variant: 'secondary' })}
                             >
                                 Older
                             </Link>

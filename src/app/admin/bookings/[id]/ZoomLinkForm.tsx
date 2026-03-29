@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { appRoutes } from '@/lib/shared/routes';
+import { useTrackedAdminActions } from '@/components/admin/hooks/useTrackedAdminActions';
 
 export function ZoomLinkForm({
     bookingId,
@@ -22,8 +21,8 @@ export function ZoomLinkForm({
     const [candidateUrl, setCandidateUrl] = useState(initialCandidateUrl || '');
     const [professionalUrl, setProfessionalUrl] = useState(initialProfessionalUrl || '');
     const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-    const router = useRouter();
+    const [message, setMessage] = useState<string | null>(null);
+    const { updateZoomLinks } = useTrackedAdminActions();
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -35,26 +34,17 @@ export function ZoomLinkForm({
                 throw new Error('Enter a shared URL or at least one role-specific URL');
             }
 
-            const res = await fetch(appRoutes.api.admin.bookingZoomLink(bookingId), {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    zoomJoinUrl: url.trim() || undefined,
-                    zoomMeetingId: meetingId.trim() || undefined,
-                    candidateZoomJoinUrl: candidateUrl.trim() || undefined,
-                    professionalZoomJoinUrl: professionalUrl.trim() || undefined,
-                }),
+            await updateZoomLinks({
+                bookingId,
+                zoomJoinUrl: url.trim() || undefined,
+                zoomMeetingId: meetingId.trim() || undefined,
+                candidateZoomJoinUrl: candidateUrl.trim() || undefined,
+                professionalZoomJoinUrl: professionalUrl.trim() || undefined,
             });
-
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.error || 'Failed to update');
+        } catch (submitError: unknown) {
+            if (submitError instanceof Error && submitError.message === 'Enter a shared URL or at least one role-specific URL') {
+                setMessage(submitError.message);
             }
-
-            setMessage({ type: 'success', text: 'Zoom link updated successfully' });
-            router.refresh();
-        } catch (err: any) {
-            setMessage({ type: 'error', text: err.message });
         } finally {
             setLoading(false);
         }
@@ -112,11 +102,11 @@ export function ZoomLinkForm({
                 Provide either a shared URL or one/both role-specific URLs.
             </p>
 
-            {message && (
-                <div className={`p-2 rounded text-sm ${message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                    {message.text}
+            {message ? (
+                <div className="p-2 rounded text-sm bg-red-100 text-red-700">
+                    {message}
                 </div>
-            )}
+            ) : null}
 
             <button
                 type="submit"

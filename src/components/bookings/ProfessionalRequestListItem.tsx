@@ -2,6 +2,7 @@ import { BookingStatus } from "@prisma/client";
 import { appRoutes } from "@/lib/shared/routes";
 import { ProfessionalRequestActions } from "@/components/bookings/ProfessionalRequestActions";
 import { formatCandidateForProfessionalView } from "@/lib/domain/users/identity-labels";
+import { StatusBadge, SurfaceCard } from "@/components/ui";
 
 interface ProfessionalRequestListItemProps {
     booking: {
@@ -38,7 +39,6 @@ interface ProfessionalRequestListItemProps {
 export function ProfessionalRequestListItem({ booking }: ProfessionalRequestListItemProps) {
     const isReschedule = booking.status === BookingStatus.reschedule_pending;
     const badgeText = isReschedule ? "Reschedule" : "Pending";
-    const badgeClass = isReschedule ? "bg-blue-100 text-blue-700" : "bg-yellow-100 text-yellow-700";
     const href = isReschedule
         ? appRoutes.professional.requestReschedule(booking.id)
         : appRoutes.professional.requestConfirmAndSchedule(booking.id);
@@ -53,16 +53,14 @@ export function ProfessionalRequestListItem({ booking }: ProfessionalRequestList
         });
 
     return (
-        <li className="p-5 bg-white border border-gray-200 rounded-xl shadow-sm">
+        <SurfaceCard as="li" className="p-5">
             <div className="flex justify-between items-start">
                 <div>
                     <p className="font-semibold text-gray-900 mb-1">{candidateLabel}</p>
                     <p className="text-sm text-gray-600">${((booking.priceCents || 0) / 100).toFixed(2)}</p>
                 </div>
                 <div className="text-right">
-                    <span className={`px-2 py-1 text-xs rounded-full font-semibold ${badgeClass}`}>
-                        {badgeText}
-                    </span>
+                    <StatusBadge label={badgeText} variant={isReschedule ? "info" : "warning"} />
                     {isReschedule ? (
                         <p className="text-xs text-gray-500 mt-1">Awaiting time selection</p>
                     ) : (
@@ -80,6 +78,6 @@ export function ProfessionalRequestListItem({ booking }: ProfessionalRequestList
                 resumeUrl={booking.candidate.candidateProfile?.resumeUrl}
                 isReschedule={isReschedule}
             />
-        </li>
+        </SurfaceCard>
     );
 }

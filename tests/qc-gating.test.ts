@@ -5,6 +5,10 @@ import { prisma } from '@/lib/core/db';
 import { paymentsQueue } from '@/lib/queues';
 import { createCapturedPaymentIntent, createConnectedAccount, stripeTest } from './helpers/stripe-live';
 
+type BookingRecord = NonNullable<Awaited<ReturnType<typeof prisma.booking.findUnique>>>;
+type PayoutRecord = NonNullable<Awaited<ReturnType<typeof prisma.payout.findUnique>>>;
+type PayoutUpsertRecord = Awaited<ReturnType<typeof prisma.payout.upsert>>;
+
 vi.mock('@/lib/core/db', () => ({
     prisma: {
         booking: { findUnique: vi.fn(), update: vi.fn() },
@@ -62,13 +66,17 @@ describe('QC Gating Flow', () => {
                     actions: ['Action 1', 'Action 2', 'Action 3'],
                 },
                 professional: { stripeAccountId: mockStripeAccountId },
-            } as any);
+            } as BookingRecord);
 
             await QCService.processQCJob(mockBookingId);
 
             expect(prisma.callFeedback.update).toHaveBeenCalledWith({
                 where: { bookingId: mockBookingId },
-                data: { qcStatus: 'revise' },
+                data: expect.objectContaining({
+                    qcStatus: 'revise',
+                    qcReasons: ['Word count is 2, minimum required is 200.'],
+                    qcReviewedAt: expect.any(Date),
+                }),
             });
             expect(prisma.payout.upsert).not.toHaveBeenCalled();
         });
@@ -83,7 +91,7 @@ describe('QC Gating Flow', () => {
                     actions: ['Action 1', 'Action 2', 'Action 3'],
                 },
                 professional: { stripeAccountId: mockStripeAccountId },
-            } as any);
+            } as BookingRecord);
 
             const { ClaudeService } = await import('@/lib/integrations/claude');
             vi.mocked(ClaudeService.validateFeedback).mockResolvedValue({
@@ -93,13 +101,17 @@ describe('QC Gating Flow', () => {
 
             vi.mocked(prisma.payout.upsert).mockResolvedValue({
                 status: 'pending',
-            } as any);
+            } as PayoutUpsertRecord);
 
             await QCService.processQCJob(mockBookingId);
 
             expect(prisma.callFeedback.update).toHaveBeenCalledWith({
                 where: { bookingId: mockBookingId },
-                data: { qcStatus: 'passed' },
+                data: expect.objectContaining({
+                    qcStatus: 'passed',
+                    qcReasons: [],
+                    qcReviewedAt: expect.any(Date),
+                }),
             });
 
             const { completeBooking } = await import('@/lib/domain/bookings/transitions');
@@ -127,7 +139,7 @@ describe('QC Gating Flow', () => {
                     actions: ['Action 1', 'Action 2', 'Action 3'],
                 },
                 professional: { stripeAccountId: mockStripeAccountId },
-            } as any);
+            } as BookingRecord);
 
             const { ClaudeService } = await import('@/lib/integrations/claude');
             vi.mocked(ClaudeService.validateFeedback).mockResolvedValue({
@@ -139,9 +151,17 @@ describe('QC Gating Flow', () => {
 
             expect(prisma.callFeedback.update).not.toHaveBeenCalledWith(
                 expect.objectContaining({
-                    data: { qcStatus: 'passed' },
+                    data: expect.objectContaining({ qcStatus: 'passed' }),
                 })
             );
+            expect(prisma.callFeedback.update).toHaveBeenCalledWith({
+                where: { bookingId: mockBookingId },
+                data: expect.objectContaining({
+                    qcStatus: 'revise',
+                    qcReasons: ['Content is repetitive'],
+                    qcReviewedAt: expect.any(Date),
+                }),
+            });
             const { notificationsQueue } = await import('@/lib/queues');
             expect(notificationsQueue.add).toHaveBeenCalledWith(
                 'send-email',
@@ -161,7 +181,7 @@ describe('QC Gating Flow', () => {
                 booking: {
                     payment: { stripePaymentIntentId: 'pi_unused' },
                 },
-            } as any);
+            } as PayoutRecord);
 
             const result = await PaymentsService.processPayoutJob(mockBookingId);
             expect(result.status).toBe('already_paid');
@@ -181,7 +201,7 @@ describe('QC Gating Flow', () => {
                         stripePaymentIntentId: captured.paymentIntent.id,
                     },
                 },
-            } as any);
+            } as PayoutRecord);
 
             await PaymentsService.processPayoutJob(mockBookingId);
 
@@ -194,7 +214,10 @@ describe('QC Gating Flow', () => {
                 })
             );
 
-            const transferId = (vi.mocked(prisma.payout.update).mock.calls[0]?.[0] as any)?.data?.stripeTransferId;
+            const firstUpdateCall = vi.mocked(prisma.payout.update).mock.calls[0]?.[0] as
+                | { data?: { stripeTransferId?: string | null } }
+                | undefined;
+            const transferId = firstUpdateCall?.data?.stripeTransferId;
             expect(typeof transferId).toBe('string');
             expect(transferId.startsWith('tr_')).toBe(true);
 

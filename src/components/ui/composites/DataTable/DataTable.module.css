@@ -1,0 +1,136 @@
+.root {
+  display: grid;
+  gap: 1rem;
+}
+
+.tableWrap {
+  display: none;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-sm);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.caption {
+  padding: 1rem 1.25rem 0;
+  text-align: left;
+  font-size: 0.9rem;
+  color: var(--text-subtle);
+}
+
+.thead {
+  position: sticky;
+  top: 0;
+  background: rgba(236, 244, 247, 0.96);
+}
+
+.headCell {
+  padding: 0.9rem 1.1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+  text-align: left;
+}
+
+.headCellRight,
+.cellRight {
+  text-align: right;
+}
+
+.row {
+  transition: background-color 180ms ease;
+}
+
+.row:hover {
+  background: rgba(236, 244, 247, 0.7);
+}
+
+.cell {
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid rgba(120, 151, 177, 0.14);
+  font-size: 0.92rem;
+  color: var(--text-muted);
+  vertical-align: top;
+}
+
+.table tr:last-child .cell {
+  border-bottom: 0;
+}
+
+.compact .headCell {
+  padding-top: 0.78rem;
+  padding-bottom: 0.78rem;
+}
+
+.compact .cell {
+  padding-top: 0.85rem;
+  padding-bottom: 0.85rem;
+}
+
+.mobileList {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.mobileCard {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.mobileHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.mobilePrimary {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.mobileRows {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.mobileRow {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.mobileLabel {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.mobileValue {
+  color: var(--text-muted);
+}
+
+.empty {
+  padding: 1.1rem;
+}
+
+@media (min-width: 768px) {
+  .tableWrap {
+    display: block;
+  }
+
+  .mobileList {
+    display: none;
+  }
+}

@@ -7,6 +7,8 @@ import { useSession, signOut } from "next-auth/react";
 import { Button } from "@/components/ui/primitives/Button";
 import { appRoutes } from "@/lib/shared/routes";
 import { resolveNavLinksForSessionUser, type UserRole } from "@/components/layout/auth-navbar-links";
+import { cn } from "@/lib/ui/cn";
+import styles from "./AuthNavbar.module.css";
 
 const CANDIDATE_DASHBOARD_LEGACY_PATH = "/candidate/dashboard";
 const AUTH_NAV_HIDDEN_EXACT_PATHS = new Set([
@@ -55,27 +57,20 @@ function AuthenticatedNavbar({ pathname }: { pathname: string }) {
         onboardingCompleted: session.user.onboardingCompleted,
     });
     const homeLink = navLinks[0]?.href ?? "/";
+    const userEmail = session.user.email ?? "Account";
 
     return (
-        <nav className="container" style={{ position: "sticky", top: "0.85rem", zIndex: 40, marginBottom: "0.6rem" }}>
-            <div className="bg-white border border-gray-200 shadow-sm rounded-lg px-4 py-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Link
-                            href={homeLink}
-                            className="flex items-center gap-2 font-semibold text-gray-900 px-2 py-1 rounded-md hover:bg-blue-100 auth-navbar-pressable"
-                        >
-                            <span
-                                style={{
-                                    width: "24px",
-                                    height: "24px",
-                                    display: "inline-block",
-                                    borderRadius: "7px",
-                                    background: "linear-gradient(135deg, var(--primary), var(--primary-strong))",
-                                }}
-                            />
-                            Monet
-                        </Link>
+        <nav className={styles.nav} aria-label="Authenticated navigation">
+            <div className={styles.panel}>
+                <div className={styles.brandRow}>
+                    <Link href={homeLink} className={styles.brand}>
+                        <span className={styles.brandBadge} />
+                        Kafei
+                    </Link>
+                </div>
+
+                <div className={styles.linksRow}>
+                    <div className={styles.navScroller}>
                         {navLinks.map((link) => {
                             const isCandidateChatsRoute =
                                 userRole === "CANDIDATE" &&
@@ -86,24 +81,33 @@ function AuthenticatedNavbar({ pathname }: { pathname: string }) {
                                 isCandidateChatsRoute ||
                                 pathname === link.href ||
                                 pathname.startsWith(`${link.href}/`);
-                            const linkClasses = isActive
-                                ? "px-3 py-1.5 rounded-md text-sm bg-blue-600 text-white"
-                                : "px-3 py-1.5 rounded-md text-sm bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-gray-900 auth-navbar-pressable";
 
                             return (
-                                <Link key={link.href} href={link.href} className={linkClasses}>
+                                <Link
+                                    key={link.href}
+                                    href={link.href}
+                                    className={cn(styles.navLink, isActive && styles.navLinkActive)}
+                                    aria-current={isActive ? "page" : undefined}
+                                >
                                     {link.label}
                                 </Link>
                             );
                         })}
                     </div>
+                </div>
 
-                    <div className="flex flex-wrap items-center justify-end gap-3">
-                        <span className="text-sm text-gray-500">{session.user.email}</span>
-                        <Button onClick={handleLogout} disabled={isPending} className="bg-gray-100 text-gray-800 hover:bg-blue-100 auth-navbar-pressable">
-                            {isPending ? "Signing out..." : "Log out"}
-                        </Button>
-                    </div>
+                <div className={styles.actionsRow}>
+                    <span className={styles.email} title={userEmail}>
+                        {userEmail}
+                    </span>
+                    <Button
+                        onClick={handleLogout}
+                        disabled={isPending}
+                        className={styles.logoutButton}
+                        variant="secondary"
+                    >
+                        {isPending ? "Signing out..." : "Log out"}
+                    </Button>
                 </div>
             </div>
         </nav>

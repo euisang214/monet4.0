@@ -1,4 +1,4 @@
-# Monet 3.0
+# Kafei 3.0
 
 A full-stack marketplace platform connecting **Candidates** (job seekers) with **Professionals** (industry experts) for paid consultation calls. Built with Next.js, TypeScript, Prisma, and Stripe.
 
@@ -18,16 +18,20 @@ A full-stack marketplace platform connecting **Candidates** (job seekers) with *
 
 Ensure you have the following installed:
 
-- **Node.js** 20+ ([download](https://nodejs.org/))
+- **Node.js** 20.19.0+ ([download](https://nodejs.org/)) (`20.19.x` recommended for local development)
 - **npm** (comes with Node.js)
 - **Docker** and **Docker Compose** (for local Postgres + Redis)
 - Alternatively, you can use standalone Postgres 14+ and Redis 6+ installations
+
+This repo pins `.nvmrc` to `20.19.0`. If you use `nvm`, run `nvm use` before installing dependencies.
 
 ### Step 1: Install Dependencies
 
 ```bash
 npm install
 ```
+
+> **Troubleshooting**: If Next.js development surfaces a server-side deprecation warning in the browser console, verify `node -v` reports `v20.19.0` or newer before debugging application code.
 
 ### Step 2: Configure Environment Variables
 
@@ -40,6 +44,7 @@ Edit `.env` with your configuration values. At minimum, you need:
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `STORAGE_POSTGRES_PRISMA_URL` | PostgreSQL connection string | `postgresql://user:password@localhost:5432/monet` |
+| `DATABASE_URL` | Direct/non-pooled PostgreSQL connection string for Prisma CLI migrations | `postgresql://user:password@localhost:5432/monet` |
 | `REDIS_URL` | Redis connection string (for BullMQ) | `redis://localhost:6379` |
 | `AUTH_SECRET` | NextAuth secret key | Generate with `openssl rand -base64 32` |
 | `STRIPE_SECRET_KEY` | Stripe secret key | `sk_test_...` |
@@ -162,6 +167,7 @@ Use this section if you want Supabase for:
    STORAGE_SUPABASE_SERVICE_ROLE_KEY="..."
    SUPABASE_RESUME_BUCKET="candidate-resumes"
    STORAGE_POSTGRES_PRISMA_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+   DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres"
    ```
 4. Create the storage bucket in local Supabase Studio:
    - Open `STUDIO_URL` from `npx supabase status -o env`
@@ -184,6 +190,7 @@ Use this section if you want Supabase for:
 2. In Vercel (or your host), set:
    ```env
    STORAGE_POSTGRES_PRISMA_URL="postgresql://...supabase..."
+   DATABASE_URL="postgresql://...supabase..."
    STORAGE_SUPABASE_URL="https://<project-ref>.supabase.co"
    STORAGE_SUPABASE_SERVICE_ROLE_KEY="..."
    SUPABASE_RESUME_BUCKET="candidate-resumes"
@@ -280,7 +287,7 @@ Use this section if you want Supabase for:
    GMAIL_OAUTH_CLIENT_SECRET=...
    GMAIL_OAUTH_REFRESH_TOKEN=...
    GMAIL_OAUTH_USER=your-sender@gmail.com
-   EMAIL_FROM="Monet Platform <your-sender@gmail.com>"
+   EMAIL_FROM="Kafei Platform <your-sender@gmail.com>"
    
    # Supabase Storage (Resume PDFs)
    STORAGE_SUPABASE_URL=https://<project-ref>.supabase.co
@@ -295,6 +302,14 @@ Use this section if you want Supabase for:
    ANTHROPIC_API_KEY=...
    ```
 
+   Node runtime:
+   - This repo pins Vercel to `20.x` via `package.json` to match `.nvmrc`.
+
+   Preview seed behavior:
+   - Preview deployments skip database seeding by default.
+   - Set `VERCEL_ENABLE_PREVIEW_SEED=true` only for isolated preview databases.
+   - Preview seeding also requires `STRIPE_TEST_SECRET_KEY`, `STORAGE_SUPABASE_URL`, and `STORAGE_SUPABASE_SERVICE_ROLE_KEY`.
+
    Email prerequisites:
    - `EMAIL_FROM` should align with the authenticated Gmail sender identity.
    - Verify Gmail/Workspace daily sending quotas before production rollout.
@@ -305,7 +320,10 @@ Use this section if you want Supabase for:
 
 ### Step 3: Run Production Migrations
 
-After first deployment, run migrations against your production database:
+Production deploys should run `prisma migrate deploy` automatically.
+To opt out for a specific deployment, set `VERCEL_RUN_PRODUCTION_MIGRATIONS=false`.
+
+If you need to repair an already-deployed environment that missed migrations, run them once against your production database:
 
 ```bash
 # Set production STORAGE_POSTGRES_PRISMA_URL locally, then:
@@ -326,7 +344,7 @@ Or use Vercel's build command to run migrations automatically by updating `packa
 
 **Option A: Vercel Cron Jobs (Simple)**
 - Use Vercel Cron to trigger queue processing endpoints
-- Limited to scheduled intervals
+- Hobby accounts are limited to daily schedules. Higher-frequency jobs like hourly expiry or 5-minute no-show checks require Vercel Pro or an external scheduler.
 
 **Option B: Separate Worker Process (Recommended)**
 - Deploy `npm run dev:queue` as a separate service

@@ -1,6 +1,5 @@
-import { auth } from '@/auth';
 import { CandidateBookings } from '@/lib/role/candidate/bookings';
-import { getErrorMessage, getErrorStatus } from '@/lib/core/api-helpers';
+import { jsonHandledError, withRoleBodyContext } from '@/lib/core/api-helpers';
 import { Role } from '@prisma/client';
 import { z } from 'zod';
 
@@ -13,40 +12,24 @@ const RescheduleSchema = z.object({
     timezone: z.string().optional(),
 });
 
-export async function POST(
-    request: Request,
-    { params }: { params: Promise<{ id: string }> }
-) {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user) {
-        return Response.json({ error: 'unauthorized' }, { status: 401 });
-    }
+export const POST = withRoleBodyContext(
+    Role.CANDIDATE,
+    RescheduleSchema,
+    async (_request: Request, { user, body }, { params }: { params: Promise<{ id: string }> }) => {
+        const { id } = await params;
 
-    if (session.user.role !== Role.CANDIDATE) {
-        return Response.json({ error: 'forbidden' }, { status: 403 });
-    }
-
-    try {
-        const body = await request.json();
-        const parsed = RescheduleSchema.safeParse(body);
-
-        if (!parsed.success) {
-            return Response.json({ error: 'validation_error' }, { status: 400 });
+        try {
+            await CandidateBookings.requestReschedule(
+                user.id,
+                id,
+                body.slots,
+                body.reason,
+                body.timezone || 'UTC'
+            );
+            return Response.json({ success: true });
+        } catch (error: unknown) {
+            console.error('Reschedule error:', error);
+            return jsonHandledError(error, 'internal_error', 400);
         }
-
-        await CandidateBookings.requestReschedule(
-            session.user.id,
-            id,
-            parsed.data.slots,
-            parsed.data.reason,
-            parsed.data.timezone || 'UTC'
-        );
-        return Response.json({ success: true });
-    } catch (error: unknown) {
-        console.error('Reschedule error:', error);
-        const status = getErrorStatus(error, 400);
-        const message = getErrorMessage(error, 'internal_error');
-        return Response.json({ error: message }, { status });
     }
-}
+);

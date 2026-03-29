@@ -1,0 +1,30 @@
+.metric {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.label {
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.valueRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.55rem;
+}
+
+.value {
+  font-size: clamp(2rem, 3vw, 2.7rem);
+  line-height: 0.95;
+  color: var(--text);
+}
+
+.subValue {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}

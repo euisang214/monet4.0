@@ -31,7 +31,7 @@ describe('ClaudeService', () => {
         expect(result.passed).toBe(true);
         expect(result.reasons).toEqual([]);
         expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
-            model: 'claude-haiku-4-5-20251001'
+            model: expect.stringMatching(/^claude-/)
         }));
     });
 
@@ -46,6 +46,44 @@ describe('ClaudeService', () => {
         expect(result.reasons).toContain('Not actionable');
     });
 
+    it('should parse fenced JSON responses', async () => {
+        mockCreate.mockResolvedValue({
+            content: [
+                {
+                    type: 'text',
+                    text: `\`\`\`json
+{
+  "status": "revise",
+  "reason": "Feedback fails multiple quality criteria."
+}
+\`\`\``
+                }
+            ]
+        });
+
+        const result = await ClaudeService.validateFeedback('Some text', ['Action 1', 'Action 2', 'Action 3']);
+
+        expect(result.passed).toBe(false);
+        expect(result.reasons).toEqual(['Feedback fails multiple quality criteria.']);
+    });
+
+    it('should extract the first JSON object from prose-wrapped responses', async () => {
+        mockCreate.mockResolvedValue({
+            content: [
+                { type: 'thinking', thinking: 'Internal reasoning', signature: 'sig_123' },
+                {
+                    type: 'text',
+                    text: 'Here is the result:\n{"status":"revise","reason":"Needs more specificity"}'
+                }
+            ]
+        });
+
+        const result = await ClaudeService.validateFeedback('Some text', ['Action 1', 'Action 2', 'Action 3']);
+
+        expect(result.passed).toBe(false);
+        expect(result.reasons).toEqual(['Needs more specificity']);
+    });
+
     it('should handle JSON parse errors gracefully', async () => {
         mockCreate.mockResolvedValue({
             content: [{ type: 'text', text: 'NOT JSON' }]
@@ -53,6 +91,14 @@ describe('ClaudeService', () => {
 
         // The service logic catches parse error and throws "Failed to parse Claude response"
         // which then is caught by the outer block and rethrown.
+        await expect(ClaudeService.validateFeedback('text', [])).rejects.toThrow('Failed to parse Claude response');
+    });
+
+    it('should reject syntactically valid JSON with an invalid shape', async () => {
+        mockCreate.mockResolvedValue({
+            content: [{ type: 'text', text: '{"status":"unknown","reason":123}' }]
+        });
+
         await expect(ClaudeService.validateFeedback('text', [])).rejects.toThrow('Failed to parse Claude response');
     });
 

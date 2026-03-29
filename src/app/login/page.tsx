@@ -1,14 +1,15 @@
 import { Suspense } from "react";
 import { LoginForm } from "@/components/auth/LoginForm";
+import { AuthCard, AuthShell } from "@/components/ui/primitives/Auth";
 
 export default function LoginPage() {
     return (
-        <main className="min-h-screen flex items-center justify-center">
+        <AuthShell>
             <div className="w-full max-w-md">
-                <Suspense fallback={<div className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm">Loading...</div>}>
+                <Suspense fallback={<AuthCard className="shadow-sm text-center text-sm text-gray-600">Loading...</AuthCard>}>
                     <LoginForm />
                 </Suspense>
             </div>
-        </main>
+        </AuthShell>
     );
 }

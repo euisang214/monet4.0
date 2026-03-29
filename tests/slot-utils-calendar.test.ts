@@ -7,7 +7,7 @@ import {
     getWeekRangeLabel,
     startOfWeekInTimeZone,
 } from '@/components/bookings/calendar/slot-utils';
-import { getProfessionalWeekBounds } from '@/components/bookings/hooks/useProfessionalWeeklySlotSelection';
+import { getProfessionalWeekBounds } from '@/components/bookings/hooks/useUnifiedWeeklyCalendarState';
 
 describe('slot-utils timezone helpers', () => {
     it('formats day headers against the provided calendar timezone', () => {

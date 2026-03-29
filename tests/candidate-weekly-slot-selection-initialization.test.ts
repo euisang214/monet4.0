@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { expandIntervalsToSlotKeys } from '@/components/bookings/hooks/useCandidateWeeklySlotSelection';
+import { expandIntervalsToSlotKeys } from '@/components/bookings/hooks/useUnifiedWeeklyCalendarState';
 import type { SlotInterval } from '@/components/bookings/calendar/types';
 
 describe('expandIntervalsToSlotKeys', () => {
@@ -38,4 +38,3 @@ describe('expandIntervalsToSlotKeys', () => {
         ]);
     });
 });
-

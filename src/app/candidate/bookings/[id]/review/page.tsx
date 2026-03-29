@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { appRoutes } from '@/lib/shared/routes';
+import { useParams, useRouter } from 'next/navigation';
+import { useTrackedCandidateBookingActions } from '@/components/bookings/hooks/useTrackedCandidateBookingActions';
 
-export default function ReviewPage({ params }: { params: { id: string } }) {
+export default function ReviewPage() {
+    const { id } = useParams<{ id: string }>();
     const router = useRouter();
+    const { submitReview } = useTrackedCandidateBookingActions();
     const [rating, setRating] = useState(5);
     const [text, setText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -21,28 +23,14 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
         setError(null);
 
         try {
-            // POST /api/candidate/reviews
-            // Body: { bookingId, rating (1-5), text (min 50 chars), timezone }
-            const res = await fetch(appRoutes.api.candidate.reviews, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    bookingId: params.id,
-                    rating,
-                    text,
-                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-                }),
+            await submitReview({
+                bookingId: id,
+                rating,
+                text,
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
             });
-
-            const data = await res.json();
-            if (!res.ok) {
-                throw new Error(data.error || 'Failed to submit review');
-            }
-
-            router.push(appRoutes.candidate.bookingDetails(params.id));
-            router.refresh();
-        } catch (err: any) {
-            setError(err.message);
+        } catch {
+            // Async failures are surfaced via tracked toast.
         } finally {
             setIsLoading(false);
         }

@@ -4,7 +4,7 @@ import { CandidateBookings } from '@/lib/role/candidate/bookings';
 import { Role } from '@prisma/client';
 import { z } from 'zod';
 import { cancelBooking as transitionCancel } from '@/lib/domain/bookings/transitions';
-import { getErrorMessage, getErrorStatus } from '@/lib/core/api-helpers';
+import { jsonHandledError, parseJsonBody } from '@/lib/core/api-helpers';
 
 const CancelSchema = z.object({
     reason: z.string().optional()
@@ -21,17 +21,13 @@ export async function POST(
     }
 
     try {
-        const body = await request.json();
-        const parsed = CancelSchema.safeParse(body);
-        if (!parsed.success) {
-            return Response.json({ error: 'validation_error' }, { status: 400 });
-        }
+        const body = await parseJsonBody(CancelSchema, request);
 
         if (session.user.role === Role.CANDIDATE) {
-            await CandidateBookings.cancelBooking(session.user.id, id, parsed.data.reason);
+            await CandidateBookings.cancelBooking(session.user.id, id, body.reason);
         } else if (session.user.role === Role.PROFESSIONAL) {
             // Direct transition call for now as strict role facade might not be ready
-            await transitionCancel(id, { userId: session.user.id, role: Role.PROFESSIONAL }, parsed.data.reason);
+            await transitionCancel(id, { userId: session.user.id, role: Role.PROFESSIONAL }, body.reason);
         } else {
             return Response.json({ error: 'forbidden' }, { status: 403 });
         }
@@ -39,8 +35,6 @@ export async function POST(
         return Response.json({ success: true });
     } catch (error: unknown) {
         console.error('Cancel error:', error);
-        const status = getErrorStatus(error, 400);
-        const message = getErrorMessage(error, 'internal_error');
-        return Response.json({ error: message }, { status });
+        return jsonHandledError(error, 'internal_error', 400);
     }
 }

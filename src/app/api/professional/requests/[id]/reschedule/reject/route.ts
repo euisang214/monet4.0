@@ -1,12 +1,12 @@
-import { getErrorMessage, getErrorStatus, withRoleContext } from '@/lib/core/api-helpers';
+import { jsonHandledError, withRoleContext } from '@/lib/core/api-helpers';
 import { ProfessionalRescheduleService } from '@/lib/role/professional/reschedule';
 import { Role } from '@prisma/client';
 
 export const POST = withRoleContext(
     Role.PROFESSIONAL,
-    async (req: Request, { user }, { params }: { params: { id: string } }) => {
+    async (req: Request, { user }, { params }: { params: Promise<{ id: string }> }) => {
     try {
-        const { id } = params;
+        const { id } = await params;
 
         const booking = await ProfessionalRescheduleService.rejectReschedule(
             id,
@@ -16,8 +16,6 @@ export const POST = withRoleContext(
         return Response.json({ data: booking });
     } catch (error: unknown) {
         console.error('Error rejecting reschedule:', error);
-        const status = getErrorStatus(error, 400);
-        const message = getErrorMessage(error, 'Internal Error');
-        return Response.json({ error: message }, { status });
+        return jsonHandledError(error, 'Internal Error', 400, 'Validation Error');
     }
 });

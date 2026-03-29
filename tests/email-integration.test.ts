@@ -38,7 +38,7 @@ describe.sequential('Email integration', () => {
         process.env.GMAIL_OAUTH_CLIENT_SECRET = 'gmail-secret';
         process.env.GMAIL_OAUTH_REFRESH_TOKEN = 'gmail-refresh';
         process.env.GMAIL_OAUTH_USER = 'sender@example.com';
-        process.env.EMAIL_FROM = 'Monet Platform <sender@example.com>';
+        process.env.EMAIL_FROM = 'Kafei Platform <sender@example.com>';
 
         const createEventMock = vi.fn().mockReturnValue({ error: null, value: 'BEGIN:VCALENDAR' });
         const sendMailMock = vi.fn().mockResolvedValue({});
@@ -124,7 +124,7 @@ describe.sequential('Email integration', () => {
         process.env.GMAIL_OAUTH_CLIENT_SECRET = 'gmail-secret';
         process.env.GMAIL_OAUTH_REFRESH_TOKEN = 'gmail-refresh';
         process.env.GMAIL_OAUTH_USER = 'sender@example.com';
-        process.env.EMAIL_FROM = 'Monet Platform <sender@example.com>';
+        process.env.EMAIL_FROM = 'Kafei Platform <sender@example.com>';
 
         const createEventMock = vi.fn().mockReturnValue({ error: null, value: 'BEGIN:VCALENDAR' });
         const sendMailMock = vi.fn().mockResolvedValue({});
@@ -178,7 +178,7 @@ describe.sequential('Email integration', () => {
         process.env.GMAIL_OAUTH_CLIENT_SECRET = 'gmail-secret';
         process.env.GMAIL_OAUTH_REFRESH_TOKEN = 'gmail-refresh';
         process.env.GMAIL_OAUTH_USER = 'sender@example.com';
-        process.env.EMAIL_FROM = 'Monet Platform <sender@example.com>';
+        process.env.EMAIL_FROM = 'Kafei Platform <sender@example.com>';
 
         const createEventMock = vi.fn().mockReturnValue({ error: null, value: 'BEGIN:VCALENDAR' });
         const sendMailMock = vi.fn().mockResolvedValue({});
@@ -239,7 +239,7 @@ describe.sequential('Email integration', () => {
         process.env.GMAIL_OAUTH_CLIENT_SECRET = 'gmail-secret';
         process.env.GMAIL_OAUTH_REFRESH_TOKEN = 'gmail-refresh';
         process.env.GMAIL_OAUTH_USER = 'sender@example.com';
-        process.env.EMAIL_FROM = 'Monet Platform <sender@example.com>';
+        process.env.EMAIL_FROM = 'Kafei Platform <sender@example.com>';
 
         const createEventMock = vi.fn().mockReturnValue({ error: null, value: 'BEGIN:VCALENDAR' });
         const sendMailMock = vi.fn().mockResolvedValue({});
@@ -286,7 +286,7 @@ describe.sequential('Email integration', () => {
         process.env.GMAIL_OAUTH_CLIENT_SECRET = 'gmail-secret';
         process.env.GMAIL_OAUTH_REFRESH_TOKEN = 'gmail-refresh';
         process.env.GMAIL_OAUTH_USER = 'sender@example.com';
-        process.env.EMAIL_FROM = 'Monet Platform <sender@example.com>';
+        process.env.EMAIL_FROM = 'Kafei Platform <sender@example.com>';
 
         const createEventMock = vi.fn().mockReturnValue({ error: null, value: 'BEGIN:VCALENDAR' });
         const sendMailMock = vi.fn().mockResolvedValue({});
@@ -330,7 +330,7 @@ describe.sequential('Email integration', () => {
         process.env.GMAIL_OAUTH_CLIENT_SECRET = 'gmail-secret';
         process.env.GMAIL_OAUTH_REFRESH_TOKEN = 'gmail-refresh';
         process.env.GMAIL_OAUTH_USER = 'oauth-sender@example.com';
-        process.env.EMAIL_FROM = 'Monet Platform';
+        process.env.EMAIL_FROM = 'Kafei Platform';
 
         const createEventMock = vi.fn().mockReturnValue({ error: null, value: 'BEGIN:VCALENDAR' });
         const sendMailMock = vi.fn().mockResolvedValue({});
@@ -373,7 +373,7 @@ describe.sequential('Email integration', () => {
         process.env.GMAIL_OAUTH_CLIENT_SECRET = 'gmail-secret';
         process.env.GMAIL_OAUTH_REFRESH_TOKEN = 'gmail-refresh';
         process.env.GMAIL_OAUTH_USER = 'sender@example.com';
-        process.env.EMAIL_FROM = 'Monet Platform <sender@example.com>';
+        process.env.EMAIL_FROM = 'Kafei Platform <sender@example.com>';
 
         const createEventMock = vi.fn().mockReturnValue({ error: null, value: 'BEGIN:VCALENDAR' });
         const sendMailMock = vi.fn().mockResolvedValue({});

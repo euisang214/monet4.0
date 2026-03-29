@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+    toDateInputValue,
     formatDisplayDate,
     formatDisplayTime,
     formatDisplayDateTime,
@@ -14,6 +15,24 @@ import {
 } from '@/lib/utils/timezones';
 
 describe('Date Utilities', () => {
+    describe('toDateInputValue', () => {
+        it('should preserve a date-only string', () => {
+            expect(toDateInputValue('2026-03-01')).toBe('2026-03-01');
+        });
+
+        it('should normalize an ISO timestamp string to a date-only value', () => {
+            expect(toDateInputValue('2026-03-01T18:45:00.000Z')).toBe('2026-03-01');
+        });
+
+        it('should normalize a Date instance to a date-only value', () => {
+            expect(toDateInputValue(new Date('2026-03-01T18:45:00.000Z'))).toBe('2026-03-01');
+        });
+
+        it('should return an empty string for invalid values', () => {
+            expect(toDateInputValue('not-a-date')).toBe('');
+        });
+    });
+
     describe('formatDisplayDate', () => {
         it('should format date correctly in America/New_York', () => {
             const date = new Date('2026-01-24T15:30:00Z');

@@ -2,6 +2,10 @@ import { prisma } from '@/lib/core/db';
 import { BookingStatus } from '@prisma/client';
 import { formatCandidateForProfessionalView } from '@/lib/domain/users/identity-labels';
 
+function canReviewBooking(status: BookingStatus) {
+    return status === BookingStatus.completed || status === BookingStatus.completed_pending_feedback;
+}
+
 export const ReviewsService = {
     async createReview(candidateId: string, data: {
         bookingId: string;
@@ -23,8 +27,8 @@ export const ReviewsService = {
             throw new Error("Not authorized to review this booking");
         }
 
-        // 3. Status Check (Must be completed)
-        if (booking.status !== BookingStatus.completed) {
+        // 3. Status Check (Must be completed or completed_pending_feedback)
+        if (!canReviewBooking(booking.status)) {
             throw new Error("Can only review completed bookings");
         }
 

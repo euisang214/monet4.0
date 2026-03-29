@@ -37,6 +37,23 @@ describe('Post-Booking Domain Logic', () => {
             expect(prisma.professionalRating.create).toHaveBeenCalled();
         });
 
+        it('createReview should create rating if completed_pending_feedback', async () => {
+            // @ts-ignore
+            prisma.booking.findUnique.mockResolvedValue({
+                id: 'b1',
+                candidateId: 'c1',
+                status: BookingStatus.completed_pending_feedback,
+            });
+            // @ts-ignore
+            prisma.professionalRating.findUnique.mockResolvedValue(null);
+            // @ts-ignore
+            prisma.professionalRating.create.mockResolvedValue({ id: 'r1' });
+
+            await ReviewsService.createReview('c1', { bookingId: 'b1', rating: 5, text: 'Good', timezone: 'UTC' });
+
+            expect(prisma.professionalRating.create).toHaveBeenCalled();
+        });
+
         it('createReview should throw if not completed', async () => {
             // @ts-ignore
             prisma.booking.findUnique.mockResolvedValue({ id: 'b1', candidateId: 'c1', status: BookingStatus.accepted });

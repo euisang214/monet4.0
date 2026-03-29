@@ -5,6 +5,8 @@ import { signIn } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { OAuthProviderIcon } from "@/components/auth/OAuthProviderIcon";
 import { appRoutes } from "@/lib/shared/routes";
+import { Button, InlineNotice, SurfaceCard } from "@/components/ui";
+import styles from "./AuthForms.module.css";
 
 type Provider = "google" | "linkedin";
 
@@ -100,18 +102,22 @@ export function ProviderConnections() {
     };
 
     return (
-        <section className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Connected sign-in providers</h2>
-            <p className="text-sm text-gray-600 mb-4">
+        <SurfaceCard as="section">
+            <h2 className={styles.title}>Connected sign-in providers</h2>
+            <p className={styles.description}>
                 Connect or disconnect Google and LinkedIn. At least one login method must stay connected.
             </p>
 
-            {error && <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+            {error && (
+                <InlineNotice tone="error" className="mb-4">
+                    {error}
+                </InlineNotice>
+            )}
 
             {loading || !status ? (
-                <p className="text-sm text-gray-500">Loading provider connections...</p>
+                <p className={styles.description}>Loading provider connections...</p>
             ) : (
-                <div className="space-y-3">
+                <div className={styles.providerStack}>
                     {(["google", "linkedin"] as const).map((provider) => {
                         const connected = status.providers[provider];
                         const canDisconnect = status.canDisconnect[provider];
@@ -120,39 +126,39 @@ export function ProviderConnections() {
                         return (
                             <div
                                 key={provider}
-                                className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 p-4"
+                                className={styles.providerCard}
                             >
-                                <div className="flex items-center gap-3">
-                                    <div className="rounded-md border border-gray-200 bg-white p-2">
+                                <div className={styles.providerInfo}>
+                                    <div className={styles.providerBadge}>
                                         <OAuthProviderIcon provider={provider} className="h-5 w-5" />
                                     </div>
-                                    <div>
-                                        <p className="font-medium text-gray-900">{providerLabels[provider]}</p>
-                                        <p className="text-sm text-gray-500">
+                                    <div className={styles.providerMeta}>
+                                        <p className={styles.providerName}>{providerLabels[provider]}</p>
+                                        <p className={styles.providerState}>
                                             {connected ? "Connected" : "Not connected"}
                                         </p>
                                     </div>
                                 </div>
 
-                                <div className="flex-shrink-0">
+                                <div className={styles.providerActions}>
                                     {connected ? (
-                                        <button
+                                        <Button
                                             type="button"
                                             disabled={isBusy || !canDisconnect}
                                             onClick={() => void disconnectProvider(provider)}
-                                            className="rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-200 disabled:opacity-50"
+                                            variant="secondary"
                                         >
                                             {isBusy ? "Disconnecting..." : "Disconnect"}
-                                        </button>
+                                        </Button>
                                     ) : (
-                                        <button
+                                        <Button
                                             type="button"
                                             disabled={isBusy}
                                             onClick={() => void connectProvider(provider)}
-                                            className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+                                            variant="primary"
                                         >
                                             {isBusy ? "Connecting..." : "Connect"}
-                                        </button>
+                                        </Button>
                                     )}
                                 </div>
                             </div>
@@ -160,12 +166,12 @@ export function ProviderConnections() {
                     })}
 
                     {!status.hasPassword && (
-                        <p className="text-xs text-amber-700">
+                        <p className={styles.warningText}>
                             No password login is configured on this account. Keep at least one OAuth provider connected.
                         </p>
                     )}
                 </div>
             )}
-        </section>
+        </SurfaceCard>
     );
 }

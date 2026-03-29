@@ -1,27 +1,27 @@
 export type LandingAudience = "candidate" | "professional";
 
-export interface LandingCta {
+interface LandingCta {
     label: string;
     href: string;
 }
 
-export interface LandingHero {
+interface LandingHero {
     title: string;
     subtitle: string;
     primaryCta: LandingCta;
 }
 
-export interface LandingStat {
+interface LandingStat {
     value: string;
     label: string;
 }
 
-export interface LandingStep {
+interface LandingStep {
     title: string;
     description: string;
 }
 
-export interface LandingFaq {
+interface LandingFaq {
     question: string;
     answer: string;
 }
@@ -69,7 +69,7 @@ export const LANDING_CONTENT: Record<LandingAudience, LandingContent> = {
             },
             {
                 title: "Schedule Time",
-                description: "Choose an available slot once accepted. Monet handles the calendar and meeting link setup.",
+                description: "Choose an available slot once accepted. Kafei handles the calendar and meeting link setup.",
             },
             {
                 title: "Join Chat",
@@ -87,7 +87,7 @@ export const LANDING_CONTENT: Record<LandingAudience, LandingContent> = {
             },
             {
                 question: "Can I reschedule if needed?",
-                answer: "Yes. Monet supports reschedule requests for both candidates and professionals six hours before the scheduled slot. Cancellations after six hours or no-shows will incur a fee.",
+                answer: "Yes. Kafei supports reschedule requests for both candidates and professionals six hours before the scheduled slot. Cancellations after six hours or no-shows will incur a fee.",
             },
             {
                 question: "Do I need a subscription?",
@@ -144,7 +144,7 @@ export const LANDING_CONTENT: Record<LandingAudience, LandingContent> = {
             },
             {
                 question: "What happens if a session is rescheduled?",
-                answer: "Either side can request a reschedule six hours before the slot, and Monet guides both sides through the updated scheduling flow. Cancellations after six hours or no-shows will incur a fee.",
+                answer: "Either side can request a reschedule six hours before the slot, and Kafei guides both sides through the updated scheduling flow. Cancellations after six hours or no-shows will incur a fee.",
             },
             {
                 question: "Is there a long-term commitment?",

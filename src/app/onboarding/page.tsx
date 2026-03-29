@@ -3,11 +3,7 @@ import { prisma } from "@/lib/core/db";
 import { OnboardingForm } from "@/components/auth/OnboardingForm";
 import { Role } from "@prisma/client";
 import { redirect } from "next/navigation";
-
-function toDateInputValue(value: Date | null | undefined) {
-    if (!value) return "";
-    return value.toISOString().slice(0, 10);
-}
+import { toDateInputValue } from "@/lib/utils/date";
 
 function roleHomePath(role: Role) {
     if (role === Role.PROFESSIONAL) return "/professional/dashboard";

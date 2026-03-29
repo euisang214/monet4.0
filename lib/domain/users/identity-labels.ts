@@ -1,6 +1,6 @@
 type DateLike = Date | string | null | undefined;
 
-export type IdentityExperience = {
+type IdentityExperience = {
     id?: string | null;
     title?: string | null;
     company?: string | null;
@@ -9,7 +9,7 @@ export type IdentityExperience = {
     isCurrent?: boolean | null;
 };
 
-export type IdentityEducation = {
+type IdentityEducation = {
     id?: string | null;
     school?: string | null;
     startDate?: DateLike;

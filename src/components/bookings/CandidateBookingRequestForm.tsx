@@ -5,8 +5,9 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { CandidateAvailabilityPanel } from '@/components/bookings/CandidateAvailabilityPanel';
 import type { SlotInterval } from '@/components/bookings/calendar/types';
-import { useCandidateBookingRequest } from '@/components/bookings/hooks/useCandidateBookingRequest';
+import { useTrackedCandidateBookingActions } from '@/components/bookings/hooks/useTrackedCandidateBookingActions';
 import { appRoutes } from '@/lib/shared/routes';
+import { Button } from '@/components/ui/primitives/Button';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -27,14 +28,16 @@ export function CandidateBookingRequestForm({
     isGoogleCalendarConnected,
     initialAvailabilitySlots = [],
 }: CandidateBookingRequestFormProps) {
+    const { createBookingRequest } = useTrackedCandidateBookingActions();
     const [availabilitySlots, setAvailabilitySlots] = useState<SlotInterval[]>(() => initialAvailabilitySlots);
+    const [clientSecret, setClientSecret] = useState<string | null>(null);
+    const [bookingId, setBookingId] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const resolvedCandidateTimezone = React.useMemo(
         () => candidateTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
         [candidateTimezone]
     );
-
-    const { clientSecret, bookingId, isSubmitting, error, submitRequest } =
-        useCandidateBookingRequest(professionalId, resolvedCandidateTimezone);
 
     const handleSlotSelectionChange = useCallback(
         ({ availabilitySlots: slots }: { availabilitySlots: SlotInterval[]; selectedCount: number }) => {
@@ -44,7 +47,26 @@ export function CandidateBookingRequestForm({
     );
 
     const handleCreateRequest = async () => {
-        await submitRequest(availabilitySlots);
+        if (availabilitySlots.length === 0) {
+            setError('Select at least one available 30-minute slot before continuing.');
+            return;
+        }
+
+        setIsSubmitting(true);
+        setError(null);
+        try {
+            const result = await createBookingRequest({
+                professionalId,
+                availabilitySlots,
+                timezone: resolvedCandidateTimezone,
+            });
+            setClientSecret(result.clientSecret);
+            setBookingId(result.bookingId);
+        } catch {
+            // Async failures are surfaced via tracked toast.
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const options = {
@@ -63,7 +85,7 @@ export function CandidateBookingRequestForm({
     }
 
     return (
-        <div className="bg-gray-50 p-6 rounded-lg border">
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
             <CandidateAvailabilityPanel
                 calendarTimezone={resolvedCandidateTimezone}
                 isGoogleCalendarConnected={isGoogleCalendarConnected}
@@ -82,18 +104,19 @@ export function CandidateBookingRequestForm({
             </div>
 
             {error && (
-                <div className="mb-4 p-3 bg-red-100 text-red-700 rounded text-sm">
+                <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md text-sm">
                     {error}
                 </div>
             )}
 
-            <button
+            <Button
                 onClick={handleCreateRequest}
                 disabled={isSubmitting}
-                className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50 font-medium"
+                variant="primary"
+                className="w-full justify-center"
             >
                 {isSubmitting ? 'Processing...' : 'Proceed to Payment'}
-            </button>
+            </Button>
         </div>
     );
 }
@@ -132,19 +155,21 @@ function CheckoutForm({ bookingId }: { bookingId: string }) {
     };
 
     return (
-        <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg border shadow-sm">
+        <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
             <h3 className="text-lg font-medium mb-4">Complete Payment</h3>
             <PaymentElement id="payment-element" options={{ layout: 'tabs' }} />
             {message && <div id="payment-message" className="mt-4 text-red-600 text-sm">{message}</div>}
-            <button
+            <Button
+                type="submit"
                 disabled={isLoading || !stripe || !elements}
                 id="submit"
-                className="mt-6 w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50 font-medium"
+                variant="primary"
+                className="mt-6 w-full justify-center"
             >
                 <span id="button-text">
                     {isLoading ? 'Processing...' : 'Pay now'}
                 </span>
-            </button>
+            </Button>
         </form>
     );
 }

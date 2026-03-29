@@ -75,6 +75,14 @@ export type PendingFeedbackBooking = {
     } | null;
 };
 
+export type RecentQcEvent = {
+    bookingId: string;
+    candidateLabel: string;
+    qcStatus: 'passed' | 'revise';
+    qcReasons: string[];
+    qcReviewedAt: Date;
+};
+
 export type ProfessionalDashboardItem = UpcomingBooking | RequestBooking | PendingFeedbackBooking;
 
 type DashboardOptions = {
@@ -309,8 +317,38 @@ export const ProfessionalDashboardService = {
                 throw error;
             },
         );
+        const recentQcEventsPromise = prisma.callFeedback?.findMany
+            ? prisma.callFeedback.findMany({
+                  where: {
+                      booking: {
+                          professionalId,
+                      },
+                      qcReviewedAt: {
+                          not: null,
+                      },
+                      qcStatus: {
+                          in: ['passed', 'revise'],
+                      },
+                  },
+                  orderBy: [{ qcReviewedAt: 'desc' }, { bookingId: 'desc' }],
+                  take: 5,
+                  select: {
+                      bookingId: true,
+                      qcStatus: true,
+                      qcReasons: true,
+                      qcReviewedAt: true,
+                      booking: {
+                          select: {
+                              candidate: {
+                                  select: candidateIdentitySelect,
+                              },
+                          },
+                      },
+                  },
+              })
+            : Promise.resolve([]);
 
-        const [bookingsCount, upcomingVisibleCount, pendingFeedbackCount, recentFeedbackData, activeViewPage, professional] =
+        const [bookingsCount, upcomingVisibleCount, pendingFeedbackCount, recentFeedbackData, recentQcEventsData, activeViewPage, professional] =
             await Promise.all([
                 prisma.booking.groupBy({
                     by: ['status'],
@@ -326,6 +364,7 @@ export const ProfessionalDashboardService = {
                     where: pendingFeedbackWhere(professionalId),
                 }),
                 ReviewsService.getProfessionalReviews(professionalId, { take: 5 }),
+                recentQcEventsPromise,
                 activeViewPromise,
                 prisma.user.findUnique({
                     where: { id: professionalId },
@@ -363,6 +402,15 @@ export const ProfessionalDashboardService = {
             nextCursor: activeViewPage.nextCursor,
             professionalTimezone,
             recentFeedback: recentFeedbackData.reviews,
+            recentQcEvents: recentQcEventsData
+                .filter((event): event is typeof event & { qcReviewedAt: Date } => event.qcReviewedAt instanceof Date)
+                .map((event) => ({
+                    bookingId: event.bookingId,
+                    candidateLabel: formatCandidateLabel(event.booking.candidate),
+                    qcStatus: event.qcStatus,
+                    qcReasons: event.qcReasons,
+                    qcReviewedAt: event.qcReviewedAt,
+                })) as RecentQcEvent[],
             reviewStats: recentFeedbackData.stats,
         };
     },

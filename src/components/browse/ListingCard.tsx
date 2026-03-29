@@ -3,6 +3,8 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { formatRoleAtCompany } from "@/lib/domain/users/identity-labels";
+import { Button, SurfaceCard } from "@/components/ui";
+import styles from "./ListingCard.module.css";
 
 interface ListingCardProps {
     professional: {
@@ -26,28 +28,28 @@ export function ListingCard({ professional }: ListingCardProps) {
     }).format((professional.priceCents || 0) / 100);
 
     return (
-        <article className="h-full bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-lg transition-shadow flex flex-col">
-            <div className="mb-4">
+        <SurfaceCard as="article" tone="accent" interactive className={styles.card}>
+            <div className={styles.header}>
+                <p className={styles.eyebrow}>Curated mentor</p>
                 <div>
                     <h4 className="text-base font-semibold text-gray-900">{professionalLabel}</h4>
                 </div>
             </div>
 
-            <p className="text-sm text-gray-600" style={{ minHeight: "3.5rem" }}>
+            <p className={styles.bio}>
                 {professional.bio || "Career-focused 1:1 mentoring and guidance."}
             </p>
 
-            <div className="pt-6 flex items-center justify-between gap-4" style={{ marginTop: "auto" }}>
-                <button
+            <div className={styles.footer}>
+                <Button
                     onClick={() => router.push(`/candidate/professionals/${professional.userId}`)}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
                 >
                     View Profile
-                </button>
-                <span className="ml-auto text-right text-lg font-semibold text-gray-900 whitespace-nowrap" style={{ lineHeight: 1 }}>
+                </Button>
+                <span className={styles.price}>
                     {formattedPrice}
                 </span>
             </div>
-        </article>
+        </SurfaceCard>
     );
 }

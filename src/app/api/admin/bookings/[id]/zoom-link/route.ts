@@ -31,8 +31,8 @@ const zoomLinkSchema = z.object({
  */
 export const PUT = withRoleContext(
     Role.ADMIN,
-    async (req: Request, { user }, { params }: { params: { id: string } }) => {
-    const { id } = params;
+    async (req: Request, { user }, { params }: { params: Promise<{ id: string }> }) => {
+    const { id } = await params;
 
     try {
         const body = await req.json();

@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { appRoutes } from '@/lib/shared/routes';
 
 interface DisputeActionsProps {
     disputeId: string;
@@ -28,7 +27,7 @@ export function DisputeActions({ disputeId, currentStatus }: DisputeActionsProps
 
         setLoading(true);
         try {
-            const res = await fetch(appRoutes.api.admin.disputeResolve(disputeId), {
+            const res = await fetch(`/api/admin/disputes/${disputeId}/resolve`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

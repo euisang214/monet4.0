@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/core/db';
 
-export interface BookingFilters {
+interface BookingFilters {
     query?: string;
 }
 

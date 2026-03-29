@@ -19,6 +19,7 @@ import {
     type UnifiedMultiToggleState,
     type UnifiedSingleSelectState,
 } from '@/components/bookings/hooks/useUnifiedWeeklyCalendarState';
+import { Button } from '@/components/ui/primitives/Button';
 
 const DEFAULT_VIEW_START_ROW = VISIBLE_START_ROW;
 const DEFAULT_VIEW_VISIBLE_ROWS = VISIBLE_ROW_COUNT;
@@ -220,13 +221,14 @@ export function UnifiedWeeklyCalendar(props: UnifiedWeeklyCalendarProps) {
 
             <div className="flex flex-wrap items-center justify-between gap-3">
                 {(props.showClearAll ?? true) && (
-                    <button
+                    <Button
                         type="button"
                         onClick={multiState.clearSelection}
-                        className="px-3 py-1.5 text-sm border border-gray-200 rounded hover:bg-gray-50"
+                        variant="ghost"
+                        size="sm"
                     >
                         Clear All
-                    </button>
+                    </Button>
                 )}
 
                 <WeekRangeNavigator

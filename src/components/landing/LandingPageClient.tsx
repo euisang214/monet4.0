@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import styles from "@/app/(public)/public.module.css";
@@ -12,61 +11,23 @@ import {
     LANDING_CONTENT,
     parseAudience,
     resolveAudience,
+    type LandingContent,
     type LandingAudience,
 } from "./landing-content";
+import { ShaderHero } from "./ShaderHero";
 
 interface LandingPageContentProps {
     audience: LandingAudience;
+    content?: LandingContent;
     onAudienceChange: (audience: LandingAudience) => void;
 }
 
-export function LandingPageContent({ audience, onAudienceChange }: LandingPageContentProps) {
-    const content = LANDING_CONTENT[audience];
+export function LandingPageContent({ audience, content, onAudienceChange }: LandingPageContentProps) {
+    const resolvedContent = content ?? LANDING_CONTENT[audience];
 
     return (
         <div>
-            <section className={styles.hero}>
-                <div className={styles.audienceSwitcher}>
-                    <p className={styles.audienceLabel}>Who are you using Monet as?</p>
-                    <div className={styles.audienceOptions} role="group" aria-label="Choose your audience">
-                        <button
-                            type="button"
-                            aria-pressed={audience === "candidate"}
-                            className={`${styles.audienceOption} ${audience === "candidate" ? styles.audienceOptionActive : ""}`}
-                            onClick={() => onAudienceChange("candidate")}
-                        >
-                            Candidate
-                        </button>
-                        <button
-                            type="button"
-                            aria-pressed={audience === "professional"}
-                            className={`${styles.audienceOption} ${audience === "professional" ? styles.audienceOptionActive : ""}`}
-                            onClick={() => onAudienceChange("professional")}
-                        >
-                            Professional
-                        </button>
-                    </div>
-                </div>
-
-                <div key={`hero-${audience}`} className={styles.roleContentSwap}>
-                    <h1 className={styles.heroTitle}>{content.hero.title}</h1>
-                    <p className={styles.heroSubtitle}>{content.hero.subtitle}</p>
-                    <div className={styles.heroButtons}>
-                        <Link href={content.hero.primaryCta.href} className="btn bg-blue-600 text-white hover:bg-blue-700">
-                            {content.hero.primaryCta.label}
-                        </Link>
-                    </div>
-
-                    <div className={styles.statStrip}>
-                        {content.stats.map((stat) => (
-                            <div key={`${stat.value}-${stat.label}`} className={styles.statCard}>
-                                <div className={styles.statValue}>{stat.value}</div>
-                                <div className={styles.statLabel}>{stat.label}</div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
+            <ShaderHero audience={audience} content={resolvedContent} onAudienceChange={onAudienceChange} />
 
             <section className={styles.section}>
                 <h2 className={styles.sectionTitle}>How It Works</h2>
@@ -74,7 +35,7 @@ export function LandingPageContent({ audience, onAudienceChange }: LandingPageCo
                     Request, schedule, meet. We keep the logistics tight so you can focus on the conversation.
                 </p>
                 <div key={`steps-${audience}`} className={`${styles.steps} ${styles.roleContentSwap}`}>
-                    {content.steps.map((step, index) => (
+                    {resolvedContent.steps.map((step, index) => (
                         <article key={step.title} className={styles.step}>
                             <div className={styles.stepNumber}>{index + 1}</div>
                             <h3 className={styles.stepTitle}>{step.title}</h3>
@@ -87,7 +48,7 @@ export function LandingPageContent({ audience, onAudienceChange }: LandingPageCo
             <section id="about" className={`${styles.section} ${styles.anchorSection}`}>
                 <h2 className={styles.sectionTitle}>About</h2>
                 <p className={styles.sectionLead}>
-                    Undergraduate recruiting and networking is a black box. We saw brilliant students get shut out, so we built <b>Monet</b> to
+                    Undergraduate recruiting and networking is a black box. We saw brilliant students get shut out, so we built <b>Kafei</b> to
                     change the odds.
                     <br />
                     <br />
@@ -120,7 +81,7 @@ export function LandingPageContent({ audience, onAudienceChange }: LandingPageCo
                 <h2 className={styles.sectionTitle}>FAQ</h2>
                 <p className={styles.sectionLead}>Quick answers about bookings, payments, and session setup.</p>
                 <div key={`faq-${audience}`} className={`${styles.faqList} ${styles.roleContentSwap}`}>
-                    {content.faq.map((faq) => (
+                    {resolvedContent.faq.map((faq) => (
                         <article key={faq.question} className={styles.faqItem}>
                             <h3 className={styles.faqQuestion}>{faq.question}</h3>
                             <p className={styles.faqAnswer}>{faq.answer}</p>
@@ -140,6 +101,7 @@ export function LandingPageClient() {
     const searchParamsString = searchParams.toString();
     const parsedSearchAudience = parseAudience(searchAudience);
     const audience = parsedSearchAudience ?? DEFAULT_AUDIENCE;
+    const content = LANDING_CONTENT[audience];
 
     useEffect(() => {
         const storedAudience = window.localStorage.getItem(LANDING_AUDIENCE_STORAGE_KEY);
@@ -174,5 +136,5 @@ export function LandingPageClient() {
         router.replace(nextUrl, { scroll: false });
     }
 
-    return <LandingPageContent audience={audience} onAudienceChange={handleAudienceChange} />;
+    return <LandingPageContent audience={audience} content={content} onAudienceChange={handleAudienceChange} />;
 }

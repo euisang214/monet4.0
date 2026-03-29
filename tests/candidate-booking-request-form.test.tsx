@@ -2,7 +2,7 @@ import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-const submitRequestMock = vi.hoisted(() => vi.fn());
+const createBookingRequestMock = vi.hoisted(() => vi.fn());
 const latestPanelProps = vi.hoisted(() => ({ current: null as null | Record<string, unknown> }));
 
 vi.mock('@stripe/stripe-js', () => ({
@@ -16,13 +16,9 @@ vi.mock('@stripe/react-stripe-js', () => ({
     useStripe: () => null,
 }));
 
-vi.mock('@/components/bookings/hooks/useCandidateBookingRequest', () => ({
-    useCandidateBookingRequest: () => ({
-        clientSecret: null,
-        bookingId: null,
-        isSubmitting: false,
-        error: null,
-        submitRequest: submitRequestMock,
+vi.mock('@/components/bookings/hooks/useTrackedCandidateBookingActions', () => ({
+    useTrackedCandidateBookingActions: () => ({
+        createBookingRequest: createBookingRequestMock,
     }),
 }));
 

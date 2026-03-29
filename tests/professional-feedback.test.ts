@@ -4,6 +4,8 @@ import { prisma } from '@/lib/core/db';
 import { BookingStatus } from '@prisma/client';
 import { qcQueue } from '@/lib/queues';
 
+type BookingRecord = NonNullable<Awaited<ReturnType<typeof prisma.booking.findUnique>>>;
+
 vi.mock('@/lib/core/db', () => ({
     prisma: {
         booking: { findUnique: vi.fn() },
@@ -27,7 +29,7 @@ describe('ProfessionalFeedbackService.submitFeedback', () => {
         vi.mocked(prisma.booking.findUnique).mockResolvedValue({
             professionalId: mockProfessionalId,
             status: BookingStatus.completed_pending_feedback,
-        } as any);
+        } as BookingRecord);
 
         const data = {
             bookingId: mockBookingId,
@@ -47,11 +49,15 @@ describe('ProfessionalFeedbackService.submitFeedback', () => {
                 where: { bookingId: mockBookingId },
                 create: expect.objectContaining({
                     qcStatus: 'missing',
+                    qcReasons: [],
+                    qcReviewedAt: null,
                     text: data.text,
                     wordCount: 4,
                 }),
                 update: expect.objectContaining({
                     qcStatus: 'missing',
+                    qcReasons: [],
+                    qcReviewedAt: null,
                     text: data.text,
                 }),
             })
@@ -80,7 +86,7 @@ describe('ProfessionalFeedbackService.submitFeedback', () => {
         vi.mocked(prisma.booking.findUnique).mockResolvedValue({
             professionalId: 'some_other_prof',
             status: BookingStatus.completed_pending_feedback,
-        } as any);
+        } as BookingRecord);
 
         const data = {
             bookingId: mockBookingId,
@@ -99,7 +105,7 @@ describe('ProfessionalFeedbackService.submitFeedback', () => {
         vi.mocked(prisma.booking.findUnique).mockResolvedValue({
             professionalId: mockProfessionalId,
             status: BookingStatus.completed,
-        } as any);
+        } as BookingRecord);
 
         const data = {
             bookingId: mockBookingId,

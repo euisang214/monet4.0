@@ -7,6 +7,9 @@ import { useMemo, useState } from "react";
 import { signIn } from "next-auth/react";
 import { OAuthProviderIcon } from "@/components/auth/OAuthProviderIcon";
 import { appRoutes } from "@/lib/shared/routes";
+import { AuthCard, AuthField, AuthMessage } from "@/components/ui/primitives/Auth";
+import { Button } from "@/components/ui/primitives/Button";
+import styles from "./AuthForms.module.css";
 
 const MAX_RESUME_SIZE_BYTES = 4 * 1024 * 1024;
 const PDF_CONTENT_TYPE = "application/pdf";
@@ -136,86 +139,71 @@ export function SignupForm() {
     };
 
     return (
-        <section className="w-full max-w-md mx-auto bg-white p-8 rounded-xl border border-gray-200 shadow-lg space-y-6">
-            <header className="text-center">
-                <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Get Started</p>
-                <h2 className="text-3xl font-extrabold text-gray-900 mb-2">Create your Monet account</h2>
-                <p className="text-sm text-gray-600">Choose your role and we will set up the right workflow.</p>
+        <AuthCard>
+            <header className={styles.header}>
+                <p className={styles.eyebrow}>Get Started</p>
+                <h2 className={styles.title}>Create your Kafei account</h2>
+                <p className={styles.description}>Choose your role and we will set up the right workflow.</p>
             </header>
 
-            <div className="bg-gray-100 rounded-full p-1 grid grid-cols-2 gap-1">
+            <div className={styles.roleToggle}>
                 <button
                     type="button"
                     onClick={() => setRole(Role.CANDIDATE)}
-                    className={`rounded-full text-sm font-medium py-2 transition-colors ${role === Role.CANDIDATE
-                        ? "bg-black text-white"
-                        : "bg-transparent text-gray-600 hover:bg-gray-200"
-                        }`}
+                    className={`${styles.roleOption} ${role === Role.CANDIDATE ? styles.roleOptionActive : ""}`}
                 >
                     Candidate
                 </button>
                 <button
                     type="button"
                     onClick={() => setRole(Role.PROFESSIONAL)}
-                    className={`rounded-full text-sm font-medium py-2 transition-colors ${role === Role.PROFESSIONAL
-                        ? "bg-black text-white"
-                        : "bg-transparent text-gray-600 hover:bg-gray-200"
-                        }`}
+                    className={`${styles.roleOption} ${role === Role.PROFESSIONAL ? styles.roleOptionActive : ""}`}
                 >
                     Professional
                 </button>
             </div>
 
             <form className="space-y-6" onSubmit={handleSubmit}>
-                {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+                {error && <AuthMessage tone="error">{error}</AuthMessage>}
 
                 <div className="space-y-3">
-                    <div>
-                        <label htmlFor="name" className="sr-only">Full Name</label>
-                        <input
-                            id="name"
-                            name="name"
-                            type="text"
-                            required
-                            className="relative block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-black focus:outline-none focus:ring-black sm:text-sm"
-                            placeholder="Full name"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="email-address" className="sr-only">Email address</label>
-                        <input
-                            id="email-address"
-                            name="email"
-                            type="email"
-                            autoComplete="email"
-                            required
-                            className="relative block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-black focus:outline-none focus:ring-black sm:text-sm"
-                            placeholder="Email address"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="password" className="sr-only">Password</label>
-                        <input
-                            id="password"
-                            name="password"
-                            type="password"
-                            autoComplete="new-password"
-                            required
-                            className="relative block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-black focus:outline-none focus:ring-black sm:text-sm"
-                            placeholder="Password (min 6 chars)"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                        />
-                    </div>
+                    <AuthField
+                        id="name"
+                        name="name"
+                        label="Full Name"
+                        type="text"
+                        required
+                        placeholder="Full name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                    />
+                    <AuthField
+                        id="email-address"
+                        name="email"
+                        label="Email address"
+                        type="email"
+                        autoComplete="email"
+                        required
+                        placeholder="Email address"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                    />
+                    <AuthField
+                        id="password"
+                        name="password"
+                        label="Password"
+                        type="password"
+                        autoComplete="new-password"
+                        required
+                        placeholder="Password (min 6 chars)"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                    />
                 </div>
 
                 {role === Role.CANDIDATE && (
-                    <div className="rounded-md border border-gray-300 p-4 space-y-2">
-                        <label htmlFor="resume" className="block text-sm font-medium text-gray-700">
+                    <div className={styles.uploadPanel}>
+                        <label htmlFor="resume" className={styles.uploadLabel}>
                             Resume (PDF required)
                         </label>
                         <input
@@ -226,14 +214,9 @@ export function SignupForm() {
                             required
                             disabled={isLoading}
                             onChange={(e) => setResumeFile(e.target.files?.[0] ?? null)}
-                            className="block w-full text-sm text-gray-500
-                                file:mr-4 file:py-2 file:px-4
-                                file:rounded-md file:border-0
-                                file:text-sm file:font-semibold
-                                file:bg-blue-50 file:text-blue-700
-                                hover:file:bg-blue-100"
+                            className="block w-full text-sm"
                         />
-                        <p className="text-xs text-gray-500">
+                        <p className={styles.uploadHint}>
                             {resumeFile
                                 ? `Selected file: ${resumeFile.name}`
                                 : "Upload a PDF resume (max 4MB) to continue."}
@@ -241,42 +224,45 @@ export function SignupForm() {
                     </div>
                 )}
 
-                <button
+                <Button
                     type="submit"
                     disabled={isLoading}
-                    className="group relative flex w-full justify-center rounded-md border border-transparent bg-black py-2 px-4 text-sm font-medium text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50"
+                    variant="primary"
+                    className="w-full justify-center"
                 >
                     {isUploadingResume ? "Uploading resume..." : isLoading ? "Creating account..." : "Create account"}
-                </button>
+                </Button>
             </form>
 
-            <div className="space-y-3">
-                <button
+            <div className={styles.providerStack}>
+                <Button
                     type="button"
                     onClick={() => void handleOAuthSignup("google")}
                     disabled={isLoading}
-                    className="flex w-full items-center justify-center gap-3 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
+                    variant="ghost"
+                    className="w-full justify-center"
                 >
                     <OAuthProviderIcon provider="google" className="h-5 w-5" />
                     Continue with Google
-                </button>
-                <button
+                </Button>
+                <Button
                     type="button"
                     onClick={() => void handleOAuthSignup("linkedin")}
                     disabled={isLoading}
-                    className="flex w-full items-center justify-center gap-3 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
+                    variant="ghost"
+                    className="w-full justify-center"
                 >
                     <OAuthProviderIcon provider="linkedin" className="h-5 w-5" />
                     Continue with LinkedIn
-                </button>
+                </Button>
             </div>
 
-            <div className="text-center text-sm">
-                <span className="text-gray-500">Already have an account? </span>
-                <Link href="/login" className="font-medium text-black hover:underline">
+            <div className={styles.footer}>
+                <span>Already have an account?</span>
+                <Link href="/login" className={styles.link}>
                     Sign in
                 </Link>
             </div>
-        </section>
+        </AuthCard>
     );
 }

@@ -4,13 +4,13 @@ import { getCandidateBookingDetails } from '@/lib/role/candidate/chats';
 import { notFound } from 'next/navigation';
 import { BookingActions } from './BookingActions';
 import { BookingStatus, Role } from '@prisma/client';
-import { format } from 'date-fns';
 import Link from 'next/link';
 import { appRoutes } from '@/lib/shared/routes';
 import {
     formatProfessionalForCandidateView,
     shouldRevealProfessionalNameForCandidateStatus,
 } from '@/lib/domain/users/identity-labels';
+import { formatDisplayDate, formatDisplayTime, formatDisplayDateTime } from '@/lib/utils/date';
 
 function statusTone(status: string) {
     if (status === 'accepted' || status === 'completed') return 'bg-green-50 text-green-800';
@@ -24,11 +24,13 @@ export default async function BookingDetailsPage(props: {
     const params = await props.params;
     const user = await requireRole(Role.CANDIDATE, `/candidate/bookings/${params.id}`);
 
-    const booking = await getCandidateBookingDetails(params.id, user.id);
+    const details = await getCandidateBookingDetails(params.id, user.id);
 
-    if (!booking) {
+    if (!details) {
         notFound();
     }
+
+    const { booking, candidateTimezone } = details;
 
     const isCompleted = booking.status === BookingStatus.completed;
     const professionalLabel = formatProfessionalForCandidateView({
@@ -62,7 +64,7 @@ export default async function BookingDetailsPage(props: {
                         <h2 className="text-xl font-semibold text-gray-900">Professional Feedback</h2>
                         {booking.feedback?.submittedAt ? (
                             <p className="text-sm text-gray-500 mt-1">
-                                Submitted {format(new Date(booking.feedback.submittedAt), 'PPP p')}
+                                Submitted {formatDisplayDateTime(new Date(booking.feedback.submittedAt), candidateTimezone)}
                             </p>
                         ) : null}
                     </div>
@@ -133,12 +135,15 @@ export default async function BookingDetailsPage(props: {
                     <div className="text-gray-700">
                         {booking.startAt ? (
                             <div>
-                                <p className="font-medium">{format(new Date(booking.startAt), 'PPP')}</p>
-                                <p>{format(new Date(booking.startAt), 'p')} - {format(new Date(booking.endAt!), 'p')}</p>
-                                <p className="text-sm text-gray-500 mt-1">{booking.timezone}</p>
+                                <p className="font-medium">{formatDisplayDate(new Date(booking.startAt), candidateTimezone)}</p>
+                                <p>
+                                    {formatDisplayTime(new Date(booking.startAt), candidateTimezone)} -{" "}
+                                    {formatDisplayTime(new Date(booking.endAt!), candidateTimezone)}
+                                </p>
+                                <p className="text-sm text-gray-500 mt-1">{candidateTimezone}</p>
                             </div>
                         ) : (
-                            <p className="text-gray-500 italic">Scheduling pending...</p>
+                            <p className="text-gray-500 italic">Scheduling pending ({candidateTimezone})...</p>
                         )}
                     </div>
                 </div>

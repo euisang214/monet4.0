@@ -1,6 +1,12 @@
 import { addDays, addMinutes, format, startOfWeek } from 'date-fns';
 import { formatInTimeZone, fromZonedTime, toZonedTime } from 'date-fns-tz';
 import type { SlotInput, SlotInterval } from '@/components/bookings/calendar/types';
+import {
+    doesTimeRangeOverlap,
+    mergeTimeRanges,
+    normalizeTimeRange,
+    type DateTimeRange,
+} from '@/lib/shared/time-intervals';
 
 export const SLOT_MINUTES = 30;
 export const SLOTS_PER_DAY = (24 * 60) / SLOT_MINUTES;
@@ -12,10 +18,7 @@ export const VISIBLE_START_ROW = (VISIBLE_START_HOUR * 60) / SLOT_MINUTES;
 export const VISIBLE_END_ROW_EXCLUSIVE = (VISIBLE_END_HOUR * 60) / SLOT_MINUTES;
 export const VISIBLE_ROW_COUNT = VISIBLE_END_ROW_EXCLUSIVE - VISIBLE_START_ROW;
 
-export type NormalizedSlotInterval = {
-    start: Date;
-    end: Date;
-};
+export type NormalizedSlotInterval = DateTimeRange;
 
 export function startOfSlot(date: Date): Date {
     const next = new Date(date);
@@ -102,47 +105,26 @@ export function getWeekRangeLabel(weekStart: Date, timeZone?: string): string {
 }
 
 export function normalizeInterval(interval: SlotInput): NormalizedSlotInterval {
-    return {
-        start: interval.start instanceof Date ? interval.start : new Date(interval.start),
-        end: interval.end instanceof Date ? interval.end : new Date(interval.end),
-    };
+    return normalizeTimeRange(interval);
 }
 
 export function overlaps(start: Date, end: Date, interval: NormalizedSlotInterval): boolean {
-    return interval.start < end && interval.end > start;
+    return doesTimeRangeOverlap(start, end, interval);
 }
 
 export function mergeConsecutiveSlots(slotKeys: string[]): SlotInterval[] {
     if (slotKeys.length === 0) return [];
 
-    const sorted = [...slotKeys]
-        .map((key) => new Date(key))
-        .sort((a, b) => a.getTime() - b.getTime());
-
-    const merged: SlotInterval[] = [];
-    let blockStart = sorted[0];
-    let blockEnd = addMinutes(sorted[0], SLOT_MINUTES);
-
-    for (let i = 1; i < sorted.length; i++) {
-        const currentStart = sorted[i];
-        if (currentStart.getTime() === blockEnd.getTime()) {
-            blockEnd = addMinutes(currentStart, SLOT_MINUTES);
-            continue;
-        }
-
-        merged.push({
-            start: blockStart.toISOString(),
-            end: blockEnd.toISOString(),
-        });
-
-        blockStart = currentStart;
-        blockEnd = addMinutes(currentStart, SLOT_MINUTES);
-    }
-
-    merged.push({
-        start: blockStart.toISOString(),
-        end: blockEnd.toISOString(),
-    });
-
-    return merged;
+    return mergeTimeRanges(
+        slotKeys.map((key) => {
+            const start = new Date(key);
+            return {
+                start,
+                end: addMinutes(start, SLOT_MINUTES),
+            };
+        }),
+    ).map((range) => ({
+        start: range.start.toISOString(),
+        end: range.end.toISOString(),
+    }));
 }

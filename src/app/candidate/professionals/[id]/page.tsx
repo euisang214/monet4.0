@@ -3,12 +3,14 @@ import { auth } from '@/auth';
 import { CandidateBrowse } from '@/lib/role/candidate/browse';
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { EmptyState } from '@/components/ui/composites/EmptyState';
+import { EmptyState, PageHeader, SurfaceCard } from '@/components/ui';
 import { appRoutes } from '@/lib/shared/routes';
 import {
     formatProfessionalForCandidateView,
     formatRoleAtCompany,
 } from '@/lib/domain/users/identity-labels';
+import { buttonVariants } from '@/components/ui/primitives/Button';
+import styles from './page.module.css';
 
 type DateLike = Date | string | null | undefined;
 type TimelineItem = {
@@ -92,108 +94,105 @@ export default async function ProfessionalProfilePage(props: {
     const educationItems = [...(profile.education || [])].sort(compareTimelineItems);
     const activityItems = [...(profile.activities || [])].sort(compareTimelineItems);
     const hasBackgroundSections = experienceItems.length > 0 || educationItems.length > 0 || activityItems.length > 0;
+    const formattedPrice = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((profile.priceCents || 0) / 100);
 
     return (
-        <main className="container py-8 max-w-4xl">
-            <Link href={appRoutes.candidate.browse} className="text-sm text-gray-500 hover:text-gray-900 mb-4 inline-block">
+        <main className="space-y-6">
+            <Link href={appRoutes.candidate.browse} className={buttonVariants({ variant: 'secondary', size: 'sm' })}>
                 &larr; Back to Browse
             </Link>
-            <header className="mb-6">
-                <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Professional Profile</p>
-                <h1 className="text-3xl font-bold text-gray-900">Background Overview</h1>
-            </header>
+            <PageHeader
+                eyebrow="Professional profile"
+                title={professionalHeader}
+                description={roleLabel}
+                meta={formattedPrice}
+            />
 
-            <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-                <div className="md:flex">
-                    <div className="p-8 md:w-2/3">
-                        <div className="flex items-start justify-between mb-6 gap-4">
-                            <div>
-                                <h1 className="text-3xl font-bold text-gray-900 mb-1">
-                                    {professionalHeader}
-                                </h1>
-                            </div>
-                            <div className="text-xl font-bold text-green-700 bg-green-50 px-4 py-2 rounded-lg">
-                                {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((profile.priceCents || 0) / 100)}
-                            </div>
-                        </div>
-
-                        <section className="prose max-w-none text-gray-700 mb-8">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">About</h3>
-                            <p className="whitespace-pre-line">{profile.bio || 'No bio provided yet.'}</p>
+            <div className={styles.profileLayout}>
+                <div className="space-y-6">
+                    <SurfaceCard tone="accent">
+                        <section>
+                            <h2 className="text-lg font-semibold text-gray-900 mb-3">About</h2>
+                            <p className={`whitespace-pre-line text-gray-700 ${styles.aboutCopy}`}>
+                                {profile.bio || 'No bio provided yet.'}
+                            </p>
                         </section>
+                    </SurfaceCard>
 
-                        {hasBackgroundSections ? (
-                            <div className="space-y-10 mb-8">
-                                {experienceItems.length > 0 ? (
-                                    <section>
-                                        <h3 className="text-4xl font-bold text-gray-900 mb-3 mt-3">Experience</h3>
-                                        <div className="space-y-6">
-                                            {experienceItems.map((experience) => (
-                                                <article key={experience.id} className="border-l border-gray-900 p-2">
-                                                    <h4 className="font-semibold text-gray-900">{experience.title}</h4>
-                                                    <p className="text-gray-600 mt-1">{experience.company}</p>
+                    {hasBackgroundSections ? (
+                        <SurfaceCard className="space-y-8">
+                            {experienceItems.length > 0 ? (
+                                <section>
+                                    <h3 className="text-2xl font-bold text-gray-900 mb-4">Experience</h3>
+                                    <div className="space-y-6">
+                                        {experienceItems.map((experience) => (
+                                            <article key={experience.id} className="border-l border-gray-900 p-2">
+                                                <h4 className="font-semibold text-gray-900">{experience.title}</h4>
+                                                <p className="text-gray-600 mt-1">{experience.company}</p>
+                                                <p className="italic text-gray-500 mt-1">
+                                                    {formatDateRange(experience, monthYearFormatter)}
+                                                </p>
+                                            </article>
+                                        ))}
+                                    </div>
+                                </section>
+                            ) : null}
+
+                            {educationItems.length > 0 ? (
+                                <section>
+                                    <h3 className="text-2xl font-bold text-gray-900 mb-4">Education</h3>
+                                    <div className="space-y-6">
+                                        {educationItems.map((education) => {
+                                            const educationTitle = [education.degree, education.fieldOfStudy]
+                                                .filter(Boolean)
+                                                .join(', ');
+                                            return (
+                                                <article key={education.id} className="border-l border-gray-900 p-2">
+                                                    <h4 className="font-semibold text-gray-900">{educationTitle}</h4>
+                                                    <p className="text-gray-600 mt-1">{education.school}</p>
                                                     <p className="italic text-gray-500 mt-1">
-                                                        {formatDateRange(experience, monthYearFormatter)}
+                                                        {formatDateRange(education, yearFormatter)}
                                                     </p>
                                                 </article>
-                                            ))}
-                                        </div>
-                                    </section>
-                                ) : null}
+                                            );
+                                        })}
+                                    </div>
+                                </section>
+                            ) : null}
 
-                                {educationItems.length > 0 ? (
-                                    <section>
-                                        <h3 className="text-4xl font-bold text-gray-900 mb-3 mt-3">Education</h3>
-                                        <div className="space-y-6">
-                                            {educationItems.map((education) => {
-                                                const educationTitle = [education.degree, education.fieldOfStudy]
-                                                    .filter(Boolean)
-                                                    .join(', ');
-                                                return (
-                                                    <article key={education.id} className="border-l border-gray-900 p-2">
-                                                        <h4 className="font-semibold text-gray-900">{educationTitle}</h4>
-                                                        <p className="text-gray-600 mt-1">{education.school}</p>
-                                                        <p className="italic text-gray-500 mt-1">
-                                                            {formatDateRange(education, yearFormatter)}
-                                                        </p>
-                                                    </article>
-                                                );
-                                            })}
-                                        </div>
-                                    </section>
-                                ) : null}
+                            {activityItems.length > 0 ? (
+                                <section>
+                                    <h3 className="text-2xl font-bold text-gray-900 mb-4">Activities</h3>
+                                    <div className="space-y-6">
+                                        {activityItems.map((activity) => (
+                                            <article key={activity.id} className="border-l border-gray-900 p-2">
+                                                <h4 className="font-semibold text-gray-900">{activity.title}</h4>
+                                                <p className="text-gray-600 mt-1">{activity.company}</p>
+                                                <p className="italic text-gray-500 mt-1">
+                                                    {formatDateRange(activity, monthYearFormatter)}
+                                                </p>
+                                            </article>
+                                        ))}
+                                    </div>
+                                </section>
+                            ) : null}
+                        </SurfaceCard>
+                    ) : null}
 
-                                {activityItems.length > 0 ? (
-                                    <section>
-                                        <h3 className="text-4xl font-bold text-gray-900 mb-3 mt-3">Activities</h3>
-                                        <div className="space-y-6">
-                                            {activityItems.map((activity) => (
-                                                <article key={activity.id} className="border-l border-gray-900 p-2">
-                                                    <h4 className="font-semibold text-gray-900">{activity.title}</h4>
-                                                    <p className="text-gray-600 mt-1">{activity.company}</p>
-                                                    <p className="italic text-gray-500 mt-1">
-                                                        {formatDateRange(activity, monthYearFormatter)}
-                                                    </p>
-                                                </article>
-                                            ))}
-                                        </div>
-                                    </section>
-                                ) : null}
-                            </div>
-                        ) : null}
-
-                        <section className="border-t pt-8">
+                    <SurfaceCard>
+                        <section>
                             <h3 className="text-xl font-bold text-gray-900 mb-5">Reviews ({reviews.length})</h3>
                             {reviews.length === 0 ? (
                                 <EmptyState
                                     badge="No reviews yet"
                                     title="This professional has no submitted ratings"
                                     description="Reviews appear here after completed consultations."
+                                    layout="inline"
                                 />
                             ) : (
                                 <div className="space-y-6 mt-3">
                                     {reviews.map((review) => (
-                                        <article key={review.bookingId} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                        <SurfaceCard key={review.bookingId} as="article" tone="muted">
                                             <div className="flex items-start justify-between gap-4 mb-2">
                                                 <div>
                                                     <p className="text-sm font-semibold text-gray-900">
@@ -210,35 +209,35 @@ export default async function ProfessionalProfilePage(props: {
                                                 </div>
                                             </div>
                                             <p className="text-gray-700">{review.text}</p>
-                                        </article>
+                                        </SurfaceCard>
                                     ))}
                                 </div>
                             )}
                         </section>
-                    </div>
-
-                    <div className="md:w-1/3 bg-gray-50 p-8 border-l border-gray-100 flex flex-col">
-                        <div className="sticky top-8">
-                            <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Next Steps</p>
-                            <h3 className="text-lg font-semibold mb-3">Ready to book?</h3>
-                            <p className="text-gray-600 mb-6 text-sm">
-                                Schedule a consultation with {roleLabel} to discuss your career goals.
-                            </p>
-
-                            <Link
-                                href={appRoutes.candidate.professionalBook(params.id)}
-                                className="block w-full bg-blue-600 text-white text-center py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm hover:shadow-md"
-                            >
-                                Book Now
-                            </Link>
-
-                            <p className="text-xs text-center text-gray-500 mt-4 italic">
-                                Secure payment via Stripe. 
-                            </p>
-                        </div>
-                    </div>
+                    </SurfaceCard>
                 </div>
+
+                <SurfaceCard tone="muted" className={styles.sidebarCard}>
+                    <div className="space-y-4">
+                        <p className="text-xs uppercase tracking-wider text-blue-600">Next steps</p>
+                        <h3 className="text-lg font-semibold">Ready to book?</h3>
+                        <p className="text-gray-600 text-sm">
+                            Schedule a consultation with {roleLabel} to discuss your career goals.
+                        </p>
+
+                        <Link
+                            href={appRoutes.candidate.professionalBook(params.id)}
+                            className={`${buttonVariants()} w-full justify-center`}
+                        >
+                            Book Now
+                        </Link>
+
+                        <p className="text-xs text-center text-gray-500 italic">
+                            Secure payment via Stripe.
+                        </p>
+                    </div>
+                </SurfaceCard>
             </div>
-        </main >
+        </main>
     );
 }

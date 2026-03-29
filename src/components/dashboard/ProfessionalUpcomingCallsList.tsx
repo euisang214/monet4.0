@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { appRoutes } from "@/lib/shared/routes";
 import { formatInTimeZone } from "@/lib/utils/timezones";
 import { normalizeTimezone } from "@/lib/utils/supported-timezones";
+import { Button, SurfaceCard } from "@/components/ui";
+import { useTrackedProfessionalBookingActions } from "@/components/bookings/hooks/useTrackedProfessionalBookingActions";
 
 interface UpcomingCall {
     id: string;
@@ -32,9 +32,8 @@ function formatCallTime(startAt: Date | string | null, resolvedTimezone: string)
 }
 
 export function ProfessionalUpcomingCallsList({ bookings, professionalTimezone }: ProfessionalUpcomingCallsListProps) {
-    const router = useRouter();
+    const { cancelUpcomingBooking, requestReschedule } = useTrackedProfessionalBookingActions();
     const [pendingAction, setPendingAction] = useState<{ id: string; type: "cancel" | "reschedule" } | null>(null);
-    const [error, setError] = useState<string | null>(null);
     const displayTimezone = normalizeTimezone(professionalTimezone);
 
     const handleCancel = async (bookingId: string) => {
@@ -44,27 +43,11 @@ export function ProfessionalUpcomingCallsList({ bookings, professionalTimezone }
         }
 
         setPendingAction({ id: bookingId, type: "cancel" });
-        setError(null);
 
         try {
-            const response = await fetch(appRoutes.api.shared.bookingCancel(bookingId), {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({}),
-            });
-
-            const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-            if (!response.ok) {
-                throw new Error(payload?.error || "Failed to cancel booking.");
-            }
-
-            router.refresh();
-        } catch (cancelError: unknown) {
-            if (cancelError instanceof Error) {
-                setError(cancelError.message);
-            } else {
-                setError("Failed to cancel booking.");
-            }
+            await cancelUpcomingBooking({ bookingId });
+        } catch {
+            // Async failures are surfaced via tracked toast.
         } finally {
             setPendingAction(null);
         }
@@ -72,27 +55,11 @@ export function ProfessionalUpcomingCallsList({ bookings, professionalTimezone }
 
     const handleReschedule = async (bookingId: string) => {
         setPendingAction({ id: bookingId, type: "reschedule" });
-        setError(null);
 
         try {
-            const response = await fetch(appRoutes.api.professional.requestRescheduleRequest(bookingId), {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({}),
-            });
-
-            const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-            if (!response.ok) {
-                throw new Error(payload?.error || "Failed to request reschedule.");
-            }
-
-            router.push(appRoutes.professional.requestReschedule(bookingId));
-        } catch (rescheduleError: unknown) {
-            if (rescheduleError instanceof Error) {
-                setError(rescheduleError.message);
-            } else {
-                setError("Failed to request reschedule.");
-            }
+            await requestReschedule({ bookingId });
+        } catch {
+            // Async failures are surfaced via tracked toast.
         } finally {
             setPendingAction(null);
         }
@@ -107,19 +74,13 @@ export function ProfessionalUpcomingCallsList({ bookings, professionalTimezone }
 
     return (
         <div className="space-y-3">
-            {error ? (
-                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                    {error}
-                </div>
-            ) : null}
-
             {bookings.map((booking) => {
                 const cancelling = pendingAction?.id === booking.id && pendingAction.type === "cancel";
                 const rescheduling = pendingAction?.id === booking.id && pendingAction.type === "reschedule";
                 const joinUrl = booking.professionalZoomJoinUrl || booking.zoomJoinUrl;
 
                 return (
-                    <article key={booking.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                    <SurfaceCard key={booking.id} as="article">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <div>
                                 <p className="font-semibold text-gray-900">{booking.candidateLabel}</p>
@@ -127,33 +88,39 @@ export function ProfessionalUpcomingCallsList({ bookings, professionalTimezone }
                             </div>
 
                             <div className="flex flex-wrap gap-2">
-                                <button
+                                <Button
                                     type="button"
                                     onClick={() => handleCancel(booking.id)}
                                     disabled={Boolean(pendingAction)}
-                                    className="btn border border-red-200 bg-white text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                    variant="danger"
+                                    size="sm"
+                                    loading={cancelling}
+                                    loadingLabel="Cancelling..."
                                 >
-                                    {cancelling ? "Cancelling..." : "Cancel"}
-                                </button>
-                                <button
+                                    Cancel
+                                </Button>
+                                <Button
                                     type="button"
                                     onClick={() => handleReschedule(booking.id)}
                                     disabled={Boolean(pendingAction)}
-                                    className="btn border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                    variant="ghost"
+                                    size="sm"
+                                    loading={rescheduling}
+                                    loadingLabel="Rescheduling..."
                                 >
-                                    {rescheduling ? "Rescheduling..." : "Reschedule"}
-                                </button>
-                                <button
+                                    Reschedule
+                                </Button>
+                                <Button
                                     type="button"
                                     onClick={() => handleJoin(joinUrl)}
                                     disabled={!joinUrl}
-                                    className="btn bg-blue-600 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                    size="sm"
                                 >
                                     Join Zoom
-                                </button>
+                                </Button>
                             </div>
                         </div>
-                    </article>
+                    </SurfaceCard>
                 );
             })}
         </div>

@@ -7,9 +7,9 @@ vi.mock("next-auth/jwt", () => ({
     getToken: getTokenMock,
 }));
 
-import { middleware } from "@/middleware";
+import { proxy } from "@/proxy";
 
-describe("middleware onboarding gate", () => {
+describe("proxy onboarding gate", () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
@@ -21,7 +21,7 @@ describe("middleware onboarding gate", () => {
             onboardingCompleted: false,
         });
 
-        const response = await middleware(new NextRequest("http://localhost/login"));
+        const response = await proxy(new NextRequest("http://localhost/login"));
 
         expect(response.status).toBe(307);
         expect(response.headers.get("location")).toContain("/onboarding");
@@ -34,7 +34,7 @@ describe("middleware onboarding gate", () => {
             onboardingCompleted: false,
         });
 
-        const response = await middleware(new NextRequest("http://localhost/onboarding"));
+        const response = await proxy(new NextRequest("http://localhost/onboarding"));
 
         expect(response.status).toBe(200);
         expect(response.headers.get("location")).toBeNull();
@@ -43,7 +43,7 @@ describe("middleware onboarding gate", () => {
     it("keeps unauthenticated protection for role routes", async () => {
         getTokenMock.mockResolvedValue(null);
 
-        const response = await middleware(new NextRequest("http://localhost/candidate/browse"));
+        const response = await proxy(new NextRequest("http://localhost/candidate/browse"));
 
         expect(response.status).toBe(307);
         expect(response.headers.get("location")).toContain("/api/auth/signin");
@@ -56,7 +56,7 @@ describe("middleware onboarding gate", () => {
             onboardingCompleted: true,
         });
 
-        const response = await middleware(new NextRequest("http://localhost/professional/dashboard"));
+        const response = await proxy(new NextRequest("http://localhost/professional/dashboard"));
 
         expect(response.status).toBe(307);
         expect(response.headers.get("location")).toBe("http://localhost/");

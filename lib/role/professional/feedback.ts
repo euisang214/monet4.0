@@ -80,6 +80,8 @@ export const ProfessionalFeedbackService = {
                 deliveryRating: data.deliveryRating,
                 valueRating: data.valueRating,
                 qcStatus: 'missing', // Initial state before QC picks it up
+                qcReasons: [],
+                qcReviewedAt: null,
                 submittedAt: new Date(),
             },
             update: {
@@ -90,6 +92,8 @@ export const ProfessionalFeedbackService = {
                 deliveryRating: data.deliveryRating,
                 valueRating: data.valueRating,
                 qcStatus: 'missing', // Reset status for re-check
+                qcReasons: [],
+                qcReviewedAt: null,
                 submittedAt: new Date(),
             }
         });

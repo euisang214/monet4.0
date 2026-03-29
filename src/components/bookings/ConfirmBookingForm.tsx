@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
-import { confirmBookingAction } from "@/app/professional/requests/actions";
+import React, { useState } from "react";
 import { SlotPickerForm, type Slot } from "@/components/bookings/SlotPickerForm";
+import { useTrackedProfessionalBookingActions } from "@/components/bookings/hooks/useTrackedProfessionalBookingActions";
 
 interface ConfirmBookingFormProps {
     bookingId: string;
@@ -17,22 +17,19 @@ export function ConfirmBookingForm({
     calendarTimezone,
     professionalTimezone,
 }: ConfirmBookingFormProps) {
-    const [isPending, startTransition] = useTransition();
-    const [error, setError] = useState<string | null>(null);
+    const { confirmBooking } = useTrackedProfessionalBookingActions();
+    const [isPending, setIsPending] = useState(false);
 
-    const handleConfirm = (selectedSlot: string) => {
-        setError(null);
+    const handleConfirm = async (selectedSlot: string) => {
+        setIsPending(true);
 
-        const formData = new FormData();
-        formData.append("bookingId", bookingId);
-        formData.append("startAt", selectedSlot);
-
-        startTransition(async () => {
-            const result = await confirmBookingAction(formData);
-            if (result?.error) {
-                setError(result.error);
-            }
-        });
+        try {
+            await confirmBooking({ bookingId, startAt: selectedSlot });
+        } catch {
+            // Async failures are surfaced via tracked toast.
+        } finally {
+            setIsPending(false);
+        }
     };
 
     return (
@@ -41,12 +38,11 @@ export function ConfirmBookingForm({
             calendarTimezone={calendarTimezone}
             professionalTimezone={professionalTimezone}
             heading="Select a Time"
-            description="Choose one of the candidate's submitted 30-minute slots (already filtered against Google busy blocks)."
+            description="Choose one of the candidate's submitted 30-minute slots."
             confirmLabel="Confirm & Schedule"
             confirmingLabel="Confirming..."
             isConfirming={isPending}
             onConfirm={handleConfirm}
-            error={error}
         />
     );
 }
