@@ -57,19 +57,19 @@ export function LandingPageContent({ audience, content, onAudienceChange }: Land
                 </p>
                 <div className={styles.aboutGrid}>
                     <article className={styles.aboutCard}>
-                        <h3 className={styles.aboutTitle}>Built for outcomes</h3>
+                        <h3 className={styles.stepTitle}>Built for Outcomes</h3>
                         <p className={styles.aboutDescription}>
                             Every session is designed around specific goals so you can walk away with clear next steps.
                         </p>
                     </article>
                     <article className={styles.aboutCard}>
-                        <h3 className={styles.aboutTitle}>Verified workflows</h3>
+                        <h3 className={styles.stepTitle}>Verified Workflows</h3>
                         <p className={styles.aboutDescription}>
                             Scheduling, reminders, and meeting logistics are handled in one flow to reduce no-shows and setup friction.
                         </p>
                     </article>
                     <article className={styles.aboutCard}>
-                        <h3 className={styles.aboutTitle}>Designed for trust</h3>
+                        <h3 className={styles.stepTitle}>Designed for Trust</h3>
                         <p className={styles.aboutDescription}>
                             Booking, payment, and post-session follow-ups are directly built into the platform.
                         </p>
