@@ -222,12 +222,33 @@ function getHostnameFromUrl(rawValue: string | undefined): string | null {
     }
 }
 
+function getProtocolFromUrl(rawValue: string | undefined): string | null {
+    const normalized = normalizeEnvValue(rawValue)
+    if (!normalized) return null
+
+    try {
+        return new URL(normalized).protocol
+    } catch {
+        return null
+    }
+}
+
 async function assertResumeStorageReachable() {
     const supabaseUrl = normalizeEnvValue(process.env.STORAGE_SUPABASE_URL)
     const serviceRoleKey = normalizeEnvValue(process.env.STORAGE_SUPABASE_SERVICE_ROLE_KEY)
 
     if (!supabaseUrl || !serviceRoleKey) {
         return
+    }
+
+    const protocol = getProtocolFromUrl(process.env.STORAGE_SUPABASE_URL)
+    if (protocol !== 'http:' && protocol !== 'https:') {
+        throw new Error(
+            [
+                'STORAGE_SUPABASE_URL must be your Supabase project HTTP URL, not a Postgres connection string.',
+                'Example: https://<project-ref>.supabase.co',
+            ].join('\n')
+        )
     }
 
     const storageUrl = `${supabaseUrl.replace(/\/+$/, '')}/storage/v1/bucket`

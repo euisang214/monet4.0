@@ -64,6 +64,19 @@ function getSupabaseUrl(): string | null {
     const raw = normalizeEnvValue(process.env.STORAGE_SUPABASE_URL);
     if (!raw) return null;
 
+    try {
+        const parsed = new URL(raw);
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+            throw new Error("STORAGE_SUPABASE_URL must be an http(s) project URL, not a Postgres connection string.")
+        }
+    } catch (error) {
+        if (error instanceof Error && error.message.includes("STORAGE_SUPABASE_URL must be")) {
+            throw error;
+        }
+
+        throw new Error("STORAGE_SUPABASE_URL must be a valid http(s) URL.")
+    }
+
     return raw.replace(/\/+$/, "");
 }
 
