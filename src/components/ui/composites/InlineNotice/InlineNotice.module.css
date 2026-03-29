@@ -15,6 +15,11 @@
   text-transform: uppercase;
 }
 
+.toneNeutral {
+  background: rgba(11, 29, 83, 0.08);
+  color: var(--tone-9);
+}
+
 .toneSuccess {
   background: var(--status-success-bg);
   border-color: rgba(23, 97, 73, 0.18);

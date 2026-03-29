@@ -42,7 +42,7 @@ const baseProfessionalInitialData = {
     interests: ["Mentorship"],
     experience: [
         {
-            company: "Monet",
+            company: "Kafei",
             title: "Principal",
             startDate: "2022-01-01",
             isCurrent: true,

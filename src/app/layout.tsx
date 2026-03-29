@@ -16,7 +16,7 @@ const displayFont = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Monet - Professional Networking",
+  title: "Kafei - Professional Networking",
   description: "Connect with professionals for mock interviews and career advice",
 };
 

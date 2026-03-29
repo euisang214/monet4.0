@@ -13,7 +13,7 @@ export default function PublicLayout({
                 {children}
             </main>
             <footer className={styles.footer}>
-                <p>&copy; {new Date().getFullYear()} Monet Marketplace. All rights reserved.</p>
+                <p>&copy; {new Date().getFullYear()} Kafei Marketplace. All rights reserved.</p>
             </footer>
         </div>
     );

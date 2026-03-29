@@ -33,7 +33,7 @@ describe("Candidate browse page", () => {
                 {
                     userId: "pro-1",
                     title: "Product Lead",
-                    employer: "Monet",
+                    employer: "Kafei",
                     priceCents: 25000,
                     bio: "Helps candidates sharpen interviews.",
                 },

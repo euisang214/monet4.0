@@ -2,7 +2,7 @@
 
 ## System Shape
 
-Monet is a single-package full-stack web app built around a Next.js App Router frontend/backend in `src/app`, shared domain logic in `lib`, Prisma-backed persistence in `prisma`, and a separate BullMQ worker process launched from `scripts/dev-queue.ts`.
+Kafei is a single-package full-stack web app built around a Next.js App Router frontend/backend in `src/app`, shared domain logic in `lib`, Prisma-backed persistence in `prisma`, and a separate BullMQ worker process launched from `scripts/dev-queue.ts`.
 
 ## Languages And Runtimes
 

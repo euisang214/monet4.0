@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useState } from "react";
 import { PublicNavbar } from "@/components/layout/PublicNavbar";
 import { appRoutes } from "@/lib/shared/routes";
-import { AuthCard, AuthField, AuthMessage } from "@/components/ui/primitives/Auth";
-import { Button } from "@/components/ui/primitives/Button";
+import { AuthCard, AuthField, AuthMessage, AuthShell } from "@/components/ui/primitives/Auth";
+import { Button, buttonVariants } from "@/components/ui/primitives/Button";
+import styles from "@/components/auth/AuthForms.module.css";
 
 type RequestStatus = "idle" | "loading" | "success" | "error";
 
@@ -48,18 +49,18 @@ export default function ForgotPasswordPage() {
         <main className="min-h-screen flex flex-col">
             <PublicNavbar />
 
-            <div className="flex-1 flex items-center justify-center px-4 py-12">
+            <AuthShell className="flex-1">
                 <AuthCard>
-                    <header className="text-center">
-                        <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Reset Password</p>
-                        <h2 className="text-3xl font-extrabold text-gray-900 mb-2">Forgot your password?</h2>
-                        <p className="text-sm text-gray-600">Enter your email and we&apos;ll send a reset link.</p>
+                    <header className={styles.header}>
+                        <p className={styles.eyebrow}>Reset Password</p>
+                        <h2 className={styles.title}>Forgot your password?</h2>
+                        <p className={styles.description}>Enter your email and we&apos;ll send a reset link.</p>
                     </header>
 
                     {status === "success" ? (
                         <AuthMessage tone="success" className="space-y-4 p-4">
                             <p>{message}</p>
-                            <Link href="/login" className="btn w-full justify-center bg-gray-100 text-gray-800 hover:bg-gray-200">
+                            <Link href="/login" className={buttonVariants({ variant: "secondary" })}>
                                 Return to login
                             </Link>
                         </AuthMessage>
@@ -90,14 +91,14 @@ export default function ForgotPasswordPage() {
                         </form>
                     )}
 
-                    <div className="text-center text-sm">
-                        <span className="text-gray-500">Remembered your password? </span>
-                        <Link href="/login" className="font-medium text-black hover:underline">
+                    <div className={styles.footer}>
+                        <span>Remembered your password?</span>
+                        <Link href="/login" className={styles.link}>
                             Sign in
                         </Link>
                     </div>
                 </AuthCard>
-            </div>
+            </AuthShell>
         </main>
     );
 }

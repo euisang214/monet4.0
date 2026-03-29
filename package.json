@@ -3,10 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": "^20.19.0 || >=22.12.0"
+    "node": "20.x"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
+    "dev:turbo": "next dev",
     "dev:queue": "tsx scripts/dev-queue.ts",
     "build": "next build",
     "vercel-build": "bash scripts/vercel-build.sh",
@@ -25,6 +26,7 @@
     "@anthropic-ai/sdk": "^0.71.2",
     "@hookform/resolvers": "^5.2.2",
     "@next/env": "^16.1.6",
+    "@paper-design/shaders-react": "^0.0.71",
     "@prisma/client": "^6.19.2",
     "@react-email/components": "^1.0.8",
     "@react-email/render": "^2.0.4",

@@ -65,7 +65,7 @@ function AuthenticatedNavbar({ pathname }: { pathname: string }) {
                 <div className={styles.brandRow}>
                     <Link href={homeLink} className={styles.brand}>
                         <span className={styles.brandBadge} />
-                        Monet
+                        Kafei
                     </Link>
                 </div>
 

@@ -122,12 +122,12 @@ function normalizeMeetingId(meetingId: string | number): string {
 function splitName(fullName: string | null | undefined) {
     const trimmed = fullName?.trim();
     if (!trimmed) {
-        return { firstName: 'Participant', lastName: 'Monet' };
+        return { firstName: 'Participant', lastName: 'Kafei' };
     }
 
     const parts = trimmed.split(/\s+/);
     if (parts.length === 1) {
-        return { firstName: parts[0], lastName: 'Monet' };
+        return { firstName: parts[0], lastName: 'Kafei' };
     }
 
     return {

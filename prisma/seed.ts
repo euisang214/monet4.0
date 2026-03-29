@@ -147,6 +147,17 @@ const STATUS_DAY_OFFSETS: Record<BookingStatus, number> = {
 
 const escapeIdentifier = (value: string) => value.replace(/"/g, '""')
 
+async function getPublicTableNames() {
+    const tables = await prisma.$queryRaw<Array<{ tablename: string }>>`
+        SELECT tablename
+        FROM pg_tables
+        WHERE schemaname = 'public'
+          AND tablename <> '_prisma_migrations'
+    `
+
+    return tables.map(({ tablename }) => tablename)
+}
+
 function parseSeedPopulationMode(): SeedPopulationMode {
     const rawValue = process.env.SEED_POPULATION_MODE?.trim()
 
@@ -200,6 +211,58 @@ function assertResumeUploadEnv() {
     }
 }
 
+function getHostnameFromUrl(rawValue: string | undefined): string | null {
+    const normalized = normalizeEnvValue(rawValue)
+    if (!normalized) return null
+
+    try {
+        return new URL(normalized).hostname
+    } catch {
+        return null
+    }
+}
+
+async function assertResumeStorageReachable() {
+    const supabaseUrl = normalizeEnvValue(process.env.STORAGE_SUPABASE_URL)
+    const serviceRoleKey = normalizeEnvValue(process.env.STORAGE_SUPABASE_SERVICE_ROLE_KEY)
+
+    if (!supabaseUrl || !serviceRoleKey) {
+        return
+    }
+
+    const storageUrl = `${supabaseUrl.replace(/\/+$/, '')}/storage/v1/bucket`
+    const storageHost = getHostnameFromUrl(process.env.STORAGE_SUPABASE_URL)
+    const databaseHost = getHostnameFromUrl(process.env.STORAGE_POSTGRES_PRISMA_URL)
+    const looksLikeLocalStorage = storageHost === '127.0.0.1' || storageHost === 'localhost'
+    const looksLikeRemoteDatabase = Boolean(databaseHost && databaseHost !== '127.0.0.1' && databaseHost !== 'localhost')
+
+    try {
+        await fetch(storageUrl, {
+            headers: {
+                apikey: serviceRoleKey,
+                Authorization: `Bearer ${serviceRoleKey}`,
+            },
+        })
+    } catch (error) {
+        const mismatchHint = looksLikeLocalStorage && looksLikeRemoteDatabase
+            ? 'Your database URL points to a remote host, but STORAGE_SUPABASE_URL points to local Supabase.'
+            : null
+
+        throw new Error(
+            [
+                `Supabase Storage is unreachable at ${storageUrl}.`,
+                mismatchHint,
+                looksLikeLocalStorage
+                    ? 'Start your local Supabase stack or replace STORAGE_SUPABASE_URL and STORAGE_SUPABASE_SERVICE_ROLE_KEY with your cloud Supabase project values.'
+                    : 'Check STORAGE_SUPABASE_URL, STORAGE_SUPABASE_SERVICE_ROLE_KEY, and your network connection.',
+                `Original error: ${(error as Error).message}`,
+            ]
+                .filter(Boolean)
+                .join('\n')
+        )
+    }
+}
+
 async function loadSampleResumePdf() {
     const resumePath = path.resolve(process.cwd(), SAMPLE_RESUME_RELATIVE_PATH)
 
@@ -213,12 +276,7 @@ async function loadSampleResumePdf() {
 }
 
 async function clearDatabase() {
-    const tables = await prisma.$queryRaw<Array<{ tablename: string }>>`
-        SELECT tablename
-        FROM pg_tables
-        WHERE schemaname = 'public'
-          AND tablename <> '_prisma_migrations'
-    `
+    const tables = await getPublicTableNames()
 
     if (tables.length === 0) {
         console.log('ℹ️  No tables found to clear')
@@ -226,11 +284,36 @@ async function clearDatabase() {
     }
 
     const quotedTables = tables
-        .map(({ tablename }) => `"public"."${escapeIdentifier(tablename)}"`)
+        .map((tablename) => `"public"."${escapeIdentifier(tablename)}"`)
         .join(', ')
 
     await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${quotedTables} RESTART IDENTITY CASCADE;`)
     console.log(`🧹 Cleared ${tables.length} tables`)
+}
+
+async function assertDatabaseReadyForSeed() {
+    const tables = await getPublicTableNames()
+
+    if (tables.includes('User')) {
+        return
+    }
+
+    const databaseUrlMissing = !normalizeEnvValue(process.env.DATABASE_URL)
+    const migrateCommand = databaseUrlMissing
+        ? 'DATABASE_URL="$STORAGE_POSTGRES_PRISMA_URL" npx prisma migrate deploy'
+        : 'npx prisma migrate deploy'
+
+    throw new Error(
+        [
+            'Prisma seed requires an already-migrated database, but the table "public"."User" was not found.',
+            'This usually means you are pointing at a fresh or wrong database, or Prisma migrations have not been applied yet.',
+            '',
+            'Next steps:',
+            `1. ${databaseUrlMissing ? 'Set DATABASE_URL to a direct Postgres connection string or reuse STORAGE_POSTGRES_PRISMA_URL for local CLI commands.' : 'Confirm DATABASE_URL points at the same database you want to seed.'}`,
+            `2. Run: ${migrateCommand}`,
+            '3. Re-run: npm run seed',
+        ].join('\n')
+    )
 }
 
 async function main() {
@@ -253,6 +336,8 @@ async function main() {
     console.log(`Seed population mode: ${populationMode}`)
     console.log(`Stripe seed key source: STRIPE_TEST_SECRET_KEY`)
     assertResumeUploadEnv()
+    await assertResumeStorageReachable()
+    await assertDatabaseReadyForSeed()
     const sampleResumePdf = await loadSampleResumePdf()
     await clearDatabase()
     console.log('')
@@ -269,7 +354,7 @@ async function main() {
         create: {
             email: 'admin@monet.local',
             firstName: 'Admin',
-            lastName: 'Monet',
+            lastName: 'Kafei',
             hashedPassword: adminPassword,
             role: Role.ADMIN,
             timezone: 'America/New_York',

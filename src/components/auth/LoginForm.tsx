@@ -8,6 +8,7 @@ import { OAuthProviderIcon } from "@/components/auth/OAuthProviderIcon";
 import { appRoutes } from "@/lib/shared/routes";
 import { AuthCard, AuthField, AuthMessage } from "@/components/ui/primitives/Auth";
 import { Button } from "@/components/ui/primitives/Button";
+import styles from "./AuthForms.module.css";
 
 const ROLE_REDIRECT_PATH = appRoutes.api.auth.callbackRedirect;
 
@@ -92,10 +93,10 @@ export function LoginForm() {
 
     return (
         <AuthCard>
-            <header className="text-center">
-                <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Welcome Back</p>
-                <h2 className="text-3xl font-extrabold text-gray-900 mb-2">Sign in to Monet</h2>
-                <p className="text-sm text-gray-600">Pick up where you left off.</p>
+            <header className={styles.header}>
+                <p className={styles.eyebrow}>Welcome Back</p>
+                <h2 className={styles.title}>Sign in to Kafei</h2>
+                <p className={styles.description}>Pick up where you left off.</p>
             </header>
 
             {signupSuccess && (
@@ -104,13 +105,13 @@ export function LoginForm() {
                 </AuthMessage>
             )}
 
-            <div className="space-y-3">
+            <div className={styles.providerStack}>
                 <Button
                     type="button"
                     onClick={() => handleOAuthSignIn("google")}
                     disabled={isLoading}
                     variant="ghost"
-                    className="w-full justify-center gap-3 shadow-sm"
+                    className="w-full justify-center"
                 >
                     <OAuthProviderIcon provider="google" className="h-5 w-5" />
                     Continue with Google
@@ -121,20 +122,15 @@ export function LoginForm() {
                     onClick={() => handleOAuthSignIn("linkedin")}
                     disabled={isLoading}
                     variant="ghost"
-                    className="w-full justify-center gap-3 shadow-sm"
+                    className="w-full justify-center"
                 >
                     <OAuthProviderIcon provider="linkedin" className="h-5 w-5" />
                     Continue with LinkedIn
                 </Button>
             </div>
 
-            <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-300" />
-                </div>
-                <div className="relative flex justify-center text-sm">
-                    <span className="bg-white px-2 text-gray-500">Or continue with email</span>
-                </div>
+            <div className={styles.divider}>
+                <span className={styles.dividerText}>Or continue with email</span>
             </div>
 
             <form className="space-y-6" onSubmit={handleSubmit}>
@@ -164,8 +160,8 @@ export function LoginForm() {
                     />
                 </div>
 
-                <div className="flex items-center justify-between p-3">
-                    <Link href="/forgot-password" className="text-sm font-medium text-gray-600 hover:text-black">
+                <div className={styles.helperRow}>
+                    <Link href="/forgot-password" className={styles.textLink}>
                         Forgot your password?
                     </Link>
                 </div>
@@ -180,9 +176,9 @@ export function LoginForm() {
                 </Button>
             </form>
 
-            <div className="text-center text-sm">
-                <span className="text-gray-500">Don&apos;t have an account? </span>
-                <Link href="/signup" className="font-medium text-black hover:underline">
+            <div className={styles.footer}>
+                <span>Don&apos;t have an account?</span>
+                <Link href="/signup" className={styles.link}>
                     Sign up
                 </Link>
             </div>

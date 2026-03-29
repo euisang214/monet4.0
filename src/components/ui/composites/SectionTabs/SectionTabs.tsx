@@ -12,20 +12,32 @@ export interface SectionTabItem {
 interface SectionTabsProps {
     items: SectionTabItem[];
     currentValue: string;
+    appearance?: "underline" | "pill";
     className?: string;
     "aria-label"?: string;
 }
 
-export function SectionTabs({ items, currentValue, className, ...props }: SectionTabsProps) {
+export function SectionTabs({ items, currentValue, appearance = "pill", className, ...props }: SectionTabsProps) {
     return (
-        <nav className={cn(styles.nav, className)} {...props}>
+        <nav
+            className={cn(
+                styles.nav,
+                appearance === "underline" ? styles.navUnderline : "",
+                className
+            )}
+            {...props}
+        >
             {items.map((item) => {
                 const isActive = item.value === currentValue;
                 return (
                     <Link
                         key={item.value}
                         href={item.href}
-                        className={cn(styles.tab, isActive && styles.tabActive)}
+                        className={cn(
+                            styles.tab,
+                            appearance === "underline" ? styles.tabUnderline : "",
+                            isActive && (appearance === "underline" ? styles.tabUnderlineActive : styles.tabActive)
+                        )}
                         aria-current={isActive ? "page" : undefined}
                     >
                         <span>{item.label}</span>

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { AuthService } from "@/lib/domain/auth/services"
-import { Role } from "@prisma/client"
+import { Prisma, Role } from "@prisma/client"
 
 const signupSchema = z.object({
     email: z.string().email("Invalid email address"),
@@ -44,6 +44,14 @@ export async function POST(req: Request) {
         )
 
     } catch (error: unknown) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError) {
+            console.error("Signup Prisma error:", {
+                code: error.code,
+                message: error.message,
+                meta: error.meta,
+            })
+        }
+
         console.error("Signup error:", error)
 
         if (error instanceof Error && error.message === "Email already registered") {

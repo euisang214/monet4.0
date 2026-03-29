@@ -27,6 +27,7 @@ export function Button({
             className={cn(buttonVariants({ variant, size }), className)}
             disabled={disabled || loading}
             aria-busy={loading || undefined}
+            data-loading={loading || undefined}
             {...props}
         >
             {loading ? loadingLabel ?? children : children}

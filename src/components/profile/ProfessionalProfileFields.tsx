@@ -87,7 +87,7 @@ export function ProfessionalProfileFields({
                 <Field
                     label="Interests (comma separated)"
                     htmlFor="professional-interests"
-                    hint="This helps Monet position your profile in browse and booking flows."
+                    hint="This helps Kafei position your profile in browse and booking flows."
                     error={errors?.interestsText?.message}
                 >
                     <TextInput

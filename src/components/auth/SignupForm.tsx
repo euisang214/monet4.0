@@ -9,6 +9,7 @@ import { OAuthProviderIcon } from "@/components/auth/OAuthProviderIcon";
 import { appRoutes } from "@/lib/shared/routes";
 import { AuthCard, AuthField, AuthMessage } from "@/components/ui/primitives/Auth";
 import { Button } from "@/components/ui/primitives/Button";
+import styles from "./AuthForms.module.css";
 
 const MAX_RESUME_SIZE_BYTES = 4 * 1024 * 1024;
 const PDF_CONTENT_TYPE = "application/pdf";
@@ -139,30 +140,24 @@ export function SignupForm() {
 
     return (
         <AuthCard>
-            <header className="text-center">
-                <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Get Started</p>
-                <h2 className="text-3xl font-extrabold text-gray-900 mb-2">Create your Monet account</h2>
-                <p className="text-sm text-gray-600">Choose your role and we will set up the right workflow.</p>
+            <header className={styles.header}>
+                <p className={styles.eyebrow}>Get Started</p>
+                <h2 className={styles.title}>Create your Kafei account</h2>
+                <p className={styles.description}>Choose your role and we will set up the right workflow.</p>
             </header>
 
-            <div className="bg-gray-100 rounded-full p-1 grid grid-cols-2 gap-1">
+            <div className={styles.roleToggle}>
                 <button
                     type="button"
                     onClick={() => setRole(Role.CANDIDATE)}
-                    className={`rounded-full text-sm font-medium py-2 transition-colors ${role === Role.CANDIDATE
-                        ? "bg-black text-white"
-                        : "bg-transparent text-gray-600 hover:bg-gray-200"
-                        }`}
+                    className={`${styles.roleOption} ${role === Role.CANDIDATE ? styles.roleOptionActive : ""}`}
                 >
                     Candidate
                 </button>
                 <button
                     type="button"
                     onClick={() => setRole(Role.PROFESSIONAL)}
-                    className={`rounded-full text-sm font-medium py-2 transition-colors ${role === Role.PROFESSIONAL
-                        ? "bg-black text-white"
-                        : "bg-transparent text-gray-600 hover:bg-gray-200"
-                        }`}
+                    className={`${styles.roleOption} ${role === Role.PROFESSIONAL ? styles.roleOptionActive : ""}`}
                 >
                     Professional
                 </button>
@@ -207,8 +202,8 @@ export function SignupForm() {
                 </div>
 
                 {role === Role.CANDIDATE && (
-                    <div className="rounded-md border border-gray-300 p-4 space-y-2">
-                        <label htmlFor="resume" className="block text-sm font-medium text-gray-700">
+                    <div className={styles.uploadPanel}>
+                        <label htmlFor="resume" className={styles.uploadLabel}>
                             Resume (PDF required)
                         </label>
                         <input
@@ -219,14 +214,9 @@ export function SignupForm() {
                             required
                             disabled={isLoading}
                             onChange={(e) => setResumeFile(e.target.files?.[0] ?? null)}
-                            className="block w-full text-sm text-gray-500
-                                file:mr-4 file:py-2 file:px-4
-                                file:rounded-md file:border-0
-                                file:text-sm file:font-semibold
-                                file:bg-blue-50 file:text-blue-700
-                                hover:file:bg-blue-100"
+                            className="block w-full text-sm"
                         />
-                        <p className="text-xs text-gray-500">
+                        <p className={styles.uploadHint}>
                             {resumeFile
                                 ? `Selected file: ${resumeFile.name}`
                                 : "Upload a PDF resume (max 4MB) to continue."}
@@ -244,13 +234,13 @@ export function SignupForm() {
                 </Button>
             </form>
 
-            <div className="space-y-3">
+            <div className={styles.providerStack}>
                 <Button
                     type="button"
                     onClick={() => void handleOAuthSignup("google")}
                     disabled={isLoading}
                     variant="ghost"
-                    className="w-full justify-center gap-3 shadow-sm"
+                    className="w-full justify-center"
                 >
                     <OAuthProviderIcon provider="google" className="h-5 w-5" />
                     Continue with Google
@@ -260,16 +250,16 @@ export function SignupForm() {
                     onClick={() => void handleOAuthSignup("linkedin")}
                     disabled={isLoading}
                     variant="ghost"
-                    className="w-full justify-center gap-3 shadow-sm"
+                    className="w-full justify-center"
                 >
                     <OAuthProviderIcon provider="linkedin" className="h-5 w-5" />
                     Continue with LinkedIn
                 </Button>
             </div>
 
-            <div className="text-center text-sm">
-                <span className="text-gray-500">Already have an account? </span>
-                <Link href="/login" className="font-medium text-black hover:underline">
+            <div className={styles.footer}>
+                <span>Already have an account?</span>
+                <Link href="/login" className={styles.link}>
                     Sign in
                 </Link>
             </div>

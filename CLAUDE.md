@@ -1,8 +1,8 @@
-# CLAUDE.md - Monet 3.0 Codebase Guide for AI Assistants
+# CLAUDE.md - Kafei 3.0 Codebase Guide for AI Assistants
 
 > **Version**: 0.3.0
 
-> **Purpose**: Comprehensive guide for AI assistants working on the Monet marketplace platform
+> **Purpose**: Comprehensive guide for AI assistants working on the Kafei marketplace platform
 
 > [!IMPORTANT]
 > **Two-Process Development Required**
@@ -33,7 +33,7 @@
 
 ## Project Overview
 
-**Monet 3.0** is a full-stack marketplace platform that connects **Candidates** (job seekers) with **Professionals** (industry experts) for paid consultation calls. The platform is a two-sided marketplace (between Candidates and Professionals) with distinct portals for Candidates, Professionals, and Admins.
+**Kafei 3.0** is a full-stack marketplace platform that connects **Candidates** (job seekers) with **Professionals** (industry experts) for paid consultation calls. The platform is a two-sided marketplace (between Candidates and Professionals) with distinct portals for Candidates, Professionals, and Admins.
 
 ### Core Features
 
@@ -2729,7 +2729,7 @@ git push -u origin <branch-name>
 ### Internal Docs
 - `/docs/ARCHITECTURE.md` - System architecture
 - `/docs/QC_RUBRIC.md` - Quality control rules
-- `/docs/Monet.postman_collection.json` - API testing collection
+- `/docs/Kafei.postman_collection.json` - API testing collection
 - `/README.md` - Quick start guide
 
 ### Getting Help

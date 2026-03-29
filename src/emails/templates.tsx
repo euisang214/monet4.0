@@ -101,7 +101,7 @@ export function CalendarInviteRequestEmail({
                 />
             </EmailDetailCard>
             <EmailBodyText>
-                Monet keeps the scheduling details tight so you can focus on the conversation itself, not the logistics around it.
+                Kafei keeps the scheduling details tight so you can focus on the conversation itself, not the logistics around it.
             </EmailBodyText>
         </MonetEmailLayout>
     );
@@ -147,7 +147,7 @@ export function FeedbackRevisionEmail({
             cta={{ label: "Revise feedback", href: reviewLink }}
         >
             <EmailBodyText>
-                The current submission did not clear Monet’s quality review. Use the notes below to tighten the response and resubmit.
+                The current submission did not clear Kafei’s quality review. Use the notes below to tighten the response and resubmit.
             </EmailBodyText>
             <EmailBulletList items={reasons} />
             <EmailBodyText>
@@ -200,7 +200,7 @@ export function BookingDeclinedEmail({
                 <EmailDetailRow label="Reason" value={declineReason} />
             </EmailDetailCard>
             <EmailBodyText>
-                Monet keeps the process moving so you can quickly rebook with another professional aligned to your goals.
+                Kafei keeps the process moving so you can quickly rebook with another professional aligned to your goals.
             </EmailBodyText>
         </MonetEmailLayout>
     );
@@ -233,7 +233,7 @@ export function PasswordResetEmail({
 }: PasswordResetEmailProps) {
     return (
         <MonetEmailLayout
-            preview="Reset your Monet password"
+            preview="Reset your Kafei password"
             eyebrow="Account security"
             heading="Reset your password"
             intro="We received a request to reset your password. If that was you, use the secure link below to choose a new one."
@@ -255,7 +255,7 @@ export function VerificationEmail({
             preview="Verify your corporate email"
             eyebrow="Verification required"
             heading="Verify your corporate email"
-            intro="Enter the code below in Monet to confirm the inbox tied to your current employer."
+            intro="Enter the code below in Kafei to confirm the inbox tied to your current employer."
         >
             <EmailCodeCard code={token} />
             <EmailBodyText>

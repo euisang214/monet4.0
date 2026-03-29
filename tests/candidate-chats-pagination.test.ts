@@ -79,7 +79,7 @@ describe("candidate chat pagination", () => {
                             {
                                 id: "exp-1",
                                 title: "Principal",
-                                company: "Monet",
+                                company: "Kafei",
                                 isCurrent: true,
                                 startDate: new Date("2024-01-01"),
                             },
@@ -131,7 +131,7 @@ describe("candidate chat pagination", () => {
         expect(page.nextCursor).toBe("booking-2");
         expect(page.candidateTimezone).toBe("America/New_York");
         expect(page.items[0]?.professional.professionalProfile?.title).toBe("Principal");
-        expect(page.items[0]?.professional.professionalProfile?.employer).toBe("Monet");
+        expect(page.items[0]?.professional.professionalProfile?.employer).toBe("Kafei");
         expect(mockPrisma.booking.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
                 take: 3,
@@ -187,7 +187,7 @@ describe("candidate chat pagination", () => {
                         {
                             id: "exp-1",
                             title: "Principal",
-                            company: "Monet",
+                            company: "Kafei",
                             isCurrent: true,
                             startDate: new Date("2024-01-01"),
                         },
@@ -218,6 +218,6 @@ describe("candidate chat pagination", () => {
         );
         expect(result?.candidateTimezone).toBe("America/New_York");
         expect(result?.booking.professional.professionalProfile?.title).toBe("Principal");
-        expect(result?.booking.professional.professionalProfile?.employer).toBe("Monet");
+        expect(result?.booking.professional.professionalProfile?.employer).toBe("Kafei");
     });
 });

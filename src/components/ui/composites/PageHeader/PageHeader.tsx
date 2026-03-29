@@ -33,11 +33,8 @@ export function PageHeader({ eyebrow, title, description, actions, meta, align, 
                 <h1 className={styles.title}>{title}</h1>
                 {description ? <p className={styles.description}>{description}</p> : null}
             </div>
-            {actions || meta ? (
-                <div className={cn(actions ? "" : styles.meta)}>
-                    {actions ?? meta}
-                </div>
-            ) : null}
+            {actions ? <div className={styles.actions}>{actions}</div> : null}
+            {!actions && meta ? <div className={styles.meta}>{meta}</div> : null}
         </header>
     );
 }

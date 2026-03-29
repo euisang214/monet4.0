@@ -6,6 +6,7 @@ import styles from "./InlineNotice.module.css";
 const inlineNoticeVariants = cva(styles.notice, {
     variants: {
         tone: {
+            neutral: styles.toneNeutral,
             success: styles.toneSuccess,
             error: styles.toneError,
             warning: styles.toneWarning,
@@ -18,7 +19,7 @@ const inlineNoticeVariants = cva(styles.notice, {
 });
 
 export interface InlineNoticeProps {
-    tone?: "success" | "error" | "warning" | "info";
+    tone?: "neutral" | "success" | "error" | "warning" | "info";
     title?: React.ReactNode;
     className?: string;
     children: React.ReactNode;

@@ -1,17 +1,21 @@
 import { cva, type VariantProps } from "class-variance-authority";
+import styles from "./Button.module.css";
 
-export const buttonVariants = cva("btn transition-colors", {
+export const buttonVariants = cva(styles.button, {
     variants: {
         variant: {
-            primary: "bg-blue-600 text-white hover:bg-blue-700",
-            secondary: "bg-gray-100 text-gray-800 hover:bg-gray-200",
-            ghost: "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50",
-            danger: "bg-red-600 text-white hover:bg-red-700",
+            primary: styles.primary,
+            secondary: styles.secondary,
+            ghost: styles.ghost,
+            danger: styles.danger,
+            glass: styles.glass,
+            "glass-primary": styles.glassPrimary,
+            "glass-ghost": styles.glassGhost,
         },
         size: {
-            sm: "px-3 py-1.5 text-sm",
-            md: "px-4 py-2 text-sm",
-            lg: "px-5 py-3 text-base",
+            sm: styles.sizeSm,
+            md: styles.sizeMd,
+            lg: styles.sizeLg,
         },
     },
     defaultVariants: {

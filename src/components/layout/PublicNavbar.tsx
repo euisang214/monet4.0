@@ -8,7 +8,7 @@ export function PublicNavbar() {
         <nav className={styles.navbar}>
             <Link href="/" className={styles.navLogo}>
                 <span className={styles.logoBadge} />
-                Monet
+                Kafei
             </Link>
 
             <div className={styles.navLinks}>

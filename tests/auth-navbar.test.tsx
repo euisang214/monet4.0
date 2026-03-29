@@ -31,7 +31,7 @@ describe("AuthNavbar", () => {
     it("renders the candidate account row and marks chats active for candidate booking routes", () => {
         const html = renderToStaticMarkup(<AuthNavbar />);
 
-        expect(html).toContain("Monet");
+        expect(html).toContain("Kafei");
         expect(html).toContain("candidate@example.com");
         expect(html).toContain("Log out");
         expect(html).toContain('aria-current="page"');

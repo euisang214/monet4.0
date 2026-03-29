@@ -15,7 +15,7 @@ describe("email template rendering", () => {
             }),
         );
 
-        expect(html).toContain("Monet");
+        expect(html).toContain("Kafei");
         expect(html).toContain("Reset your password");
         expect(html).toContain("https://monet.ai/auth/reset?token=abc123");
         expect(html).toContain("Reset password");
@@ -44,7 +44,7 @@ describe("email template rendering", () => {
             }),
         );
 
-        expect(html).toContain("Monet");
+        expect(html).toContain("Kafei");
         expect(html).toContain("482901");
         expect(html).toContain("Verify your corporate email");
         expect(text).toContain("482901");

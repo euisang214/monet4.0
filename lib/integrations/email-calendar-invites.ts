@@ -215,7 +215,7 @@ function createCalendarInviteContent({
         ...(hasValidMeetingUrl ? { location: meetingUrl, url: meetingUrl } : {}),
         status: method === "CANCEL" ? "CANCELLED" : "CONFIRMED",
         busyStatus: method === "CANCEL" ? "FREE" : "BUSY",
-        organizer: { name: "Monet Platform", email: getCalendarInviteOrganizerEmail() },
+        organizer: { name: "Kafei Platform", email: getCalendarInviteOrganizerEmail() },
         attendees: [
             {
                 name: getDisplayName(recipient, role === "CANDIDATE" ? "Candidate" : "Professional"),

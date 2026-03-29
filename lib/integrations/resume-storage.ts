@@ -15,6 +15,32 @@ interface ResumeStorageConfig {
     supabaseUrl: string;
 }
 
+function getLocalStorageHint(supabaseUrl: string): string | null {
+    try {
+        const { hostname } = new URL(supabaseUrl);
+        if (hostname === "127.0.0.1" || hostname === "localhost") {
+            return "STORAGE_SUPABASE_URL points to local Supabase, but the local Supabase stack does not appear to be running. Start Supabase locally or switch STORAGE_SUPABASE_URL and STORAGE_SUPABASE_SERVICE_ROLE_KEY to your cloud project values."
+        }
+    } catch {
+        return null;
+    }
+
+    return null;
+}
+
+function formatStorageErrorMessage(config: ResumeStorageConfig, errorMessage: string): string {
+    const localHint = getLocalStorageHint(config.supabaseUrl);
+
+    return [
+        `Failed to upload resume to Supabase Storage: ${errorMessage}`,
+        `Storage URL: ${config.supabaseUrl}`,
+        `Bucket: ${config.bucket}`,
+        localHint,
+    ]
+        .filter(Boolean)
+        .join("\n");
+}
+
 function normalizeEnvValue(rawValue: string | undefined): string | null {
     const trimmed = rawValue?.trim();
     if (!trimmed) return null;
@@ -171,15 +197,20 @@ export async function uploadResume(
     const client = getResumeStorageClient(config);
     const path = getUploadPath(scope, userId);
 
-    const { error } = await client.storage
-        .from(config.bucket)
-        .upload(path, new Blob([fileBuffer], { type: contentType }), {
-            contentType,
-            upsert: false,
-        });
+    try {
+        const { error } = await client.storage
+            .from(config.bucket)
+            .upload(path, new Blob([fileBuffer], { type: contentType }), {
+                contentType,
+                upsert: false,
+            });
 
-    if (error) {
-        throw new Error(`Failed to upload resume to Supabase Storage: ${error.message}`);
+        if (error) {
+            throw new Error(formatStorageErrorMessage(config, error.message));
+        }
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(formatStorageErrorMessage(config, message));
     }
 
     return {

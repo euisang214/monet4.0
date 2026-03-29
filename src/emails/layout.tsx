@@ -198,7 +198,7 @@ export function MonetEmailLayout({
             <Body style={bodyStyle}>
                 <Container style={containerStyle}>
                     <Section style={heroStyle}>
-                        <Text style={brandStyle}>Monet</Text>
+                        <Text style={brandStyle}>Kafei</Text>
                         <Text style={eyebrowStyle}>{eyebrow}</Text>
                         <Heading style={headingStyle}>{heading}</Heading>
                         <Text style={introStyle}>{intro}</Text>
@@ -220,7 +220,7 @@ export function MonetEmailLayout({
 
                         <Hr style={{ borderColor: palette.border, margin: "24px 0" }} />
                         <Text style={footerStyle}>
-                            Monet keeps scheduling, payments, and follow-ups in one streamlined flow so every session is easy to act on.
+                            Kafei keeps scheduling, payments, and follow-ups in one streamlined flow so every session is easy to act on.
                         </Text>
                         <Text style={{ ...footerStyle, marginBottom: "28px" }}>
                             If you were not expecting this message, you can safely ignore it.

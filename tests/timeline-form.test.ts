@@ -5,7 +5,7 @@ describe("timeline-form mappers", () => {
     it("normalizes ISO timestamps before binding timeline entries to date inputs", () => {
         const [entry] = mapTimelineEntries([
             {
-                company: "Monet",
+                company: "Kafei",
                 title: "Principal",
                 startDate: "2024-01-15T00:00:00.000Z",
                 endDate: "2025-02-20T12:30:00.000Z",
@@ -22,7 +22,7 @@ describe("timeline-form mappers", () => {
     it("returns empty date values when timeline dates are invalid", () => {
         const [entry] = mapTimelineEntries([
             {
-                company: "Monet",
+                company: "Kafei",
                 title: "Principal",
                 startDate: "not-a-date",
                 endDate: null,
