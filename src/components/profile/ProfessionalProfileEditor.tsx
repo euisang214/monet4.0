@@ -25,6 +25,7 @@ import {
     getProfessionalProfileDefaultValues,
     getProfileFormErrorMessage,
     professionalProfileFormSchema,
+    type ProfessionalProfileFormInput,
     type ProfessionalProfileFormValues,
 } from "@/components/profile/shared/profileEditorSchemas";
 import {
@@ -34,6 +35,8 @@ import {
 import { ProfileBasicsFields } from "@/components/profile/shared/ProfileBasicsFields";
 import { ProfileFormNotice } from "@/components/profile/shared/ProfileFormNotice";
 import { ProfileSubmitButton } from "@/components/profile/shared/ProfileSubmitButton";
+import { type ProfessionalIndustryValue } from "@/lib/shared/professional-industries";
+import { type ProfessionalSeniorityValue } from "@/lib/shared/professional-seniority";
 
 type ProfessionalProfileEditorMode = "onboarding" | "settings";
 
@@ -42,6 +45,8 @@ export type ProfessionalProfileEditorInitialData = {
     lastName?: string | null;
     timezone?: string | null;
     bio?: string | null;
+    industry?: string | null;
+    seniority?: string | null;
     price?: number | null;
     corporateEmail?: string | null;
     verifiedAt?: string | null;
@@ -58,6 +63,8 @@ export type ProfessionalProfileSubmitPayload = {
     lastName: string;
     timezone: string;
     bio: string;
+    industry: ProfessionalIndustryValue;
+    seniority: ProfessionalSeniorityValue;
     price: number;
     corporateEmail: string;
     interests: string[];
@@ -113,7 +120,7 @@ export function ProfessionalProfileEditor({
     asyncStatus,
 }: ProfessionalProfileEditorProps) {
     const runTrackedProfileSubmit = useTrackedProfileSubmit();
-    const form = useForm<ProfessionalProfileFormValues>({
+    const form = useForm<ProfessionalProfileFormInput, unknown, ProfessionalProfileFormValues>({
         resolver: zodResolver(professionalProfileFormSchema),
         defaultValues: getProfessionalProfileDefaultValues(initialData),
     });
@@ -178,6 +185,8 @@ export function ProfessionalProfileEditor({
                     lastName: values.lastName.trim(),
                     timezone: normalizeTimezone(values.timezone),
                     bio: values.bio.trim(),
+                    industry: values.industry as ProfessionalIndustryValue,
+                    seniority: values.seniority as ProfessionalSeniorityValue,
                     price: Number.parseFloat(values.price),
                     corporateEmail: effectiveCorporateEmail,
                     interests: normalizeCommaSeparated(values.interestsText),
@@ -263,6 +272,8 @@ export function ProfessionalProfileEditor({
                     errors={form.formState.errors}
                     defaults={{
                         bio: currentValues.bio,
+                        industry: currentValues.industry,
+                        seniority: currentValues.seniority,
                         price: currentValues.price,
                         corporateEmail: currentValues.corporateEmail,
                         interestsText: currentValues.interestsText,

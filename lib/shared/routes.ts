@@ -67,6 +67,7 @@ export const appRoutes = {
         professional: {
             requestConfirmAndSchedule: (bookingId: string) => `/api/professional/requests/${bookingId}/confirm-and-schedule`,
             requestDecline: (bookingId: string) => `/api/professional/requests/${bookingId}/decline`,
+            requestResume: (bookingId: string) => `/api/professional/requests/${bookingId}/resume`,
             requestReschedule: (bookingId: string) => `/api/professional/requests/${bookingId}/reschedule`,
             requestRescheduleRequest: (bookingId: string) => `/api/professional/requests/${bookingId}/reschedule/request`,
             requestRescheduleConfirm: (bookingId: string) => `/api/professional/requests/${bookingId}/reschedule/confirm`,

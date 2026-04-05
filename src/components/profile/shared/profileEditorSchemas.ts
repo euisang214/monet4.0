@@ -3,6 +3,8 @@
 import { z } from "zod";
 import { EducationSchema, ExperienceSchema } from "@/lib/types/profile-schemas";
 import { normalizeTimezone } from "@/lib/utils/supported-timezones";
+import { PROFESSIONAL_INDUSTRIES, isProfessionalIndustry } from "@/lib/shared/professional-industries";
+import { PROFESSIONAL_SENIORITIES, isProfessionalSeniority } from "@/lib/shared/professional-seniority";
 import {
     createEmptyEducationEntry,
     createEmptyExperienceEntry,
@@ -32,6 +34,8 @@ type ProfessionalProfileInitialValues = {
     lastName?: string | null;
     timezone?: string | null;
     bio?: string | null;
+    industry?: string | null;
+    seniority?: string | null;
     price?: number | null;
     corporateEmail?: string | null;
     interests?: string[] | null;
@@ -145,6 +149,16 @@ export const professionalProfileFormSchema = z.object({
     lastName: z.string().trim().min(1, "Last name is required."),
     timezone: z.string().trim().min(1, "Timezone is required."),
     bio: z.string().trim().min(1, "Bio is required."),
+    industry: z
+        .string()
+        .trim()
+        .min(1, "Industry is required.")
+        .refine(isProfessionalIndustry, `Choose one of: ${PROFESSIONAL_INDUSTRIES.join(", ")}.`),
+    seniority: z
+        .string()
+        .trim()
+        .min(1, "Seniority is required.")
+        .refine(isProfessionalSeniority, `Choose one of: ${PROFESSIONAL_SENIORITIES.join(", ")}.`),
     price: z
         .string()
         .trim()
@@ -182,6 +196,7 @@ export const professionalProfileFormSchema = z.object({
 
 export type CandidateProfileFormValues = z.infer<typeof candidateProfileFormSchema>;
 export type CandidateProfileFormInput = z.input<typeof candidateProfileFormSchema>;
+export type ProfessionalProfileFormInput = z.input<typeof professionalProfileFormSchema>;
 export type ProfessionalProfileFormValues = z.infer<typeof professionalProfileFormSchema>;
 
 export function getCandidateProfileDefaultValues(
@@ -201,12 +216,14 @@ export function getCandidateProfileDefaultValues(
 
 export function getProfessionalProfileDefaultValues(
     initialData?: ProfessionalProfileInitialValues,
-): ProfessionalProfileFormValues {
+): ProfessionalProfileFormInput {
     return {
         firstName: initialData?.firstName || "",
         lastName: initialData?.lastName || "",
         timezone: normalizeTimezone(initialData?.timezone),
         bio: initialData?.bio || "",
+        industry: initialData?.industry || "",
+        seniority: initialData?.seniority || "",
         price: typeof initialData?.price === "number" ? initialData.price.toString() : "",
         corporateEmail: initialData?.corporateEmail || "",
         interestsText: initialData?.interests?.join(", ") || "",

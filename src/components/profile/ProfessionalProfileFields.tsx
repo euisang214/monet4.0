@@ -1,13 +1,21 @@
 "use client";
 
 import type { FieldErrors, UseFormRegister } from "react-hook-form";
-import { Field, TextAreaInput, TextInput } from "@/components/ui";
-import type { ProfessionalProfileFormValues } from "@/components/profile/shared/profileEditorSchemas";
+import { Field, SelectInput, TextAreaInput, TextInput } from "@/components/ui";
+import type { ProfessionalProfileFormInput } from "@/components/profile/shared/profileEditorSchemas";
+import {
+    PROFESSIONAL_INDUSTRIES,
+    PROFESSIONAL_INDUSTRY_LABELS,
+} from "@/lib/shared/professional-industries";
+import {
+    PROFESSIONAL_SENIORITIES,
+    PROFESSIONAL_SENIORITY_LABELS,
+} from "@/lib/shared/professional-seniority";
 
 type ProfessionalProfileFieldsProps = {
-    register: UseFormRegister<ProfessionalProfileFormValues>;
-    errors?: FieldErrors<ProfessionalProfileFormValues>;
-    defaults: Pick<ProfessionalProfileFormValues, "bio" | "price" | "corporateEmail" | "interestsText">;
+    register: UseFormRegister<ProfessionalProfileFormInput>;
+    errors?: FieldErrors<ProfessionalProfileFormInput>;
+    defaults: Pick<ProfessionalProfileFormInput, "bio" | "industry" | "seniority" | "price" | "corporateEmail" | "interestsText">;
     onCorporateEmailChange?: (value: string) => void;
     showCorporateEmail?: boolean;
     disabled?: boolean;
@@ -41,6 +49,56 @@ export function ProfessionalProfileFields({
                         tall
                         {...register("bio")}
                     />
+                </Field>
+            </div>
+
+            <div>
+                <Field
+                    label="Industry"
+                    htmlFor="professional-industry"
+                    hint="Choose the industry candidates should associate with your profile."
+                    error={errors?.industry?.message}
+                >
+                    <SelectInput
+                        id="professional-industry"
+                        required
+                        disabled={disabled}
+                        invalid={Boolean(errors?.industry)}
+                        defaultValue={defaults.industry}
+                        {...register("industry")}
+                    >
+                        <option value="">Select an industry</option>
+                        {PROFESSIONAL_INDUSTRIES.map((industry) => (
+                            <option key={industry} value={industry}>
+                                {PROFESSIONAL_INDUSTRY_LABELS[industry]}
+                            </option>
+                        ))}
+                    </SelectInput>
+                </Field>
+            </div>
+
+            <div>
+                <Field
+                    label="Seniority"
+                    htmlFor="professional-seniority"
+                    hint="Choose the level candidates should associate with your current role."
+                    error={errors?.seniority?.message}
+                >
+                    <SelectInput
+                        id="professional-seniority"
+                        required
+                        disabled={disabled}
+                        invalid={Boolean(errors?.seniority)}
+                        defaultValue={defaults.seniority}
+                        {...register("seniority")}
+                    >
+                        <option value="">Select seniority</option>
+                        {PROFESSIONAL_SENIORITIES.map((seniority) => (
+                            <option key={seniority} value={seniority}>
+                                {PROFESSIONAL_SENIORITY_LABELS[seniority]}
+                            </option>
+                        ))}
+                    </SelectInput>
                 </Field>
             </div>
 

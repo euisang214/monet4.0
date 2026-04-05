@@ -6,8 +6,9 @@
     "node": "20.x"
   },
   "scripts": {
-    "dev": "next dev --webpack",
+    "dev": "next dev",
     "dev:turbo": "next dev",
+    "dev:webpack": "next dev --webpack",
     "dev:queue": "tsx scripts/dev-queue.ts",
     "build": "next build",
     "vercel-build": "bash scripts/vercel-build.sh",

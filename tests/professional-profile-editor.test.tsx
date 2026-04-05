@@ -11,6 +11,8 @@ describe("ProfessionalProfileEditor", () => {
                 initialData={{
                     timezone: "America/New_York",
                     bio: "Mentor",
+                    industry: "consulting",
+                    seniority: "principal",
                     price: 200,
                     corporateEmail: "pro@example.com",
                     interests: ["Mentorship"],
@@ -52,6 +54,8 @@ describe("ProfessionalProfileEditor", () => {
         expect(html).toContain("Stripe payouts are not enabled yet.");
         expect(html).toContain("Connect Stripe for Payouts");
         expect(html).toContain("Complete onboarding");
+        expect(html).toContain('id="professional-industry"');
+        expect(html).toContain('id="professional-seniority"');
         expect(html).toContain('id="professional-corporate-email"');
     });
 
@@ -62,6 +66,8 @@ describe("ProfessionalProfileEditor", () => {
                 initialData={{
                     timezone: "America/New_York",
                     bio: "Mentor",
+                    industry: "consulting",
+                    seniority: "principal",
                     price: 200,
                     corporateEmail: "pro@example.com",
                     interests: ["Mentorship"],
@@ -116,6 +122,8 @@ describe("ProfessionalProfileEditor", () => {
                     lastName: "Lee",
                     timezone: "America/New_York",
                     bio: "Mentor",
+                    industry: "consulting",
+                    seniority: "principal",
                     price: 200,
                     corporateEmail: "pro@example.com",
                     interests: ["Mentorship"],
@@ -165,6 +173,8 @@ describe("ProfessionalProfileEditor", () => {
                     lastName: "Lee",
                     timezone: "America/New_York",
                     bio: "Mentor",
+                    industry: "consulting",
+                    seniority: "principal",
                     price: 200,
                     corporateEmail: "pro@example.com",
                     interests: ["Mentorship"],

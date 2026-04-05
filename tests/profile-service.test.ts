@@ -60,6 +60,8 @@ describe('ProfileService', () => {
 
             await ProfileService.updateProfessionalProfile('pro1', {
                 bio: 'A bio',
+                industry: 'consulting',
+                seniority: 'principal',
                 price: 50,
                 corporateEmail: 'pro@test.com',
                 timezone: 'America/New_York',
@@ -98,6 +100,8 @@ describe('ProfileService', () => {
                 'pro1',
                 expect.objectContaining({
                     bio: 'A bio',
+                    industry: 'consulting',
+                    seniority: 'principal',
                     priceCents: 5000,
                     availabilityPrefs: { window: 'weekday' },
                     corporateEmail: 'pro@test.com',
@@ -127,6 +131,8 @@ describe('ProfileService', () => {
             mockPrisma.professionalProfile.findUnique.mockResolvedValue({
                 userId: 'pro1',
                 bio: 'A bio',
+                industry: 'consulting',
+                seniority: 'principal',
                 priceCents: 10000,
                 corporateEmail: 'pro@test.com',
                 timezone: 'America/New_York',

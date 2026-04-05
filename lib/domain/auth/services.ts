@@ -33,6 +33,7 @@ async function createRoleProfile(
             data: {
                 userId,
                 bio: '',
+                industry: null,
                 priceCents: 0,
                 corporateEmail: email,
             },

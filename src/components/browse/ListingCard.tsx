@@ -3,6 +3,7 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { formatRoleAtCompany } from "@/lib/domain/users/identity-labels";
+import { formatProfessionalIndustry } from "@/lib/shared/professional-industries";
 import { Button, SurfaceCard } from "@/components/ui";
 import styles from "./ListingCard.module.css";
 
@@ -11,6 +12,7 @@ interface ListingCardProps {
         userId: string;
         title: string;
         employer: string;
+        industry?: string | null;
         priceCents: number;
         bio: string;
     };
@@ -19,6 +21,7 @@ interface ListingCardProps {
 export function ListingCard({ professional }: ListingCardProps) {
     const router = useRouter();
     const professionalLabel = formatRoleAtCompany(professional.title, professional.employer, "Professional");
+    const industryLabel = formatProfessionalIndustry(professional.industry);
 
     const formattedPrice = new Intl.NumberFormat("en-US", {
         style: "currency",
@@ -33,6 +36,7 @@ export function ListingCard({ professional }: ListingCardProps) {
                 <p className={styles.eyebrow}>Curated mentor</p>
                 <div>
                     <h4 className="text-base font-semibold text-gray-900">{professionalLabel}</h4>
+                    {industryLabel ? <p className={styles.industry}>{industryLabel}</p> : null}
                 </div>
             </div>
 

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { CandidateAvailabilityPanel } from '@/components/bookings/CandidateAvailabilityPanel';
 import type { SlotInterval } from '@/components/bookings/calendar/types';
 import { useTrackedCandidateBookingActions } from '@/components/bookings/hooks/useTrackedCandidateBookingActions';
+import { Button } from '@/components/ui/primitives/Button';
 
 interface ReschedulePageClientProps {
     bookingId: string;
@@ -96,19 +97,21 @@ export function ReschedulePageClient({
                 )}
 
                 <div className="mt-6 flex gap-3">
-                    <button
+                    <Button
+                        type="button"
                         onClick={() => router.back()}
-                        className="px-4 py-2 border rounded text-gray-700 hover:bg-gray-50"
+                        variant="secondary"
                     >
                         Cancel
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                        type="button"
                         onClick={handleSubmit}
                         disabled={isSubmitting || availabilitySlots.length === 0}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                        variant="primary"
                     >
                         {isSubmitting ? 'Submitting...' : 'Submit Request'}
-                    </button>
+                    </Button>
                 </div>
             </div>
         </div>

@@ -167,6 +167,8 @@ describe("profile-upsert-service", () => {
             firstName: "Morgan",
             lastName: "Lee",
             bio: "Mentor",
+            industry: "consulting",
+            seniority: "principal",
             price: 120,
             corporateEmail: "pro@example.com",
             timezone: "America/New_York",
@@ -205,6 +207,8 @@ describe("profile-upsert-service", () => {
         expect(upsertProfessionalProfileMock).toHaveBeenCalledWith(
             "pro-1",
             expect.objectContaining({
+                industry: "consulting",
+                seniority: "principal",
                 priceCents: 12000,
                 availabilityPrefs: { windows: ["weekday"] },
                 corporateEmail: "pro@example.com",
@@ -233,6 +237,8 @@ describe("profile-upsert-service", () => {
             firstName: "Morgan",
             lastName: "Lee",
             bio: "Mentor",
+            industry: "finance",
+            seniority: "principal",
             price: 120,
             corporateEmail: "new@example.com",
             timezone: "America/New_York",

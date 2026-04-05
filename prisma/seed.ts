@@ -69,6 +69,20 @@ const COMPANIES = [
     { employer: 'Morgan Stanley', title: 'Managing Director' },
 ]
 
+const PROFESSIONAL_INDUSTRIES = ['finance', 'consulting', 'law'] as const
+const PROFESSIONAL_SENIORITIES = [
+    'vice_president',
+    'senior_consultant',
+    'principal',
+    'manager',
+    'senior_manager',
+    'principal',
+    'manager',
+    'manager',
+    'director',
+    'managing_director',
+] as const
+
 const INTERESTS = [
     ['Technology', 'Career Growth'],
     ['Finance', 'Investment Banking'],
@@ -501,6 +515,8 @@ async function main() {
         const school = SCHOOLS[(i + 4) % SCHOOLS.length] // Different schools than candidates
         const schoolSecondary = SCHOOLS[(i + 6) % SCHOOLS.length]
         const timezone = PROFESSIONAL_TIMEZONES[(i - 1) % PROFESSIONAL_TIMEZONES.length]
+        const industry = PROFESSIONAL_INDUSTRIES[(i - 1) % PROFESSIONAL_INDUSTRIES.length]
+        const seniority = PROFESSIONAL_SENIORITIES[(i - 1) % PROFESSIONAL_SENIORITIES.length]
 
         const professional = await prisma.user.upsert({
             where: { email },
@@ -519,6 +535,8 @@ async function main() {
                 professionalProfile: {
                     create: {
                         bio,
+                        industry,
+                        seniority,
                         priceCents: 10000 + (i * 2500), // $125 to $350 range
                         corporateEmail: `pro${i}@${company.employer.toLowerCase().replace(/\s+/g, '')}.local`,
                         verifiedAt: new Date(),

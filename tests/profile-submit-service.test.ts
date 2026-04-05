@@ -103,7 +103,7 @@ describe('submitProfilePayload', () => {
     });
 
     it('blocks professional onboarding when payouts are not ready', async () => {
-        const parsedPayload = { timezone: 'America/New_York', corporateEmail: 'pro@example.com' };
+        const parsedPayload = { timezone: 'America/New_York', corporateEmail: 'pro@example.com', industry: 'consulting', seniority: 'principal' };
         professionalSafeParseMock.mockReturnValue({ success: true, data: parsedPayload });
         userFindUniqueMock.mockResolvedValueOnce({ onboardingCompleted: false });
         getProfessionalStripeStatusMock.mockResolvedValue({ isPayoutReady: false });
@@ -124,7 +124,7 @@ describe('submitProfilePayload', () => {
     });
 
     it('blocks professional onboarding when corporate email is not verified', async () => {
-        const parsedPayload = { timezone: 'America/New_York', corporateEmail: 'pro@example.com' };
+        const parsedPayload = { timezone: 'America/New_York', corporateEmail: 'pro@example.com', industry: 'consulting', seniority: 'principal' };
         professionalSafeParseMock.mockReturnValue({ success: true, data: parsedPayload });
         userFindUniqueMock.mockResolvedValueOnce({
             onboardingCompleted: false,
@@ -152,7 +152,7 @@ describe('submitProfilePayload', () => {
     });
 
     it('blocks professional onboarding when verified email does not match submitted payload', async () => {
-        const parsedPayload = { timezone: 'America/New_York', corporateEmail: 'new@example.com' };
+        const parsedPayload = { timezone: 'America/New_York', corporateEmail: 'new@example.com', industry: 'consulting', seniority: 'principal' };
         professionalSafeParseMock.mockReturnValue({ success: true, data: parsedPayload });
         userFindUniqueMock.mockResolvedValueOnce({
             onboardingCompleted: false,
@@ -180,7 +180,7 @@ describe('submitProfilePayload', () => {
     });
 
     it('allows professional onboarding when corporate email is verified and matches payload', async () => {
-        const parsedPayload = { timezone: 'America/New_York', corporateEmail: 'pro@example.com' };
+        const parsedPayload = { timezone: 'America/New_York', corporateEmail: 'pro@example.com', industry: 'consulting', seniority: 'principal' };
         professionalSafeParseMock.mockReturnValue({ success: true, data: parsedPayload });
         userFindUniqueMock
             .mockResolvedValueOnce({
@@ -217,7 +217,7 @@ describe('submitProfilePayload', () => {
     });
 
     it('upserts professional profile and returns onboarding state for settings mode', async () => {
-        const parsedPayload = { timezone: 'America/New_York' };
+        const parsedPayload = { timezone: 'America/New_York', industry: 'consulting', seniority: 'principal' };
         professionalSafeParseMock.mockReturnValue({ success: true, data: parsedPayload });
         userFindUniqueMock.mockResolvedValueOnce({
             onboardingRequired: true,

@@ -65,6 +65,8 @@ export async function createE2EActors(): Promise<E2EActors> {
             professionalProfile: {
                 create: {
                     bio: 'I test things',
+                    industry: 'consulting',
+                    seniority: 'principal',
                     priceCents: 10000,
                     corporateEmail: `pro-corp-${unique}@example.com`,
                 },

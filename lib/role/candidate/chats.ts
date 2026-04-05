@@ -31,25 +31,51 @@ const STATUS_BY_SECTION: Record<CandidateChatSection, BookingStatus[]> = {
     other: [],
 };
 
-const candidateChatInclude = {
+const professionalListIdentitySelect = {
     professional: {
-        include: {
+        select: {
+            firstName: true,
+            lastName: true,
             professionalProfile: {
-                include: {
+                select: {
                     experience: {
                         where: { type: "EXPERIENCE" },
                         orderBy: [{ isCurrent: "desc" }, { startDate: "desc" }, { id: "desc" }],
+                        take: 1,
+                        select: {
+                            id: true,
+                            title: true,
+                            company: true,
+                            startDate: true,
+                            endDate: true,
+                            isCurrent: true,
+                        },
                     },
                 },
             },
         },
     },
-    payment: true,
-    feedback: true,
-} satisfies Prisma.BookingInclude;
+    feedback: {
+        select: {
+            bookingId: true,
+        },
+    },
+} satisfies Prisma.BookingSelect;
+
+const candidateChatPageSelect = {
+    id: true,
+    status: true,
+    priceCents: true,
+    startAt: true,
+    endAt: true,
+    expiresAt: true,
+    zoomJoinUrl: true,
+    candidateZoomJoinUrl: true,
+    ...professionalListIdentitySelect,
+} satisfies Prisma.BookingSelect;
 
 type CandidateChatBookingRaw = Prisma.BookingGetPayload<{
-    include: typeof candidateChatInclude;
+    select: typeof candidateChatPageSelect;
 }>;
 
 type ProfessionalProfileWithRole = NonNullable<
@@ -66,8 +92,38 @@ export type CandidateChatBooking = Omit<CandidateChatBookingRaw, "professional">
 };
 
 export type CandidateBookingDetails = {
-    booking: CandidateChatBooking;
+    booking: CandidateBookingDetail;
     candidateTimezone: string;
+};
+
+type CandidateBookingDetailRaw = Prisma.BookingGetPayload<{
+    include: {
+        candidate: {
+            select: {
+                timezone: true;
+            };
+        };
+        professional: {
+            include: {
+                professionalProfile: {
+                    include: {
+                        experience: {
+                            where: { type: "EXPERIENCE" };
+                            orderBy: Prisma.ExperienceOrderByWithRelationInput[];
+                        };
+                    };
+                };
+            };
+        };
+        payment: true;
+        feedback: true;
+    };
+}>;
+
+export type CandidateBookingDetail = Omit<CandidateBookingDetailRaw, "professional"> & {
+    professional: Omit<CandidateBookingDetailRaw["professional"], "professionalProfile"> & {
+        professionalProfile: ProfessionalProfileWithRole | null;
+    };
 };
 
 function withDerivedProfessionalRole(booking: CandidateChatBookingRaw): CandidateChatBooking {
@@ -75,6 +131,33 @@ function withDerivedProfessionalRole(booking: CandidateChatBookingRaw): Candidat
         return booking as unknown as CandidateChatBooking;
     }
 
+    const profile = booking.professional.professionalProfile;
+    if (!profile) {
+        return {
+            ...booking,
+            professional: {
+                ...booking.professional,
+                professionalProfile: null,
+            },
+        };
+    }
+
+    const role = deriveCurrentRoleFromExperiences(profile.experience);
+
+    return {
+        ...booking,
+        professional: {
+            ...booking.professional,
+            professionalProfile: {
+                ...profile,
+                title: role.title,
+                employer: role.employer,
+            },
+        },
+    };
+}
+
+function withDerivedProfessionalRoleForDetails(booking: CandidateBookingDetailRaw): CandidateBookingDetail {
     const profile = booking.professional.professionalProfile;
     if (!profile) {
         return {
@@ -216,7 +299,7 @@ export async function getCandidateChatSectionPage(
     });
     const buildQuery = (cursor?: string) => ({
         where: buildSectionWhere(candidateId, section, now),
-        include: candidateChatInclude,
+        select: candidateChatPageSelect,
         orderBy: buildSectionOrderBy(section),
         take: take + 1,
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -293,7 +376,7 @@ export async function getCandidateBookingDetails(
     }
 
     return {
-        booking: withDerivedProfessionalRole(booking),
+        booking: withDerivedProfessionalRoleForDetails(booking),
         candidateTimezone: normalizeTimezone(booking.candidate?.timezone),
     };
 }

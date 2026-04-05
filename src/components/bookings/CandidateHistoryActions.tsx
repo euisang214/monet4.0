@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useTrackedCandidateBookingActions } from '@/components/bookings/hooks/useTrackedCandidateBookingActions';
+import { Button, buttonVariants } from '@/components/ui/primitives/Button';
 import { appRoutes } from '@/lib/shared/routes';
 import { getBookingActionVisibility } from '@/lib/shared/booking-actions';
 
@@ -57,60 +58,65 @@ export function CandidateHistoryActions({
             <div className="flex gap-2 flex-wrap">
                 <Link
                     href={appRoutes.candidate.bookingDetails(bookingId)}
-                    className="btn bg-blue-600 text-white hover:bg-blue-700 text-sm"
+                    className={buttonVariants({ variant: 'primary', size: 'sm' })}
                 >
                     View Booking
                 </Link>
 
                 {showJoin ? (
-                    <button
+                    <Button
                         type="button"
                         onClick={handleJoin}
-                        className="btn border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm"
+                        variant="secondary"
+                        size="sm"
                     >
                         Join Zoom Call
-                    </button>
+                    </Button>
                 ) : null}
 
                 {showReschedule ? (
-                    <button
+                    <Button
                         type="button"
                         onClick={() => router.push(appRoutes.candidate.bookingReschedule(bookingId))}
-                        className="btn border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm"
+                        variant="secondary"
+                        size="sm"
                     >
                         Reschedule
-                    </button>
+                    </Button>
                 ) : null}
 
                 {showCancel ? (
-                    <button
+                    <Button
                         type="button"
                         onClick={handleCancel}
                         disabled={isCancelling}
-                        className="btn bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 text-sm disabled:opacity-60"
+                        variant="danger"
+                        size="sm"
                     >
                         {isCancelling ? 'Cancelling...' : 'Cancel Booking'}
-                    </button>
+                    </Button>
                 ) : null}
 
                 {showDispute ? (
-                    <button
+                    <Button
                         type="button"
                         onClick={() => router.push(appRoutes.candidate.bookingDispute(bookingId))}
-                        className="btn border border-orange-200 bg-white text-orange-700 hover:bg-orange-50 text-sm"
+                        variant="secondary"
+                        size="sm"
                     >
                         Report Issue
-                    </button>
+                    </Button>
                 ) : null}
 
                 {showReview ? (
-                    <button
+                    <Button
                         type="button"
                         onClick={() => router.push(appRoutes.candidate.bookingReview(bookingId))}
-                        className="btn bg-blue-600 text-white hover:bg-blue-700 text-sm"
+                        variant="primary"
+                        size="sm"
                     >
                         Leave Review
-                    </button>
+                    </Button>
                 ) : null}
             </div>
 

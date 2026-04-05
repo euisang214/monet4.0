@@ -8,6 +8,8 @@ import {
     upsertProfessionalProfile,
 } from "@/lib/domain/users/service";
 import { EducationSchema, ExperienceSchema } from "@/lib/types/profile-schemas";
+import { PROFESSIONAL_INDUSTRIES, isProfessionalIndustry } from "@/lib/shared/professional-industries";
+import { PROFESSIONAL_SENIORITIES, isProfessionalSeniority } from "@/lib/shared/professional-seniority";
 
 export const candidateProfilePayloadSchema = z
     .object({
@@ -27,6 +29,16 @@ export const professionalProfilePayloadSchema = z
         firstName: z.string().trim().min(1, "First name is required"),
         lastName: z.string().trim().min(1, "Last name is required"),
         bio: z.string().trim().min(1, "Bio is required"),
+        industry: z
+            .string()
+            .trim()
+            .min(1, "Industry is required")
+            .refine(isProfessionalIndustry, `Industry must be one of: ${PROFESSIONAL_INDUSTRIES.join(", ")}`),
+        seniority: z
+            .string()
+            .trim()
+            .min(1, "Seniority is required")
+            .refine(isProfessionalSeniority, `Seniority must be one of: ${PROFESSIONAL_SENIORITIES.join(", ")}`),
         price: z.coerce.number().positive("Price must be greater than zero"),
         corporateEmail: z.string().email("Corporate email is invalid"),
         timezone: z.string().trim().refine(isSupportedTimezone, "Select a valid timezone"),
@@ -162,6 +174,8 @@ export async function upsertProfessionalProfileFromPayload(
 
     await upsertProfessionalProfile(userId, {
         bio: payload.bio.trim(),
+        industry: payload.industry,
+        seniority: payload.seniority,
         priceCents: Math.round(payload.price * 100),
         availabilityPrefs: (existingProfile?.availabilityPrefs ?? {}) as Record<string, unknown>,
         corporateEmail: trimmedCorporateEmail,

@@ -17,6 +17,28 @@ enum Role {
   PROFESSIONAL
 }
 
+enum ProfessionalIndustry {
+  finance
+  consulting
+  law
+}
+
+enum ProfessionalSeniority {
+  analyst
+  associate
+  consultant
+  senior_associate
+  senior_consultant
+  manager
+  senior_manager
+  vice_president
+  director
+  managing_director
+  principal
+  counsel
+  partner
+}
+
 enum BookingStatus {
   draft
   requested
@@ -159,7 +181,12 @@ model Booking {
   zoomAttendanceEvents ZoomAttendanceEvent[]
   
   @@index([candidateId])
+  @@index([candidateId, status, startAt])
+  @@index([candidateId, status, expiresAt])
   @@index([professionalId])
+  @@index([professionalId, status, startAt])
+  @@index([professionalId, status, expiresAt])
+  @@index([professionalId, status, endAt])
 }
 
 model Payment {
@@ -226,6 +253,8 @@ model CallFeedback {
 model ProfessionalProfile {
   userId            String       @id
   bio               String
+  industry          ProfessionalIndustry?
+  seniority         ProfessionalSeniority?
   priceCents        Int
   availabilityPrefs Json         @default("{}")
   verifiedAt        DateTime?
@@ -397,6 +426,7 @@ model Availability {
   user     User     @relation(fields: [userId], references: [id])
   
   @@index([userId, start])
+  @@index([userId, busy, start])
 }
 
 model Verification {
@@ -508,6 +538,8 @@ view ListingCardView {
   userId          String @unique
   employer        String
   title           String
+  industry        ProfessionalIndustry?
+  seniority       ProfessionalSeniority?
   bio             String
   priceCents      Int
 }

@@ -150,6 +150,7 @@ export function SignupForm() {
                 <button
                     type="button"
                     onClick={() => setRole(Role.CANDIDATE)}
+                    aria-pressed={role === Role.CANDIDATE}
                     className={`${styles.roleOption} ${role === Role.CANDIDATE ? styles.roleOptionActive : ""}`}
                 >
                     Candidate
@@ -157,6 +158,7 @@ export function SignupForm() {
                 <button
                     type="button"
                     onClick={() => setRole(Role.PROFESSIONAL)}
+                    aria-pressed={role === Role.PROFESSIONAL}
                     className={`${styles.roleOption} ${role === Role.PROFESSIONAL ? styles.roleOptionActive : ""}`}
                 >
                     Professional

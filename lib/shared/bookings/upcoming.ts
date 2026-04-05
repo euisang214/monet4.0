@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/core/db';
 import { BookingStatus, Prisma } from '@prisma/client';
 import { formatCandidateForProfessionalView } from '@/lib/domain/users/identity-labels';
-import { signCandidateResumeUrls } from '@/lib/shared/resume-signing';
+import { appRoutes } from '@/lib/shared/routes';
 
 /**
  * Upcoming Booking Queries
@@ -24,6 +24,7 @@ const candidateDescriptorSelect = {
             experience: {
                 where: { type: 'EXPERIENCE' },
                 orderBy: [{ isCurrent: 'desc' }, { startDate: 'desc' }, { id: 'desc' }],
+                take: 1,
                 select: {
                     id: true,
                     title: true,
@@ -35,6 +36,7 @@ const candidateDescriptorSelect = {
             },
             education: {
                 orderBy: [{ isCurrent: 'desc' }, { startDate: 'desc' }, { id: 'desc' }],
+                take: 1,
                 select: {
                     id: true,
                     school: true,
@@ -73,20 +75,30 @@ export async function getUpcomingBookings(
                 ],
             },
         },
-        include: {
+        select: {
+            id: true,
+            status: true,
+            priceCents: true,
+            startAt: true,
+            endAt: true,
+            expiresAt: true,
+            zoomJoinUrl: true,
+            candidateZoomJoinUrl: true,
             candidate: {
                 select: candidateDescriptorSelect,
             },
             professional: {
-                include: { professionalProfile: true },
+                select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    professionalProfile: true,
+                },
             },
-            payment: true,
         },
         orderBy: { startAt: 'asc' },
         take: limit,
     });
-
-    await signCandidateResumeUrls(bookings);
 
     if (role === 'PROFESSIONAL') {
         return bookings.map((booking) => ({
@@ -128,22 +140,20 @@ export async function getPendingRequests(
                 }
                 : { status: BookingStatus.requested }),
         },
-        include: {
+        select: {
+            id: true,
+            status: true,
+            priceCents: true,
+            expiresAt: true,
             candidate: {
                 select: candidateDescriptorSelect,
             },
-            professional: {
-                include: { professionalProfile: true },
-            },
-            payment: true,
         },
         orderBy: role === 'PROFESSIONAL'
             ? [{ status: 'asc' }, { expiresAt: 'asc' }]
             : { expiresAt: 'asc' }, // Expires soonest first
         take: limit,
     });
-
-    await signCandidateResumeUrls(bookings);
 
     if (role === 'PROFESSIONAL') {
         return bookings.map((booking) => ({
@@ -154,6 +164,9 @@ export async function getPendingRequests(
                 experience: booking.candidate.candidateProfile?.experience,
                 education: booking.candidate.candidateProfile?.education,
             }),
+            resumeHref: booking.candidate.candidateProfile?.resumeUrl
+                ? appRoutes.api.professional.requestResume(booking.id)
+                : null,
         }));
     }
 

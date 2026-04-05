@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { auth } from '@/auth';
 import { CandidateBrowse } from '@/lib/role/candidate/browse';
 import { notFound, redirect } from 'next/navigation';
@@ -9,6 +9,7 @@ import {
     formatProfessionalForCandidateView,
     formatRoleAtCompany,
 } from '@/lib/domain/users/identity-labels';
+import { formatProfessionalIndustry } from '@/lib/shared/professional-industries';
 import { buttonVariants } from '@/components/ui/primitives/Button';
 import styles from './page.module.css';
 
@@ -74,10 +75,7 @@ export default async function ProfessionalProfilePage(props: {
         redirect(`/login?callbackUrl=${appRoutes.candidate.professionalDetails(params.id)}`);
     }
 
-    const [profile, reviews] = await Promise.all([
-        CandidateBrowse.getProfessionalDetails(params.id, session.user.id),
-        CandidateBrowse.getProfessionalReviews(params.id),
-    ]);
+    const profile = await CandidateBrowse.getProfessionalDetails(params.id, session.user.id);
 
     if (!profile) {
         notFound();
@@ -90,6 +88,7 @@ export default async function ProfessionalProfilePage(props: {
         revealName: !profile.isRedacted,
     });
     const roleLabel = formatRoleAtCompany(profile.title, profile.employer, 'Professional');
+    const industryLabel = formatProfessionalIndustry(profile.industry);
     const experienceItems = [...(profile.experience || [])].sort(compareTimelineItems);
     const educationItems = [...(profile.education || [])].sort(compareTimelineItems);
     const activityItems = [...(profile.activities || [])].sort(compareTimelineItems);
@@ -104,7 +103,7 @@ export default async function ProfessionalProfilePage(props: {
             <PageHeader
                 eyebrow="Professional profile"
                 title={professionalHeader}
-                description={roleLabel}
+                description={industryLabel ? `${roleLabel} - ${industryLabel}` : roleLabel}
                 meta={formattedPrice}
             />
 
@@ -113,6 +112,11 @@ export default async function ProfessionalProfilePage(props: {
                     <SurfaceCard tone="accent">
                         <section>
                             <h2 className="text-lg font-semibold text-gray-900 mb-3">About</h2>
+                            {industryLabel ? (
+                                <p className="mb-3 text-sm font-medium uppercase tracking-wide text-gray-500">
+                                    Industry: {industryLabel}
+                                </p>
+                            ) : null}
                             <p className={`whitespace-pre-line text-gray-700 ${styles.aboutCopy}`}>
                                 {profile.bio || 'No bio provided yet.'}
                             </p>
@@ -180,40 +184,9 @@ export default async function ProfessionalProfilePage(props: {
                     ) : null}
 
                     <SurfaceCard>
-                        <section>
-                            <h3 className="text-xl font-bold text-gray-900 mb-5">Reviews ({reviews.length})</h3>
-                            {reviews.length === 0 ? (
-                                <EmptyState
-                                    badge="No reviews yet"
-                                    title="This professional has no submitted ratings"
-                                    description="Reviews appear here after completed consultations."
-                                    layout="inline"
-                                />
-                            ) : (
-                                <div className="space-y-6 mt-3">
-                                    {reviews.map((review) => (
-                                        <SurfaceCard key={review.bookingId} as="article" tone="muted">
-                                            <div className="flex items-start justify-between gap-4 mb-2">
-                                                <div>
-                                                    <p className="text-sm font-semibold text-gray-900">
-                                                        {review.reviewerName || 'Anonymous Reviewer'}
-                                                    </p>
-                                                    <p className="text-gray-500 text-sm">
-                                                        {new Date(review.submittedAt).toLocaleDateString()}
-                                                    </p>
-                                                </div>
-                                                <div className="flex text-yellow-400">
-                                                    {[...Array(5)].map((_, i) => (
-                                                        <span key={i}>{i < review.rating ? '★' : '☆'}</span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                            <p className="text-gray-700">{review.text}</p>
-                                        </SurfaceCard>
-                                    ))}
-                                </div>
-                            )}
-                        </section>
+                        <Suspense fallback={<ProfessionalReviewsFallback />}>
+                            <ProfessionalReviewsSection professionalId={params.id} />
+                        </Suspense>
                     </SurfaceCard>
                 </div>
 
@@ -239,5 +212,55 @@ export default async function ProfessionalProfilePage(props: {
                 </SurfaceCard>
             </div>
         </main>
+    );
+}
+
+async function ProfessionalReviewsSection({ professionalId }: { professionalId: string }) {
+    const reviews = await CandidateBrowse.getProfessionalReviews(professionalId);
+
+    return (
+        <section>
+            <h3 className="text-xl font-bold text-gray-900 mb-5">Reviews ({reviews.length})</h3>
+            {reviews.length === 0 ? (
+                <EmptyState
+                    badge="No reviews yet"
+                    title="This professional has no submitted ratings"
+                    description="Reviews appear here after completed consultations."
+                    layout="inline"
+                />
+            ) : (
+                <div className="space-y-6 mt-3">
+                    {reviews.map((review) => (
+                        <SurfaceCard key={review.bookingId} as="article" tone="muted">
+                            <div className="flex items-start justify-between gap-4 mb-2">
+                                <div>
+                                    <p className="text-sm font-semibold text-gray-900">
+                                        {review.reviewerName || 'Anonymous Reviewer'}
+                                    </p>
+                                    <p className="text-gray-500 text-sm">
+                                        {new Date(review.submittedAt).toLocaleDateString()}
+                                    </p>
+                                </div>
+                                <div className="flex text-yellow-400">
+                                    {[...Array(5)].map((_, i) => (
+                                        <span key={i}>{i < review.rating ? '★' : '☆'}</span>
+                                    ))}
+                                </div>
+                            </div>
+                            <p className="text-gray-700">{review.text}</p>
+                        </SurfaceCard>
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+}
+
+function ProfessionalReviewsFallback() {
+    return (
+        <section>
+            <h3 className="text-xl font-bold text-gray-900 mb-5">Reviews</h3>
+            <p className="text-sm text-gray-500">Loading recent reviews...</p>
+        </section>
     );
 }

@@ -11,11 +11,11 @@ interface ProfessionalRequestListItemProps {
         priceCents: number | null;
         expiresAt: Date | null;
         candidateLabel?: string;
-        candidate: {
+        resumeHref?: string | null;
+        candidate?: {
             firstName?: string | null;
             lastName?: string | null;
             candidateProfile?: {
-                resumeUrl?: string | null;
                 experience?: Array<{
                     id?: string;
                     title?: string | null;
@@ -46,10 +46,10 @@ export function ProfessionalRequestListItem({ booking }: ProfessionalRequestList
     const candidateLabel =
         booking.candidateLabel
         || formatCandidateForProfessionalView({
-            firstName: booking.candidate.firstName,
-            lastName: booking.candidate.lastName,
-            experience: booking.candidate.candidateProfile?.experience,
-            education: booking.candidate.candidateProfile?.education,
+            firstName: booking.candidate?.firstName,
+            lastName: booking.candidate?.lastName,
+            experience: booking.candidate?.candidateProfile?.experience,
+            education: booking.candidate?.candidateProfile?.education,
         });
 
     return (
@@ -75,7 +75,7 @@ export function ProfessionalRequestListItem({ booking }: ProfessionalRequestList
                 bookingId={booking.id}
                 reviewHref={href}
                 reviewLabel={buttonText}
-                resumeUrl={booking.candidate.candidateProfile?.resumeUrl}
+                resumeHref={booking.resumeHref}
                 isReschedule={isReschedule}
             />
         </SurfaceCard>

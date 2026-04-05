@@ -6,33 +6,18 @@ const mockPrisma = vi.hoisted(() => ({
     },
 }));
 
-const signResumeUrlMock = vi.hoisted(() => vi.fn());
-const createResumeUrlSignerMock = vi.hoisted(() => vi.fn());
-
 vi.mock("@/lib/core/db", () => ({
     prisma: mockPrisma,
 }));
 
-vi.mock("@/lib/integrations/resume-storage", () => ({
-    createResumeUrlSigner: createResumeUrlSignerMock,
-}));
-
 import { getPendingRequests } from "@/lib/shared/bookings/upcoming";
 
-describe("upcoming bookings resume signing", () => {
+describe("upcoming bookings resume links", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        createResumeUrlSignerMock.mockReturnValue(signResumeUrlMock);
-        signResumeUrlMock.mockImplementation(async (url: string | null | undefined) => {
-            if (!url) return url;
-
-            return url.includes("/storage/v1/object/candidate-resumes/")
-                ? `${url}?signed=1`
-                : url;
-        });
     });
 
-    it("signs Supabase resume URLs and leaves legacy URLs untouched", async () => {
+    it("returns on-demand resume hrefs for professional pending requests", async () => {
         mockPrisma.booking.findMany.mockResolvedValue([
             {
                 id: "booking-1",
@@ -55,12 +40,7 @@ describe("upcoming bookings resume signing", () => {
 
         const result = await getPendingRequests("pro-1", "PROFESSIONAL");
 
-        expect(createResumeUrlSignerMock).toHaveBeenCalledTimes(1);
-        expect(result[0].candidate.candidateProfile?.resumeUrl).toBe(
-            "https://project-ref.supabase.co/storage/v1/object/candidate-resumes/resumes/cand-1/resume.pdf?signed=1"
-        );
-        expect(result[1].candidate.candidateProfile?.resumeUrl).toBe(
-            "https://legacy-storage.example.com/resumes/cand-2/resume.pdf"
-        );
+        expect(result[0].resumeHref).toBe("/api/professional/requests/booking-1/resume");
+        expect(result[1].resumeHref).toBe("/api/professional/requests/booking-2/resume");
     });
 });

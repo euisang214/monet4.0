@@ -4,7 +4,7 @@ import React, { useTransition } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { Button } from "@/components/ui/primitives/Button";
+import { Button, buttonVariants } from "@/components/ui/primitives/Button";
 import { appRoutes } from "@/lib/shared/routes";
 import { resolveNavLinksForSessionUser, type UserRole } from "@/components/layout/auth-navbar-links";
 import { cn } from "@/lib/ui/cn";
@@ -86,7 +86,10 @@ function AuthenticatedNavbar({ pathname }: { pathname: string }) {
                                 <Link
                                     key={link.href}
                                     href={link.href}
-                                    className={cn(styles.navLink, isActive && styles.navLinkActive)}
+                                    className={cn(
+                                        buttonVariants({ variant: isActive ? "primary" : "secondary", size: "sm" }),
+                                        styles.navLink
+                                    )}
                                     aria-current={isActive ? "page" : undefined}
                                 >
                                     {link.label}
@@ -103,6 +106,7 @@ function AuthenticatedNavbar({ pathname }: { pathname: string }) {
                     <Button
                         onClick={handleLogout}
                         disabled={isPending}
+                        size="sm"
                         className={styles.logoutButton}
                         variant="secondary"
                     >

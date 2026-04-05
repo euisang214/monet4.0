@@ -5,6 +5,8 @@ import { upsertProfessionalProfile } from '@/lib/domain/users/service';
 import { EducationSchema, ExperienceSchema } from '@/lib/types/profile-schemas';
 import { deriveCurrentRoleFromExperiences } from '@/lib/domain/users/current-role';
 import { isSupportedTimezone } from '@/lib/utils/supported-timezones';
+import { PROFESSIONAL_INDUSTRIES, isProfessionalIndustry } from '@/lib/shared/professional-industries';
+import { PROFESSIONAL_SENIORITIES, isProfessionalSeniority } from '@/lib/shared/professional-seniority';
 
 export const candidateProfileSchema = z.object({
     interests: z.array(z.string()).optional(),
@@ -14,6 +16,16 @@ export const candidateProfileSchema = z.object({
 export const professionalProfileSchema = z
     .object({
         bio: z.string().trim().min(1, 'Bio is required'),
+        industry: z
+            .string()
+            .trim()
+            .min(1, 'Industry is required')
+            .refine(isProfessionalIndustry, `Industry must be one of: ${PROFESSIONAL_INDUSTRIES.join(', ')}`),
+        seniority: z
+            .string()
+            .trim()
+            .min(1, 'Seniority is required')
+            .refine(isProfessionalSeniority, `Seniority must be one of: ${PROFESSIONAL_SENIORITIES.join(', ')}`),
         price: z.coerce.number().min(0, 'Price must be non-negative'),
         corporateEmail: z.string().email('Corporate email is invalid'),
         interests: z.array(z.string().trim().min(1)).min(1, 'At least one interest is required'),
@@ -59,6 +71,8 @@ export const ProfileService = {
 
         return await upsertProfessionalProfile(userId, {
             bio: data.bio,
+            industry: data.industry,
+            seniority: data.seniority,
             priceCents: Math.round(data.price * 100),
             availabilityPrefs: (existingProfile?.availabilityPrefs ?? {}) as Record<string, unknown>,
             corporateEmail: data.corporateEmail,

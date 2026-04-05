@@ -16,7 +16,6 @@ const mockPrisma = vi.hoisted(() => ({
 }));
 
 const getProfessionalReviewsMock = vi.hoisted(() => vi.fn());
-const createResumeUrlSignerMock = vi.hoisted(() => vi.fn());
 const FROZEN_NOW = new Date("2026-03-01T12:00:00Z");
 
 vi.mock("@/lib/core/db", () => ({
@@ -27,10 +26,6 @@ vi.mock("@/lib/domain/reviews/service", () => ({
     ReviewsService: {
         getProfessionalReviews: getProfessionalReviewsMock,
     },
-}));
-
-vi.mock("@/lib/integrations/resume-storage", () => ({
-    createResumeUrlSigner: createResumeUrlSignerMock,
 }));
 
 import { ProfessionalDashboardService } from "@/lib/role/professional/dashboard";
@@ -132,7 +127,7 @@ describe("ProfessionalDashboardService.getDashboardData", () => {
         expect((data.items[0] as { candidateLabel: string }).candidateLabel).toBe(
             "John Doe - Columbia University, Intern @ Blackstone"
         );
-        expect(data.recentQcEvents).toEqual([]);
+        expect(mockPrisma.callFeedback.findMany).not.toHaveBeenCalled();
     });
 
     it("paginates pending feedback section", async () => {
@@ -195,7 +190,6 @@ describe("ProfessionalDashboardService.getDashboardData", () => {
     });
 
     it("returns recent QC events with candidate labels and stored reasons", async () => {
-        mockPrisma.booking.findMany.mockResolvedValue([]);
         mockPrisma.callFeedback.findMany.mockResolvedValue([
             {
                 bookingId: "booking-qc-1",
@@ -225,12 +219,9 @@ describe("ProfessionalDashboardService.getDashboardData", () => {
             },
         ]);
 
-        const data = await ProfessionalDashboardService.getDashboardData("pro-1", {
-            view: "upcoming",
-            take: 10,
-        });
+        const events = await ProfessionalDashboardService.getRecentQcEvents("pro-1");
 
-        expect(data.recentQcEvents).toEqual([
+        expect(events).toEqual([
             {
                 bookingId: "booking-qc-1",
                 candidateLabel: "Morgan Lee - Associate @ Evercore",

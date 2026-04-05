@@ -1,45 +1,52 @@
-
 import dotenv from 'dotenv';
-// Load environment variables *before* any other imports
+// Load environment variables before importing worker modules that capture env at module scope.
 dotenv.config();
-
-import { redisConnection, closeQueues, bookingsQueue } from '@/lib/queues/index';
-import { createQCWorker } from '@/lib/queues/qc';
-import { createNotificationsWorker } from '@/lib/queues/notifications';
-import { createPaymentsWorker } from '@/lib/queues/payments';
-import { createBookingsWorker } from '@/lib/queues/bookings';
 
 const shouldRegisterRepeatableJobs = process.env.ENABLE_LOCAL_REPEAT_JOBS !== 'false';
 
-console.log('🚀 Starting Background Workers...');
-console.log(`🔗 Redis URL: ${process.env.REDIS_URL || 'localhost:6379'}`);
-
-const setupRepeatableJobs = async () => {
-    console.log('🗓️  Registering repeatable jobs...');
-
-    // Expiry Check: Hourly
-    await bookingsQueue.add('expiry-check', {}, {
-        repeat: { pattern: '0 * * * *' }, // Every hour
-        jobId: 'repeat:expiry-check', // Singleton by ID
-    });
-
-    // No-Show Check: Every 5 minutes
-    await bookingsQueue.add('no-show-check', {}, {
-        repeat: { pattern: '*/5 * * * *' }, // Every 5 minutes
-        jobId: 'repeat:no-show-check',
-    });
-
-    // Zoom attendance retention cleanup: Daily at 03:00
-    await bookingsQueue.add('zoom-attendance-retention', {}, {
-        repeat: { pattern: '0 3 * * *' },
-        jobId: 'repeat:zoom-attendance-retention',
-    });
-
-    console.log('✅ Repeatable jobs registered.');
-};
-
 // Main entry point wrapped in async IIFE to avoid top-level await
 (async () => {
+    const [
+        { redisConnection, closeQueues, bookingsQueue },
+        { createQCWorker },
+        { createNotificationsWorker },
+        { createPaymentsWorker },
+        { createBookingsWorker },
+    ] = await Promise.all([
+        import('@/lib/queues/index'),
+        import('@/lib/queues/qc'),
+        import('@/lib/queues/notifications'),
+        import('@/lib/queues/payments'),
+        import('@/lib/queues/bookings'),
+    ]);
+
+    console.log('🚀 Starting Background Workers...');
+    console.log(`🔗 Redis URL: ${redisConnection.url || 'localhost:6379'}`);
+
+    const setupRepeatableJobs = async () => {
+        console.log('🗓️  Registering repeatable jobs...');
+
+        // Expiry Check: Hourly
+        await bookingsQueue.add('expiry-check', {}, {
+            repeat: { pattern: '0 * * * *' }, // Every hour
+            jobId: 'repeat:expiry-check', // Singleton by ID
+        });
+
+        // No-Show Check: Every 5 minutes
+        await bookingsQueue.add('no-show-check', {}, {
+            repeat: { pattern: '*/5 * * * *' }, // Every 5 minutes
+            jobId: 'repeat:no-show-check',
+        });
+
+        // Zoom attendance retention cleanup: Daily at 03:00
+        await bookingsQueue.add('zoom-attendance-retention', {}, {
+            repeat: { pattern: '0 3 * * *' },
+            jobId: 'repeat:zoom-attendance-retention',
+        });
+
+        console.log('✅ Repeatable jobs registered.');
+    };
+
     if (shouldRegisterRepeatableJobs) {
         await setupRepeatableJobs();
     } else {

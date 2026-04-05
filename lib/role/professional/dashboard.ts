@@ -2,7 +2,7 @@ import { prisma } from '@/lib/core/db';
 import { BookingStatus, Prisma } from '@prisma/client';
 import { ReviewsService } from '@/lib/domain/reviews/service';
 import { formatCandidateForProfessionalView } from '@/lib/domain/users/identity-labels';
-import { signCandidateResumeUrls } from '@/lib/shared/resume-signing';
+import { appRoutes } from '@/lib/shared/routes';
 import { normalizeTimezone } from '@/lib/utils/supported-timezones';
 
 export type ProfessionalDashboardView = 'upcoming' | 'requested' | 'reschedule' | 'pending_feedback';
@@ -16,6 +16,7 @@ const candidateIdentitySelect = {
             experience: {
                 where: { type: 'EXPERIENCE' },
                 orderBy: [{ isCurrent: 'desc' }, { startDate: 'desc' }, { id: 'desc' }],
+                take: 1,
                 select: {
                     id: true,
                     title: true,
@@ -27,6 +28,7 @@ const candidateIdentitySelect = {
             },
             education: {
                 orderBy: [{ isCurrent: 'desc' }, { startDate: 'desc' }, { id: 'desc' }],
+                take: 1,
                 select: {
                     id: true,
                     school: true,
@@ -58,11 +60,7 @@ export type RequestBooking = {
     priceCents: number | null;
     expiresAt: Date | null;
     candidateLabel: string;
-    candidate: {
-        candidateProfile: {
-            resumeUrl: string | null;
-        } | null;
-    };
+    resumeHref: string | null;
 };
 
 export type PendingFeedbackBooking = {
@@ -205,7 +203,6 @@ async function getActiveViewPage(
         });
 
         const page = nextCursorFromPage(items, take);
-        await signCandidateResumeUrls(page.pageItems);
         return {
             hasMore: page.hasMore,
             nextCursor: page.nextCursor,
@@ -215,11 +212,9 @@ async function getActiveViewPage(
                 priceCents: item.priceCents,
                 expiresAt: item.expiresAt,
                 candidateLabel: formatCandidateLabel(item.candidate),
-                candidate: {
-                    candidateProfile: item.candidate.candidateProfile
-                        ? { resumeUrl: item.candidate.candidateProfile.resumeUrl }
-                        : null,
-                },
+                resumeHref: item.candidate.candidateProfile?.resumeUrl
+                    ? appRoutes.api.professional.requestResume(item.id)
+                    : null,
             })),
         };
     }
@@ -245,7 +240,6 @@ async function getActiveViewPage(
         });
 
         const page = nextCursorFromPage(items, take);
-        await signCandidateResumeUrls(page.pageItems);
         return {
             hasMore: page.hasMore,
             nextCursor: page.nextCursor,
@@ -255,11 +249,9 @@ async function getActiveViewPage(
                 priceCents: item.priceCents,
                 expiresAt: item.expiresAt,
                 candidateLabel: formatCandidateLabel(item.candidate),
-                candidate: {
-                    candidateProfile: item.candidate.candidateProfile
-                        ? { resumeUrl: item.candidate.candidateProfile.resumeUrl }
-                        : null,
-                },
+                resumeHref: item.candidate.candidateProfile?.resumeUrl
+                    ? appRoutes.api.professional.requestResume(item.id)
+                    : null,
             })),
         };
     }
@@ -317,38 +309,7 @@ export const ProfessionalDashboardService = {
                 throw error;
             },
         );
-        const recentQcEventsPromise = prisma.callFeedback?.findMany
-            ? prisma.callFeedback.findMany({
-                  where: {
-                      booking: {
-                          professionalId,
-                      },
-                      qcReviewedAt: {
-                          not: null,
-                      },
-                      qcStatus: {
-                          in: ['passed', 'revise'],
-                      },
-                  },
-                  orderBy: [{ qcReviewedAt: 'desc' }, { bookingId: 'desc' }],
-                  take: 5,
-                  select: {
-                      bookingId: true,
-                      qcStatus: true,
-                      qcReasons: true,
-                      qcReviewedAt: true,
-                      booking: {
-                          select: {
-                              candidate: {
-                                  select: candidateIdentitySelect,
-                              },
-                          },
-                      },
-                  },
-              })
-            : Promise.resolve([]);
-
-        const [bookingsCount, upcomingVisibleCount, pendingFeedbackCount, recentFeedbackData, recentQcEventsData, activeViewPage, professional] =
+        const [bookingsCount, upcomingVisibleCount, pendingFeedbackCount, activeViewPage, professional] =
             await Promise.all([
                 prisma.booking.groupBy({
                     by: ['status'],
@@ -363,8 +324,6 @@ export const ProfessionalDashboardService = {
                 prisma.booking.count({
                     where: pendingFeedbackWhere(professionalId),
                 }),
-                ReviewsService.getProfessionalReviews(professionalId, { take: 5 }),
-                recentQcEventsPromise,
                 activeViewPromise,
                 prisma.user.findUnique({
                     where: { id: professionalId },
@@ -392,26 +351,62 @@ export const ProfessionalDashboardService = {
         });
 
         return {
-            stats: {
-                pendingFeedbackCount: sectionCounts.pending_feedback,
-                upcomingBookingsCount: sectionCounts.upcoming,
-            },
             sectionCounts,
+            stats: {
+                upcomingBookingsCount: sectionCounts.upcoming,
+                pendingFeedbackCount: sectionCounts.pending_feedback,
+            },
             activeView: options.view,
             items: activeViewPage.pageItems as ProfessionalDashboardItem[],
             nextCursor: activeViewPage.nextCursor,
             professionalTimezone,
-            recentFeedback: recentFeedbackData.reviews,
-            recentQcEvents: recentQcEventsData
-                .filter((event): event is typeof event & { qcReviewedAt: Date } => event.qcReviewedAt instanceof Date)
-                .map((event) => ({
-                    bookingId: event.bookingId,
-                    candidateLabel: formatCandidateLabel(event.booking.candidate),
-                    qcStatus: event.qcStatus,
-                    qcReasons: event.qcReasons,
-                    qcReviewedAt: event.qcReviewedAt,
-                })) as RecentQcEvent[],
-            reviewStats: recentFeedbackData.stats,
         };
+    },
+
+    async getRecentFeedbackData(professionalId: string) {
+        return ReviewsService.getProfessionalReviews(professionalId, { take: 5 });
+    },
+
+    async getRecentQcEvents(professionalId: string): Promise<RecentQcEvent[]> {
+        const events = prisma.callFeedback?.findMany
+            ? await prisma.callFeedback.findMany({
+                  where: {
+                      booking: {
+                          professionalId,
+                      },
+                      qcReviewedAt: {
+                          not: null,
+                      },
+                      qcStatus: {
+                          in: ['passed', 'revise'],
+                      },
+                  },
+                  orderBy: [{ qcReviewedAt: 'desc' }, { bookingId: 'desc' }],
+                  take: 5,
+                  select: {
+                      bookingId: true,
+                      qcStatus: true,
+                      qcReasons: true,
+                      qcReviewedAt: true,
+                      booking: {
+                          select: {
+                              candidate: {
+                                  select: candidateIdentitySelect,
+                              },
+                          },
+                      },
+                  },
+              })
+            : [];
+
+        return events
+            .filter((event): event is typeof event & { qcReviewedAt: Date } => event.qcReviewedAt instanceof Date)
+            .map((event) => ({
+                bookingId: event.bookingId,
+                candidateLabel: formatCandidateLabel(event.booking.candidate),
+                qcStatus: event.qcStatus,
+                qcReasons: event.qcReasons,
+                qcReviewedAt: event.qcReviewedAt,
+            })) as RecentQcEvent[];
     },
 };

@@ -29,12 +29,12 @@
 .control {
   width: 100%;
   min-width: 0;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid var(--field-border);
+  border-radius: var(--field-radius);
+  background: var(--field-bg);
   color: var(--text);
   padding: 0.78rem 0.92rem;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 2px 8px rgba(12, 31, 76, 0.04);
+  box-shadow: var(--field-shadow);
   font: inherit;
   transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
 }
@@ -45,8 +45,8 @@
 
 .control:focus-visible {
   outline: none;
-  border-color: var(--border-strong);
-  box-shadow: 0 0 0 3px var(--focus-ring), var(--shadow-xs);
+  border-color: var(--field-border-strong);
+  box-shadow: 0 0 0 3px var(--field-focus-ring), var(--shadow-xs);
 }
 
 .control:disabled {

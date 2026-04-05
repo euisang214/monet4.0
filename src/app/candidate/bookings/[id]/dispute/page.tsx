@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { DisputeReason } from '@prisma/client';
 import { useTrackedCandidateBookingActions } from '@/components/bookings/hooks/useTrackedCandidateBookingActions';
+import { Button } from '@/components/ui/primitives/Button';
 
 export default function DisputePage() {
     const { id } = useParams<{ id: string }>();
@@ -70,19 +71,21 @@ export default function DisputePage() {
                 {error && <div className="mb-4 text-red-600 text-sm bg-red-50 p-2 rounded">{error}</div>}
 
                 <div className="flex gap-3">
-                    <button
+                    <Button
+                        type="button"
                         onClick={() => router.back()}
-                        className="px-4 py-2 border rounded text-gray-700 hover:bg-gray-50"
+                        variant="secondary"
                     >
                         Cancel
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                        type="button"
                         onClick={handleSubmit}
                         disabled={isLoading}
-                        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+                        variant="danger"
                     >
                         {isLoading ? 'Submitting...' : 'Submit Report'}
-                    </button>
+                    </Button>
                 </div>
             </div>
         </div>

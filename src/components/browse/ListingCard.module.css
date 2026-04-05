@@ -24,6 +24,13 @@
   line-height: 1.6;
 }
 
+.industry {
+  margin-top: 0.2rem;
+  color: var(--text-subtle);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
 .footer {
   display: flex;
   align-items: center;

@@ -61,7 +61,8 @@
 
 .sectionNavMobile {
   overflow-x: auto;
-  padding-bottom: 0.25rem;
+  padding: 4px 0;
+  margin: -4px 0;
 }
 
 .sectionNavMobile::-webkit-scrollbar {

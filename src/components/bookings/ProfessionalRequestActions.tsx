@@ -10,7 +10,7 @@ interface ProfessionalRequestActionsProps {
     bookingId: string;
     reviewHref: string;
     reviewLabel: string;
-    resumeUrl?: string | null;
+    resumeHref?: string | null;
     isReschedule: boolean;
 }
 
@@ -18,7 +18,7 @@ export function ProfessionalRequestActions({
     bookingId,
     reviewHref,
     reviewLabel,
-    resumeUrl,
+    resumeHref,
     isReschedule,
 }: ProfessionalRequestActionsProps) {
     const { rejectRequest } = useTrackedProfessionalBookingActions();
@@ -52,9 +52,9 @@ export function ProfessionalRequestActions({
                     {reviewLabel}
                 </Link>
 
-                {resumeUrl ? (
+                {resumeHref ? (
                     <a
-                        href={resumeUrl}
+                        href={resumeHref}
                         target="_blank"
                         rel="noopener noreferrer"
                         className={buttonVariants({ variant: "secondary", size: "sm" })}

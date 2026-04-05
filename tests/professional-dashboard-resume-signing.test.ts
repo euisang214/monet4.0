@@ -13,8 +13,6 @@ const mockPrisma = vi.hoisted(() => ({
 }));
 
 const getProfessionalReviewsMock = vi.hoisted(() => vi.fn());
-const signResumeUrlMock = vi.hoisted(() => vi.fn());
-const createResumeUrlSignerMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/core/db", () => ({
     prisma: mockPrisma,
@@ -26,23 +24,11 @@ vi.mock("@/lib/domain/reviews/service", () => ({
     },
 }));
 
-vi.mock("@/lib/integrations/resume-storage", () => ({
-    createResumeUrlSigner: createResumeUrlSignerMock,
-}));
-
 import { ProfessionalDashboardService } from "@/lib/role/professional/dashboard";
 
-describe("ProfessionalDashboardService resume signing", () => {
+describe("ProfessionalDashboardService requested items", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        createResumeUrlSignerMock.mockReturnValue(signResumeUrlMock);
-        signResumeUrlMock.mockImplementation(async (url: string | null | undefined) => {
-            if (!url) return url;
-
-            return url.includes("/storage/v1/object/candidate-resumes/")
-                ? `${url}?signed=1`
-                : url;
-        });
         mockPrisma.booking.groupBy.mockResolvedValue([]);
         mockPrisma.booking.count.mockResolvedValue(0);
         mockPrisma.user.findUnique.mockResolvedValue({ timezone: "UTC" });
@@ -52,7 +38,7 @@ describe("ProfessionalDashboardService resume signing", () => {
         });
     });
 
-    it("signs requested candidate resume URLs and only fetches the active section", async () => {
+    it("returns on-demand resume hrefs and only fetches the active section", async () => {
         mockPrisma.booking.findMany.mockResolvedValue([
             {
                 id: "requested-1",
@@ -108,21 +94,12 @@ describe("ProfessionalDashboardService resume signing", () => {
             view: "requested",
         });
         const requestedItems = data.items as Array<{
-            candidate: {
-                candidateProfile?: {
-                    resumeUrl?: string | null;
-                } | null;
-            };
+            resumeHref?: string | null;
         }>;
 
-        expect(createResumeUrlSignerMock).toHaveBeenCalledTimes(1);
         expect(mockPrisma.booking.findMany).toHaveBeenCalledTimes(1);
-        expect(requestedItems[0].candidate.candidateProfile?.resumeUrl).toBe(
-            "https://project-ref.supabase.co/storage/v1/object/candidate-resumes/resumes/cand-1/resume.pdf?signed=1"
-        );
-        expect(requestedItems[1].candidate.candidateProfile?.resumeUrl).toBe(
-            "https://legacy-storage.example.com/resumes/cand-2/resume.pdf"
-        );
+        expect(requestedItems[0].resumeHref).toBe("/api/professional/requests/requested-1/resume");
+        expect(requestedItems[1].resumeHref).toBe("/api/professional/requests/requested-2/resume");
         expect((data.items[0] as { candidateLabel: string }).candidateLabel).toBe(
             "Morgan Reed - Yale University, Associate @ Evercore"
         );

@@ -77,6 +77,8 @@ export default async function OnboardingPage() {
             professionalProfile: {
                 select: {
                     bio: true,
+                    industry: true,
+                    seniority: true,
                     priceCents: true,
                     corporateEmail: true,
                     verifiedAt: true,
@@ -184,6 +186,8 @@ export default async function OnboardingPage() {
                               firstName: user.firstName,
                               lastName: user.lastName,
                               bio: user.professionalProfile.bio,
+                              industry: user.professionalProfile.industry,
+                              seniority: user.professionalProfile.seniority,
                               price: user.professionalProfile.priceCents / 100,
                               corporateEmail: user.professionalProfile.corporateEmail,
                               verifiedAt: user.professionalProfile.verifiedAt?.toISOString() ?? null,

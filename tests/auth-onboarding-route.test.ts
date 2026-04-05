@@ -83,6 +83,8 @@ const validProfessionalPayload = {
     firstName: "Morgan",
     lastName: "Lee",
     bio: "Guides candidates through case prep.",
+    industry: "consulting",
+    seniority: "principal",
     price: 200,
     corporateEmail: "pro@monet.com",
     timezone: "America/New_York",
@@ -251,7 +253,7 @@ describe("POST /api/auth/onboarding", () => {
         expect(response.status).toBe(200);
         expect(upsertProfessionalProfileFromPayloadMock).toHaveBeenCalledWith(
             "professional_2",
-            expect.objectContaining({ bio: "Guides candidates through case prep." }),
+            expect.objectContaining({ bio: "Guides candidates through case prep.", industry: "consulting", seniority: "principal" }),
             { markOnboardingCompleted: true }
         );
     });
@@ -301,7 +303,7 @@ describe("POST /api/auth/onboarding", () => {
         expect(getProfessionalStripeStatusMock).not.toHaveBeenCalled();
         expect(upsertProfessionalProfileFromPayloadMock).toHaveBeenCalledWith(
             "professional_4",
-            expect.objectContaining({ bio: "Guides candidates through case prep." }),
+            expect.objectContaining({ bio: "Guides candidates through case prep.", industry: "consulting", seniority: "principal" }),
             { markOnboardingCompleted: true }
         );
     });

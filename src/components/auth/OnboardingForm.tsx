@@ -272,6 +272,8 @@ export function OnboardingForm({
                             lastName: initialProfessional?.lastName,
                             timezone: initialTimezone,
                             bio: initialProfessional?.bio,
+                            industry: initialProfessional?.industry,
+                            seniority: initialProfessional?.seniority,
                             price: initialProfessional?.price,
                             corporateEmail: initialProfessional?.corporateEmail,
                             interests: initialProfessional?.interests,

@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import { Manrope, Space_Grotesk } from "next/font/google";
 import "./globals.css";
-import { SessionProvider } from "next-auth/react";
-import { AuthNavbar } from "@/components/layout/AuthNavbar";
-import { RequestToastProvider } from "@/components/ui";
 
 const bodyFont = Manrope({
   variable: "--font-body",
@@ -28,12 +25,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${bodyFont.variable} ${displayFont.variable}`}>
-        <SessionProvider>
-          <RequestToastProvider>
-            <AuthNavbar />
-            {children}
-          </RequestToastProvider>
-        </SessionProvider>
+        {children}
       </body>
     </html>
   );

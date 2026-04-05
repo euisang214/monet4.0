@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { PROFESSIONAL_INDUSTRIES, isProfessionalIndustry } from "@/lib/shared/professional-industries";
+import { PROFESSIONAL_SENIORITIES, isProfessionalSeniority } from "@/lib/shared/professional-seniority";
 
 // Base schemas corresponding to Prisma models
 export const ExperienceSchema = z
@@ -57,6 +59,16 @@ export const EducationSchema = z
 export const ProfessionalProfileUpsertSchema = z
     .object({
         bio: z.string().min(1, "Bio is required"),
+        industry: z
+            .string()
+            .trim()
+            .min(1, "Industry is required")
+            .refine(isProfessionalIndustry, `Industry must be one of: ${PROFESSIONAL_INDUSTRIES.join(", ")}`),
+        seniority: z
+            .string()
+            .trim()
+            .min(1, "Seniority is required")
+            .refine(isProfessionalSeniority, `Seniority must be one of: ${PROFESSIONAL_SENIORITIES.join(", ")}`),
         priceCents: z.number().int().nonnegative("Price must be non-negative"),
         availabilityPrefs: z.record(z.string(), z.any()).default({}),
         corporateEmail: z.string().email("Invalid corporate email"),

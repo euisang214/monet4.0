@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Booking } from '@prisma/client';
 import { useRouter } from 'next/navigation';
 import { useTrackedCandidateBookingActions } from '@/components/bookings/hooks/useTrackedCandidateBookingActions';
+import { Button } from '@/components/ui/primitives/Button';
 import { getBookingActionVisibility } from '@/lib/shared/booking-actions';
 import { appRoutes } from '@/lib/shared/routes';
 
@@ -60,50 +61,60 @@ export function BookingActions({ booking }: BookingActionsProps) {
         <div className="flex flex-col gap-4 mt-6">
             <div className="flex flex-wrap gap-4">
                 {showJoin && (
-                    <button
+                    <Button
+                        type="button"
                         onClick={handleJoin}
-                        className="flex-1 bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 font-medium whitespace-nowrap"
+                        className="flex-1 whitespace-nowrap"
+                        variant="primary"
                     >
                         Join Zoom Call
-                    </button>
+                    </Button>
                 )}
 
                 {showReschedule && (
-                    <button
+                    <Button
+                        type="button"
                         onClick={handleReschedule}
                         disabled={isLoading}
-                        className="flex-1 bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded hover:bg-gray-50 font-medium whitespace-nowrap"
+                        className="flex-1 whitespace-nowrap"
+                        variant="secondary"
                     >
                         Reschedule
-                    </button>
+                    </Button>
                 )}
 
                 {showCancel && (
-                    <button
+                    <Button
+                        type="button"
                         onClick={handleCancel}
                         disabled={isLoading}
-                        className="flex-1 bg-white border border-red-200 text-red-600 py-2 px-4 rounded hover:bg-red-50 font-medium whitespace-nowrap"
+                        className="flex-1 whitespace-nowrap"
+                        variant="danger"
                     >
                         {isLoading ? 'Processing...' : 'Cancel Booking'}
-                    </button>
+                    </Button>
                 )}
 
                 {showDispute && (
-                    <button
+                    <Button
+                        type="button"
                         onClick={handleDispute}
-                        className="flex-1 bg-white border border-orange-200 text-orange-600 py-2 px-4 rounded hover:bg-orange-50 font-medium whitespace-nowrap"
+                        className="flex-1 whitespace-nowrap"
+                        variant="secondary"
                     >
                         Report Issue
-                    </button>
+                    </Button>
                 )}
 
                 {showReview && (
-                    <button
+                    <Button
+                        type="button"
                         onClick={handleReview}
-                        className="flex-1 bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 font-medium whitespace-nowrap"
+                        className="flex-1 whitespace-nowrap"
+                        variant="primary"
                     >
                         Leave Review
-                    </button>
+                    </Button>
                 )}
             </div>
         </div>

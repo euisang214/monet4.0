@@ -8,7 +8,8 @@ import {
     getCandidateChatSectionPage,
 } from '@/lib/role/candidate/chats';
 import { appRoutes } from '@/lib/shared/routes';
-import { EmptyState } from '@/components/ui/composites/EmptyState';
+import { EmptyState, SectionTabs } from '@/components/ui';
+import { buttonVariants } from '@/components/ui/primitives/Button';
 import { CandidateHistoryActions } from '@/components/bookings/CandidateHistoryActions';
 import {
     formatProfessionalForCandidateView,
@@ -130,6 +131,12 @@ export default async function CandidateChatsPage({
     }));
     const activeSection = sections.find((section) => section.key === activeView) ?? sections[0];
     const totalChats = sections.reduce((total, section) => total + section.count, 0);
+    const tabItems = sections.map((section) => ({
+        value: section.key,
+        label: section.title,
+        href: sectionUrl(section.key),
+        count: section.count,
+    }));
 
     return (
         <main className="container py-8">
@@ -151,23 +158,7 @@ export default async function CandidateChatsPage({
                 />
             ) : (
                 <div className="space-y-6">
-                    <nav className="flex flex-wrap gap-2" aria-label="Conversation sections">
-                        {sections.map((section) => {
-                            const isActive = section.key === activeView;
-                            return (
-                                <Link
-                                    key={section.key}
-                                    href={sectionUrl(section.key)}
-                                    className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors ${isActive
-                                            ? 'border-blue-600 bg-blue-600 text-white'
-                                            : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
-                                        }`}
-                                >
-                                    {section.title} ({section.count})
-                                </Link>
-                            );
-                        })}
-                    </nav>
+                    <SectionTabs items={tabItems} currentValue={activeView} aria-label="Conversation sections" />
 
                     <section>
                         <div className="mb-4 flex items-start justify-between gap-4">
@@ -242,7 +233,7 @@ export default async function CandidateChatsPage({
                         {cursor ? (
                             <Link
                                 href={sectionUrl(activeView)}
-                                className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                                className={buttonVariants({ variant: 'secondary', size: 'sm' })}
                             >
                                 Back to first page
                             </Link>
@@ -250,7 +241,7 @@ export default async function CandidateChatsPage({
                         {sectionPage.nextCursor ? (
                             <Link
                                 href={sectionUrl(activeView, sectionPage.nextCursor)}
-                                className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                                className={buttonVariants({ variant: 'secondary', size: 'sm' })}
                             >
                                 Older
                             </Link>

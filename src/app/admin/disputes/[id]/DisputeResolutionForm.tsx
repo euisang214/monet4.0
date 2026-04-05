@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { type DisputeResolutionAction } from '@/components/admin/services/adminMutationApi';
 import { useTrackedAdminActions } from '@/components/admin/hooks/useTrackedAdminActions';
+import { Button } from '@/components/ui/primitives/Button';
 
 interface DisputeResolutionFormProps {
     disputeId: string;
@@ -112,13 +113,13 @@ export default function DisputeResolutionForm({ disputeId, maxRefundAmount }: Di
                 />
             </div>
 
-            <button
+            <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                variant="primary"
             >
                 {isSubmitting ? 'Resolving...' : 'Resolve Dispute'}
-            </button>
+            </Button>
         </form>
     );
 }

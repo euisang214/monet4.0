@@ -47,6 +47,8 @@ describe('User Service', () => {
         it('should create new profile with experience and education in transaction', async () => {
             const profileData: ProfessionalProfileUpsertInput = {
                 bio: 'A test bio',
+                industry: 'consulting',
+                seniority: 'principal',
                 priceCents: 10000,
                 corporateEmail: 'test@corp.com',
                 availabilityPrefs: {},
@@ -99,6 +101,8 @@ describe('User Service', () => {
         it('should replace existing nested relations', async () => {
             const profileData: ProfessionalProfileUpsertInput = {
                 bio: 'Updated bio',
+                industry: 'finance',
+                seniority: 'director',
                 priceCents: 20000,
                 corporateEmail: 'new@corp.com',
                 availabilityPrefs: {},
@@ -208,6 +212,8 @@ describe('User Service', () => {
             const mockProfile = {
                 userId: 'pro1',
                 bio: 'Bio',
+                industry: 'law',
+                seniority: 'partner',
                 priceCents: 10000,
                 corporateEmail: 'pro@corp.com',
                 user: { email: 'pro@test.com' },
@@ -242,6 +248,8 @@ describe('User Service', () => {
             const mockProfile = {
                 userId: 'pro1',
                 bio: 'Bio',
+                industry: 'finance',
+                seniority: 'vice_president',
                 priceCents: 10000,
                 corporateEmail: 'pro@corp.com',
                 user: { email: 'pro@test.com' },

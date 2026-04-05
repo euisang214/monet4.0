@@ -60,6 +60,8 @@ const validProfessionalPayload = {
     firstName: "Morgan",
     lastName: "Lee",
     bio: "Experienced mentor",
+    industry: "consulting",
+    seniority: "principal",
     price: 150,
     corporateEmail: "pro@example.com",
     timezone: "America/New_York",
@@ -151,6 +153,8 @@ describe("shared settings route", () => {
             "pro-1",
             expect.objectContaining({
                 bio: "Experienced mentor",
+                industry: "consulting",
+                seniority: "principal",
                 corporateEmail: "pro@example.com",
             }),
             expect.objectContaining({

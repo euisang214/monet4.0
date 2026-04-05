@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import { useTrackedProfessionalBookingActions } from '@/components/bookings/hooks/useTrackedProfessionalBookingActions';
-import { Button } from '@/components/ui/primitives/Button';
+import { Button, buttonVariants } from '@/components/ui/primitives/Button';
+import { cn } from '@/lib/ui/cn';
 
 interface FeedbackFormProps {
     bookingId: string;
@@ -122,7 +123,7 @@ export function FeedbackForm({ bookingId, initialData }: FeedbackFormProps) {
                 <Button
                     type="submit"
                     disabled={!isTextValid || !areActionsValid || isSubmitting}
-                    className={`bg-blue-600 text-white px-6 py-2 rounded-md font-medium shadow-sm transition-colors ${(!isTextValid || !areActionsValid || isSubmitting) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'}`}
+                    variant="primary"
                 >
                     {isSubmitting ? 'Submitting...' : 'Submit Feedback'}
                 </Button>
@@ -141,10 +142,10 @@ function RatingInput({ label, value, onChange }: { label: string, value: number,
                         key={star}
                         type="button"
                         onClick={() => onChange(star)}
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${star <= value
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                            }`}
+                        className={cn(
+                            buttonVariants({ variant: star <= value ? 'primary' : 'secondary', size: 'sm' }),
+                            'h-9 w-9 rounded-full px-0'
+                        )}
                     >
                         {star}
                     </button>

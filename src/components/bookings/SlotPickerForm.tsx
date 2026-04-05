@@ -85,7 +85,7 @@ export function SlotPickerForm({
                         type="button"
                         onClick={secondaryAction.onClick}
                         disabled={secondaryAction.isLoading || isConfirming}
-                        className="bg-white border border-red-200 text-red-700 px-4 py-2 rounded hover:bg-red-50 disabled:opacity-50"
+                        variant="danger"
                     >
                         {secondaryAction.isLoading ? secondaryAction.loadingLabel : secondaryAction.label}
                     </Button>
@@ -94,7 +94,7 @@ export function SlotPickerForm({
                     type="button"
                     onClick={handleConfirm}
                     disabled={!selectedSlot || isConfirming || isDisabled}
-                    className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
+                    variant="primary"
                 >
                     {isConfirming ? confirmingLabel : confirmLabel}
                 </Button>

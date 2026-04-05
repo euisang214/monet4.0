@@ -32,6 +32,8 @@ export async function upsertProfessionalProfile(
             create: {
                 userId,
                 bio: data.bio,
+                industry: data.industry,
+                seniority: data.seniority,
                 priceCents: data.priceCents,
                 availabilityPrefs: data.availabilityPrefs as Prisma.InputJsonValue,
                 corporateEmail: data.corporateEmail,
@@ -40,6 +42,8 @@ export async function upsertProfessionalProfile(
             },
             update: {
                 bio: data.bio,
+                industry: data.industry,
+                seniority: data.seniority,
                 priceCents: data.priceCents,
                 availabilityPrefs: data.availabilityPrefs as Prisma.InputJsonValue,
                 corporateEmail: data.corporateEmail,
@@ -208,18 +212,57 @@ export async function getProfessionalProfile(
 ) {
     const profile = await prisma.professionalProfile.findUnique({
         where: { userId },
-        include: {
-            user: true,
+        select: {
+            userId: true,
+            bio: true,
+            industry: true,
+            seniority: true,
+            priceCents: true,
+            verifiedAt: true,
+            timezone: true,
+            interests: true,
+            user: {
+                select: {
+                    email: true,
+                    firstName: true,
+                    lastName: true,
+                },
+            },
             experience: {
                 where: { type: "EXPERIENCE" },
                 orderBy: [{ isCurrent: "desc" }, { startDate: "desc" }, { id: "desc" }],
+                select: {
+                    id: true,
+                    company: true,
+                    startDate: true,
+                    endDate: true,
+                    isCurrent: true,
+                    title: true,
+                },
             },
             activities: {
                 where: { type: "ACTIVITY" },
                 orderBy: [{ isCurrent: "desc" }, { startDate: "desc" }, { id: "desc" }],
+                select: {
+                    id: true,
+                    company: true,
+                    startDate: true,
+                    endDate: true,
+                    isCurrent: true,
+                    title: true,
+                },
             },
             education: {
                 orderBy: [{ isCurrent: "desc" }, { startDate: "desc" }, { id: "desc" }],
+                select: {
+                    id: true,
+                    school: true,
+                    startDate: true,
+                    endDate: true,
+                    isCurrent: true,
+                    degree: true,
+                    fieldOfStudy: true,
+                },
             },
         },
     });

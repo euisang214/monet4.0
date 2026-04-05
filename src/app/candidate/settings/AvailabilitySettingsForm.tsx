@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Availability } from '@prisma/client';
 import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/primitives/Button';
 import { appRoutes } from '@/lib/shared/routes';
 
 interface Props {
@@ -167,13 +168,14 @@ export function AvailabilitySettingsForm({ initialAvailability }: Props) {
             </div>
 
             <div className="mt-8">
-                <button
+                <Button
+                    type="button"
                     onClick={save}
                     disabled={isLoading}
-                    className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                    variant="primary"
                 >
                     {isLoading ? 'Saving...' : 'Save Changes'}
-                </button>
+                </Button>
             </div>
         </div>
     );

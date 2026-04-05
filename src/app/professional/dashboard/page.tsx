@@ -1,11 +1,11 @@
-import React from "react";
+import React, { Suspense } from "react";
 import Link from "next/link";
 import { requireRole } from "@/lib/core/api-helpers";
 import { ProfessionalDashboardService, type ProfessionalDashboardView } from "@/lib/role/professional/dashboard";
 import { ProfessionalRequestListItem } from "@/components/bookings/ProfessionalRequestListItem";
 import { FeedbackTaskCard } from "@/components/dashboard/FeedbackTaskCard";
 import { Role } from "@prisma/client";
-import { EmptyState, MetricCard, PageHeader, SectionTabs, SurfaceCard } from "@/components/ui";
+import { EmptyState, PageHeader, SectionTabs, SurfaceCard } from "@/components/ui";
 import { ProfessionalUpcomingCallsList } from "@/components/dashboard/ProfessionalUpcomingCallsList";
 import { ProfessionalQcToastEmitter } from "@/components/dashboard/ProfessionalQcToastEmitter";
 import { appRoutes } from "@/lib/shared/routes";
@@ -58,6 +58,86 @@ function sectionUrl(view: ProfessionalDashboardView, cursor?: string) {
     return `${appRoutes.professional.dashboard}?${params.toString()}`;
 }
 
+async function ProfessionalDashboardInsights({ professionalId }: { professionalId: string }) {
+    const [recentFeedbackData, recentQcEvents] = await Promise.all([
+        ProfessionalDashboardService.getRecentFeedbackData(professionalId),
+        ProfessionalDashboardService.getRecentQcEvents(professionalId),
+    ]);
+    const averageRating =
+        typeof recentFeedbackData.stats.average === "number"
+            ? Number(recentFeedbackData.stats.average).toFixed(1)
+            : null;
+    const qcToastEvents = recentQcEvents.map((event) => ({
+        ...event,
+        qcReviewedAt: event.qcReviewedAt.toISOString(),
+    }));
+
+    return (
+        <>
+            <ProfessionalQcToastEmitter events={qcToastEvents} />
+            <section>
+                <PageHeader
+                    eyebrow="Recent feedback"
+                    title="Rating summary"
+                    description="A quick view of recent candidate sentiment."
+                    meta={`${recentFeedbackData.stats.count} review${recentFeedbackData.stats.count === 1 ? "" : "s"}`}
+                    className="mb-4"
+                />
+                <SurfaceCard className="mb-4">
+                    <p className="text-xs uppercase tracking-wide text-gray-500">Rating Summary</p>
+                    <div className="mt-2 flex items-baseline gap-2">
+                        <span className="text-3xl font-bold text-gray-900">{averageRating ?? "No ratings"}</span>
+                        <span className="text-sm text-gray-600">
+                            {recentFeedbackData.stats.count} total review{recentFeedbackData.stats.count === 1 ? "" : "s"}
+                        </span>
+                    </div>
+                </SurfaceCard>
+
+                {recentFeedbackData.reviews.length === 0 ? (
+                    <EmptyState
+                        badge="No reviews yet"
+                        title="No recent feedback"
+                        description="Candidate reviews will appear here after completed calls are rated."
+                        layout="inline"
+                    />
+                ) : (
+                    <div className="space-y-4">
+                        {recentFeedbackData.reviews.map((review) => (
+                            <SurfaceCard key={review.bookingId} as="article">
+                                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                                    <h4 className="font-semibold text-gray-900">{review.candidateLabel || "Candidate"}</h4>
+                                    <p className="text-sm text-gray-500">
+                                        {review.submittedAt.toLocaleDateString()} · {review.rating}/5
+                                    </p>
+                                </div>
+                                <p className="mt-2 text-sm text-gray-700">
+                                    {review.text?.trim() ? review.text : "No written feedback provided."}
+                                </p>
+                            </SurfaceCard>
+                        ))}
+                    </div>
+                )}
+            </section>
+        </>
+    );
+}
+
+function ProfessionalDashboardInsightsFallback() {
+    return (
+        <section>
+            <PageHeader
+                eyebrow="Recent feedback"
+                title="Rating summary"
+                description="Loading recent candidate sentiment."
+                className="mb-4"
+            />
+            <SurfaceCard>
+                <p className="text-sm text-gray-500">Loading recent feedback...</p>
+            </SurfaceCard>
+        </section>
+    );
+}
+
 export default async function ProfessionalDashboardPage({
     searchParams,
 }: {
@@ -76,32 +156,20 @@ export default async function ProfessionalDashboardPage({
     const activeView = isView(resolvedSearchParams.view) ? resolvedSearchParams.view : DEFAULT_VIEW;
 
     const {
-        stats,
         sectionCounts,
         items,
         nextCursor,
         professionalTimezone,
-        recentFeedback,
-        recentQcEvents,
-        reviewStats,
     } = await ProfessionalDashboardService.getDashboardData(user.id, {
         view: activeView,
         cursor: resolvedSearchParams.cursor,
     });
 
-    const averageRating =
-        typeof reviewStats.average === "number"
-            ? Number(reviewStats.average).toFixed(1)
-            : null;
     const activeMeta = VIEW_META[activeView];
     const totalItemsInSection = sectionCounts[activeView];
     const upcomingItems = items as Parameters<typeof ProfessionalUpcomingCallsList>[0]["bookings"];
     const requestItems = items as Array<Parameters<typeof ProfessionalRequestListItem>[0]["booking"]>;
     const feedbackItems = items as Array<Parameters<typeof FeedbackTaskCard>[0]["booking"]>;
-    const qcToastEvents = recentQcEvents.map((event) => ({
-        ...event,
-        qcReviewedAt: event.qcReviewedAt.toISOString(),
-    }));
     const tabItems = DASHBOARD_VIEWS.map((view) => ({
         value: view,
         label: VIEW_META[view].title,
@@ -111,17 +179,11 @@ export default async function ProfessionalDashboardPage({
 
     return (
         <div className="space-y-8">
-            <ProfessionalQcToastEmitter events={qcToastEvents} />
             <PageHeader
                 eyebrow="Professional dashboard"
                 title="Upcoming calls, tasks, and candidate feedback"
                 description="Stay on top of scheduled sessions, open tasks, and recent candidate ratings."
             />
-
-            <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2">
-                <MetricCard label="Upcoming Bookings" value={stats.upcomingBookingsCount} />
-                <MetricCard label="Pending Feedback" value={stats.pendingFeedbackCount} />
-            </div>
 
             <section className="mb-8 space-y-4">
                 <SectionTabs items={tabItems} currentValue={activeView} aria-label="Dashboard sections" />
@@ -189,49 +251,9 @@ export default async function ProfessionalDashboardPage({
                 </div>
             </section>
 
-            <section>
-                <PageHeader
-                    eyebrow="Recent feedback"
-                    title="Rating summary"
-                    description="A quick view of recent candidate sentiment."
-                    meta={`${reviewStats.count} review${reviewStats.count === 1 ? "" : "s"}`}
-                    className="mb-4"
-                />
-                <SurfaceCard className="mb-4">
-                    <p className="text-xs uppercase tracking-wide text-gray-500">Rating Summary</p>
-                    <div className="mt-2 flex items-baseline gap-2">
-                        <span className="text-3xl font-bold text-gray-900">{averageRating ?? "No ratings"}</span>
-                        <span className="text-sm text-gray-600">
-                            {reviewStats.count} total review{reviewStats.count === 1 ? "" : "s"}
-                        </span>
-                    </div>
-                </SurfaceCard>
-
-                {recentFeedback.length === 0 ? (
-                    <EmptyState
-                        badge="No reviews yet"
-                        title="No recent feedback"
-                        description="Candidate reviews will appear here after completed calls are rated."
-                        layout="inline"
-                    />
-                ) : (
-                    <div className="space-y-4">
-                        {recentFeedback.map((review) => (
-                            <SurfaceCard key={review.bookingId} as="article">
-                                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                                    <h4 className="font-semibold text-gray-900">{review.candidateLabel || "Candidate"}</h4>
-                                    <p className="text-sm text-gray-500">
-                                        {review.submittedAt.toLocaleDateString()} · {review.rating}/5
-                                    </p>
-                                </div>
-                                <p className="mt-2 text-sm text-gray-700">
-                                    {review.text?.trim() ? review.text : "No written feedback provided."}
-                                </p>
-                            </SurfaceCard>
-                        ))}
-                    </div>
-                )}
-            </section>
+            <Suspense fallback={<ProfessionalDashboardInsightsFallback />}>
+                <ProfessionalDashboardInsights professionalId={user.id} />
+            </Suspense>
         </div>
     );
 }

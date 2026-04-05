@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
 import { appRoutes } from '@/lib/shared/routes';
 import { AuthCard, AuthField, AuthMessage } from '@/components/ui/primitives/Auth';
-import { Button } from '@/components/ui/primitives/Button';
+import { Button, buttonVariants } from '@/components/ui/primitives/Button';
 
 type ResetStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -29,7 +29,7 @@ function ResetPasswordForm() {
                         <p className="text-sm text-gray-600 mb-6">
                             The reset link is incomplete or expired. Request a new one to continue.
                         </p>
-                        <Link href="/forgot-password" className="btn bg-blue-600 text-white hover:bg-blue-700">
+                        <Link href="/forgot-password" className={buttonVariants({ variant: 'primary' })}>
                             Request new reset link
                         </Link>
                     </AuthCard>
@@ -91,7 +91,7 @@ function ResetPasswordForm() {
                         <p className="text-sm text-gray-600 mb-6">
                             Your password has been changed. Redirecting you to login now.
                         </p>
-                        <Link href="/login" className="btn bg-black text-white hover:bg-gray-800">
+                        <Link href="/login" className={buttonVariants({ variant: 'primary' })}>
                             Go to login
                         </Link>
                     </AuthCard>

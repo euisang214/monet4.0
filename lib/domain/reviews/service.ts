@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/core/db';
-import { BookingStatus } from '@prisma/client';
+import { BookingStatus, Prisma } from '@prisma/client';
 import { formatCandidateForProfessionalView } from '@/lib/domain/users/identity-labels';
 
 function canReviewBooking(status: BookingStatus) {
@@ -74,6 +74,49 @@ export const ReviewsService = {
             average: number | null;
         };
     }> {
+        const latestExperienceOrderBy: Prisma.ExperienceOrderByWithRelationInput[] = [
+            { isCurrent: 'desc' },
+            { startDate: 'desc' },
+            { id: 'desc' },
+        ];
+        const latestEducationOrderBy: Prisma.EducationOrderByWithRelationInput[] = [
+            { isCurrent: 'desc' },
+            { startDate: 'desc' },
+            { id: 'desc' },
+        ];
+        const candidateReviewLabelSelect = {
+            email: true,
+            firstName: true,
+            lastName: true,
+            candidateProfile: {
+                select: {
+                    experience: {
+                        where: { type: 'EXPERIENCE' },
+                        orderBy: latestExperienceOrderBy,
+                        take: 1,
+                        select: {
+                            id: true,
+                            title: true,
+                            company: true,
+                            startDate: true,
+                            endDate: true,
+                            isCurrent: true,
+                        },
+                    },
+                    education: {
+                        orderBy: latestEducationOrderBy,
+                        take: 1,
+                        select: {
+                            id: true,
+                            school: true,
+                            startDate: true,
+                            endDate: true,
+                            isCurrent: true,
+                        },
+                    },
+                },
+            },
+        } satisfies Prisma.UserSelect;
         const where = {
             booking: {
                 professionalId,
@@ -93,37 +136,7 @@ export const ReviewsService = {
                     booking: {
                         select: {
                             candidate: {
-                                select: {
-                                    email: true,
-                                    firstName: true,
-                                    lastName: true,
-                                    candidateProfile: {
-                                        select: {
-                                            experience: {
-                                                where: { type: 'EXPERIENCE' },
-                                                orderBy: [{ isCurrent: 'desc' }, { startDate: 'desc' }, { id: 'desc' }],
-                                                select: {
-                                                    id: true,
-                                                    title: true,
-                                                    company: true,
-                                                    startDate: true,
-                                                    endDate: true,
-                                                    isCurrent: true,
-                                                },
-                                            },
-                                            education: {
-                                                orderBy: [{ isCurrent: 'desc' }, { startDate: 'desc' }, { id: 'desc' }],
-                                                select: {
-                                                    id: true,
-                                                    school: true,
-                                                    startDate: true,
-                                                    endDate: true,
-                                                    isCurrent: true,
-                                                },
-                                            },
-                                        },
-                                    },
-                                },
+                                select: candidateReviewLabelSelect,
                             },
                         },
                     },

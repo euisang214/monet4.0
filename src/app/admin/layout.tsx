@@ -1,3 +1,4 @@
+import { AuthenticatedAppShell } from "@/components/layout/AuthenticatedAppShell";
 import { AuthenticatedContentFrame } from "@/components/layout/AuthenticatedContentFrame";
 
 export default function AdminLayout({
@@ -5,5 +6,9 @@ export default function AdminLayout({
 }: {
     children: React.ReactNode;
 }) {
-    return <AuthenticatedContentFrame>{children}</AuthenticatedContentFrame>;
+    return (
+        <AuthenticatedAppShell>
+            <AuthenticatedContentFrame>{children}</AuthenticatedContentFrame>
+        </AuthenticatedAppShell>
+    );
 }

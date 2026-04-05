@@ -40,7 +40,7 @@ export const LANDING_AUDIENCE_STORAGE_KEY = "monet:landing:audience";
 export const LANDING_CONTENT: Record<LandingAudience, LandingContent> = {
     candidate: {
         hero: {
-            title: "Structured recruiting prep. \nReal professionals.",
+            title: "Structured Recruiting Prep. \nReal Professionals.",
             subtitle:
                 "Connect with verified analysts and associates in finance and consulting. \nClear feedback. Actionable next steps. No cold DMs.",
             primaryCta: {

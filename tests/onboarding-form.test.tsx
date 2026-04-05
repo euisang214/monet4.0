@@ -37,6 +37,8 @@ const baseProfessionalInitialData = {
     firstName: "Morgan",
     lastName: "Lee",
     bio: "Mentor",
+    industry: "consulting",
+    seniority: "principal",
     price: 200,
     corporateEmail: "pro@example.com",
     interests: ["Mentorship"],

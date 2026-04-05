@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { buttonVariants } from "@/components/ui/primitives/Button";
 import styles from "../public.module.css";
 
 export default function PricingPage() {
@@ -20,7 +21,7 @@ export default function PricingPage() {
                 </div>
 
                 <div className={styles.pricingCtaWrap}>
-                    <Link href="/signup?role=professional" className="btn bg-blue-600 text-white hover:bg-blue-700">
+                    <Link href="/signup?role=professional" className={buttonVariants({ variant: "primary", size: "lg" })}>
                         Start Earning
                     </Link>
                 </div>

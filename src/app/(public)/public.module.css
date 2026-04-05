@@ -64,6 +64,10 @@
   flex-wrap: wrap;
 }
 
+.navButton {
+  flex: 0 0 auto;
+}
+
 .navLink {
   color: var(--muted);
   font-weight: 550;
@@ -308,7 +312,8 @@
     gap: 0.45rem;
   }
 
-  .navLink {
+  .navLink,
+  .navButton {
     font-size: 0.94rem;
   }
 }
