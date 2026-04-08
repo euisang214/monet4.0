@@ -259,11 +259,7 @@ export default async function CandidateChatsPage({
                                                         Feedback is not available yet for this completed booking.
                                                     </p>
                                                 )
-                                            ) : (
-                                                <p className="text-sm text-gray-500">
-                                                    Use the actions below to manage this booking.
-                                                </p>
-                                            )}
+                                            ) : null}
 
                                             <CandidateHistoryActions
                                                 bookingId={booking.id}
