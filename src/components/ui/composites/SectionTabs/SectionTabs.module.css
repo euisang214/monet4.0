@@ -1,39 +1,57 @@
 .nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.65rem;
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 0.3rem;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 0.3rem;
+  border: 1px solid var(--section-tab-track-border, rgba(11, 29, 83, 0.08));
+  border-radius: 999px;
+  background: var(--section-tab-track-bg, rgba(255, 255, 255, 0.56));
+  box-shadow: var(--section-tab-track-shadow, inset 0 1px 0 rgba(255, 255, 255, 0.52));
+  scrollbar-width: none;
+}
+
+.nav::-webkit-scrollbar {
+  display: none;
 }
 
 .navUnderline {
   gap: 0.4rem 1rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .tab {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.65rem 0.95rem;
+  padding: 0.62rem 0.92rem;
   border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface-raised);
+  border: 1px solid transparent;
+  background: transparent;
   color: var(--text-muted);
-  box-shadow: var(--shadow-xs);
+  box-shadow: none;
   font-size: 0.92rem;
   font-weight: 700;
   text-decoration: none;
   transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+  white-space: nowrap;
 }
 
 .tab:hover {
-  transform: translateY(-1px);
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-sm);
+  background: rgba(11, 29, 83, 0.04);
+  border-color: rgba(11, 29, 83, 0.06);
 }
 
 .tabActive {
-  border-color: var(--tone-8);
-  background: var(--tone-8);
-  color: #fff;
+  border-color: var(--section-tab-active-border, rgba(11, 29, 83, 0.08));
+  background: var(--section-tab-active-bg, #ffffff);
+  box-shadow: 0 10px 20px rgba(11, 29, 83, 0.08);
+  color: var(--section-tab-active-color, var(--tone-9));
 }
 
 .tabUnderline {
@@ -74,12 +92,18 @@
   min-width: 1.65rem;
   padding: 0.1rem 0.4rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.26);
   font-size: 0.78rem;
 }
 
 .tab:not(.tabActive) .count,
 .tabUnderline:not(.tabUnderlineActive) .count {
-  background: rgba(11, 29, 83, 0.08);
-  color: var(--tone-9);
+  background: var(--section-tab-count-bg, rgba(11, 29, 83, 0.08));
+  color: var(--section-tab-count-color, var(--tone-9));
+}
+
+@media (max-width: 767px) {
+  .nav {
+    display: flex;
+  }
 }

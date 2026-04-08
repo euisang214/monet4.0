@@ -1,0 +1,153 @@
+.shell {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.header {
+  display: grid;
+  gap: 0.55rem;
+  max-width: 44rem;
+}
+
+.eyebrow {
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--tone-8);
+}
+
+.title {
+  font-size: clamp(2rem, 3vw, 2.75rem);
+  line-height: 0.98;
+  color: var(--text);
+}
+
+.description {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.85rem;
+}
+
+.step {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid rgba(11, 29, 83, 0.08);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.58);
+  box-shadow: var(--shadow-xs);
+}
+
+.stepHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.stepIndex {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 999px;
+  background: rgba(11, 29, 83, 0.08);
+  color: var(--tone-9);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.stepLabel {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.stepDescription {
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--text-subtle);
+}
+
+.stepCurrent {
+  border-color: rgba(11, 29, 83, 0.14);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--shadow-sm);
+}
+
+.stepCurrent .stepIndex {
+  background: linear-gradient(135deg, var(--pill-active-start), var(--pill-active-end));
+  color: var(--pill-text-inverse);
+}
+
+.stepComplete .stepIndex {
+  background: rgba(82, 182, 154, 0.18);
+  color: #176149;
+}
+
+.layout {
+  display: grid;
+  gap: 1.2rem;
+  align-items: start;
+}
+
+.main {
+  min-width: 0;
+}
+
+.aside {
+  min-width: 0;
+}
+
+.summaryCard {
+  display: grid;
+  gap: 1rem;
+}
+
+.summaryHeader {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.summaryTitle {
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.summaryDescription {
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.summaryBody {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.summaryFooter {
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--text-subtle);
+}
+
+@media (min-width: 1100px) {
+  .layout {
+    grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.7fr);
+  }
+
+  .aside {
+    position: sticky;
+    top: 6.15rem;
+  }
+}

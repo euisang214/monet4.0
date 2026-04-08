@@ -30,19 +30,11 @@ export default async function BookingRequestPage(props: {
     });
 
     return (
-        <div className="container mx-auto py-8 max-w-2xl">
-            <h1 className="text-3xl font-bold mb-2">Request Booking</h1>
-            <div className="mb-8 p-5 bg-white shadow-sm rounded-xl border border-gray-200">
-                {/* Show role context here to stay consistent with browse/detail cards. */}
-                <h2 className="text-xl font-semibold">{professionalLabel}</h2>
-                <p className="text-lg font-medium mt-2">
-                    Rate: {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(professional.priceCents / 100)} / session
-                </p>
-            </div>
-
+        <div className="container mx-auto py-8 max-w-6xl">
             <CandidateBookingRequestForm
                 professionalId={params.id}
                 priceCents={professional.priceCents}
+                professionalLabel={professionalLabel}
                 professionalTimezone={professional.timezone}
                 candidateTimezone={availabilitySeed.candidateTimezone}
                 isGoogleCalendarConnected={availabilitySeed.isGoogleCalendarConnected}

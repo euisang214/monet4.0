@@ -1,13 +1,10 @@
 .hero {
   position: relative;
   overflow: clip;
-  border-radius: 28px;
-  border: 1px solid rgba(82, 182, 154, 0.38);
-  min-height: 38rem;
-  box-shadow: 0 24px 56px rgba(24, 78, 119, 0.18);
+  min-height: min(52rem, calc(100svh - 6.5rem));
   background:
-    linear-gradient(140deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.08)),
-    rgba(255, 255, 255, 0.38);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.02)),
+    rgba(255, 255, 255, 0.16);
   animation: heroReveal 520ms ease-out both;
 }
 
@@ -28,56 +25,79 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 33%),
-    radial-gradient(circle at 80% 22%, rgba(114, 185, 187, 0.38) 0%, rgba(114, 185, 187, 0) 36%),
-    radial-gradient(circle at 32% 78%, rgba(181, 217, 217, 0.34) 0%, rgba(181, 217, 217, 0) 38%),
-    radial-gradient(circle at 76% 72%, rgba(219, 244, 164, 0.34) 0%, rgba(219, 244, 164, 0) 40%),
-    linear-gradient(140deg, rgba(255, 209, 189, 0.74), rgba(114, 185, 187, 0.5) 48%, rgba(255, 255, 255, 0.54));
+    radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0) 32%),
+    radial-gradient(circle at 82% 24%, rgba(114, 185, 187, 0.42) 0%, rgba(114, 185, 187, 0) 36%),
+    radial-gradient(circle at 28% 82%, rgba(181, 217, 217, 0.38) 0%, rgba(181, 217, 217, 0) 34%),
+    radial-gradient(circle at 76% 74%, rgba(219, 244, 164, 0.34) 0%, rgba(219, 244, 164, 0) 36%),
+    linear-gradient(126deg, rgba(255, 209, 189, 0.86), rgba(114, 185, 187, 0.56) 42%, rgba(235, 247, 255, 0.74));
 }
 
 .veil {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.36), rgba(246, 251, 255, 0.08)),
-    radial-gradient(circle at 50% 20%, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.48) 68%);
-  backdrop-filter: blur(14px);
+    linear-gradient(90deg, rgba(245, 252, 255, 0.9) 0%, rgba(245, 252, 255, 0.56) 34%, rgba(245, 252, 255, 0.08) 68%),
+    radial-gradient(circle at 50% 24%, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.42) 70%);
+  backdrop-filter: blur(12px);
 }
 
 .content {
   position: relative;
   z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 2rem;
-  text-align: center;
+  padding: clamp(1.25rem, 2vw, 1.8rem) clamp(1.25rem, 4vw, 3rem) 2.4rem;
+}
+
+.contentRail {
+  width: min(100%, 1260px);
+  margin: 0 auto;
 }
 
 .audienceSwitcher {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1.8rem;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: clamp(2.5rem, 5vw, 4rem);
+}
+
+.brandLockup {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.brandBadge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 0.5rem 0.9rem;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(15, 37, 76, 0.08);
+  color: var(--tone-10);
+  font-size: 0.86rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  backdrop-filter: blur(18px);
 }
 
 .audienceLabel {
-  color: var(--tone-10);
+  color: rgba(6, 16, 45, 0.74);
   font-size: 0.92rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .audienceOptions {
   display: inline-flex;
   align-items: center;
   gap: 0.32rem;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
+  padding: 0.3rem;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 37, 76, 0.08);
+  background: rgba(255, 255, 255, 0.58);
+  box-shadow: 0 14px 32px rgba(24, 78, 119, 0.08);
+  backdrop-filter: blur(18px);
 }
 
 .audienceOption {
@@ -120,35 +140,37 @@
 }
 
 .roleContentSwap {
-  width: 100%;
+  width: min(100%, 39rem);
   animation: roleContentSwap 260ms ease-out both;
 }
 
 .heroTitle {
-  max-width: 14ch;
-  margin: 0 auto 1rem;
+  max-width: 11ch;
+  margin: 0 0 1rem;
   color: var(--tone-10);
-  font-size: clamp(2.8rem, 7vw, 5.6rem);
-  line-height: 0.96;
+  font-size: clamp(3.4rem, 8vw, 6.5rem);
+  line-height: 0.92;
   letter-spacing: -0.045em;
   white-space: pre-line;
   text-wrap: balance;
 }
 
 .heroSubtitle {
-  max-width: 44rem;
-  margin: 0 auto;
+  max-width: 34rem;
+  margin: 0;
   color: rgba(6, 16, 45, 0.88);
-  font-size: clamp(1.02rem, 2.2vw, 1.3rem);
-  line-height: 1.62;
+  font-size: clamp(1.02rem, 2vw, 1.24rem);
+  line-height: 1.72;
   white-space: pre-line;
   text-wrap: pretty;
 }
 
 .heroButtons {
   display: flex;
-  justify-content: center;
+  align-items: center;
+  gap: 1rem;
   margin-top: 2rem;
+  flex-wrap: wrap;
 }
 
 .heroButton {
@@ -158,33 +180,37 @@
   padding-inline: 1.5rem;
 }
 
+.secondaryLink {
+  color: rgba(6, 16, 45, 0.78);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: rgba(6, 16, 45, 0.22);
+  text-underline-offset: 0.28rem;
+}
+
 .statStrip {
-  margin-top: 2.35rem;
+  margin-top: clamp(2.4rem, 5vw, 4rem);
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.9rem;
+  gap: 1.1rem;
 }
 
 .statCard {
-  border: 1px solid rgba(6, 16, 45, 0.1);
-  border-radius: 16px;
-  padding: 1.1rem 1rem;
-  background: rgba(255, 255, 255, 0.62);
-  box-shadow: 0 12px 24px rgba(24, 78, 119, 0.1);
-  backdrop-filter: blur(16px);
+  padding: 1.15rem 0 0;
+  border-top: 1px solid rgba(15, 37, 76, 0.12);
 }
 
 .statValue {
-  font-size: 1.55rem;
+  font-size: 1.4rem;
   font-weight: 800;
   color: var(--tone-10);
 }
 
 .statLabel {
-  margin-top: 0.18rem;
+  margin-top: 0.32rem;
   color: rgba(6, 16, 45, 0.76);
   font-size: 0.96rem;
-  line-height: 1.4;
+  line-height: 1.48;
 }
 
 @media (max-width: 900px) {
@@ -193,12 +219,18 @@
   }
 
   .content {
-    padding: 2.3rem 1.1rem 1.3rem;
+    padding: 1rem 1rem 1.8rem;
+  }
+
+  .audienceSwitcher {
+    align-items: flex-start;
+    flex-direction: column;
+    margin-bottom: 2.4rem;
   }
 
   .audienceOptions {
     width: 100%;
-    max-width: 340px;
+    max-width: 360px;
   }
 
   .audienceOption {
@@ -208,13 +240,14 @@
 
   .statStrip {
     grid-template-columns: 1fr;
+    gap: 0.8rem;
   }
 }
 
 @media (max-width: 640px) {
   .heroTitle {
-    max-width: 12ch;
-    font-size: clamp(2.4rem, 13vw, 4rem);
+    max-width: 10ch;
+    font-size: clamp(2.8rem, 13vw, 4.5rem);
   }
 
   .heroSubtitle {
@@ -228,6 +261,12 @@
 
   .heroButtons {
     width: 100%;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .secondaryLink {
+    text-align: left;
   }
 }
 

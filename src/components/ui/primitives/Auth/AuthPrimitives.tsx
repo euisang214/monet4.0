@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 import { cva } from "class-variance-authority";
 import { cn } from "@/lib/ui/cn";
 import { InlineNotice } from "@/components/ui/composites/InlineNotice/InlineNotice";
@@ -24,7 +25,49 @@ type AuthShellProps = {
 };
 
 export function AuthShell({ children, className }: AuthShellProps) {
-    return <main className={cn(styles.shell, className)}>{children}</main>;
+    return (
+        <main className={cn(styles.shell, className)}>
+            <div className={styles.shellBackdrop} aria-hidden="true">
+                <span className={styles.shellGlowPrimary} />
+                <span className={styles.shellGlowSecondary} />
+                <span className={styles.shellGrid} />
+            </div>
+
+            <div className={styles.shellFrame}>
+                <section className={styles.shellStory}>
+                    <Link href="/" className={styles.brandLink}>
+                        <span className={styles.brandBadge} />
+                        Kafei
+                    </Link>
+
+                    <div className={styles.storyCopy}>
+                        <p className={styles.storyEyebrow}>Structured recruiting conversations</p>
+                        <h1 className={styles.storyTitle}>A more intentional way to connect candidates and professionals.</h1>
+                        <p className={styles.storyDescription}>
+                            Kafei keeps the scheduling, payment, and follow-up workflow tight so the real value stays in the conversation itself.
+                        </p>
+                    </div>
+
+                    <div className={styles.storyPoints}>
+                        <article className={styles.storyPoint}>
+                            <h2 className={styles.storyPointTitle}>Focused sessions</h2>
+                            <p className={styles.storyPointDescription}>Thirty-minute calls built for practical feedback, not vague networking.</p>
+                        </article>
+                        <article className={styles.storyPoint}>
+                            <h2 className={styles.storyPointTitle}>Operationally clean</h2>
+                            <p className={styles.storyPointDescription}>Calendar sync, secure payments, and reminders are handled in one place.</p>
+                        </article>
+                        <article className={styles.storyPoint}>
+                            <h2 className={styles.storyPointTitle}>Trust by default</h2>
+                            <p className={styles.storyPointDescription}>Verified participants and structured follow-through make the marketplace feel dependable.</p>
+                        </article>
+                    </div>
+                </section>
+
+                <div className={styles.shellFormColumn}>{children}</div>
+            </div>
+        </main>
+    );
 }
 
 type AuthCardProps = {

@@ -1,0 +1,43 @@
+.root {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.centered {
+  text-align: center;
+}
+
+.badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--tone-8);
+}
+
+.title {
+  font-size: clamp(1.45rem, 2.2vw, 2rem);
+  line-height: 1.05;
+  color: var(--text);
+}
+
+.description {
+  max-width: 40rem;
+  font-size: 0.96rem;
+  line-height: 1.58;
+  color: var(--text-muted);
+}
+
+.centered .description {
+  margin-inline: auto;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.centered .actions {
+  justify-content: center;
+}

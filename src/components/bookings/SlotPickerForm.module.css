@@ -1,0 +1,87 @@
+.surface {
+  display: grid;
+  gap: 1rem;
+}
+
+.card {
+  display: grid;
+  gap: 1rem;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+
+.copy {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.title {
+  font-size: 1.25rem;
+  line-height: 1.08;
+  color: var(--text);
+}
+
+.description {
+  font-size: 0.94rem;
+  line-height: 1.58;
+  color: var(--text-muted);
+}
+
+.slotCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(11, 29, 83, 0.06);
+  color: var(--tone-9);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.error {
+  padding: 0.9rem 1rem;
+  border-radius: var(--radius-md);
+  background: #fdecec;
+  color: #9d3340;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.summaryList {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.summaryRow {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.summaryLabel {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.summaryValue {
+  font-size: 0.98rem;
+  line-height: 1.5;
+  color: var(--text);
+}

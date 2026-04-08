@@ -1,0 +1,24 @@
+.strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.9rem;
+}
+
+.cardWrap,
+.link {
+  display: block;
+  min-width: 0;
+}
+
+.card {
+  height: 100%;
+}
+
+.link {
+  border-radius: var(--radius-md);
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--border-strong);
+  outline-offset: 3px;
+}

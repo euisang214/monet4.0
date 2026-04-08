@@ -8,6 +8,8 @@ import type { SlotInterval } from '@/components/bookings/calendar/types';
 import { useTrackedProfessionalBookingActions } from '@/components/bookings/hooks/useTrackedProfessionalBookingActions';
 import { useProfessionalGoogleBusy } from '@/components/bookings/hooks/useProfessionalGoogleBusy';
 import { Button } from '@/components/ui/primitives/Button';
+import { SurfaceCard } from '@/components/ui/composites/SurfaceCard/SurfaceCard';
+import styles from './ProfessionalRescheduleWorkspace.module.css';
 
 interface ProfessionalRescheduleWorkspaceProps {
     bookingId: string;
@@ -94,21 +96,39 @@ export function ProfessionalRescheduleWorkspace({
     };
 
     return (
-        <div className="space-y-6">
+        <div className={styles.workspace}>
             {previousStartAt && previousEndAt && bookingStatus === BookingStatus.reschedule_pending ? (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <div className={styles.notice}>
                     Previously scheduled for {new Date(previousStartAt).toLocaleString()} - {new Date(previousEndAt).toLocaleString()}.
                     The original slot is no longer confirmed while this negotiation remains pending.
                 </div>
             ) : null}
 
             {confirmationSlots.length > 0 && canActOnPendingRound ? (
-                <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                <div>
                     <SlotPickerForm
                         slots={confirmationSlots}
                         calendarTimezone={calendarTimezone}
                         professionalTimezone={professionalTimezone}
                         heading={bookingStatus === BookingStatus.accepted ? 'Confirm a Current Candidate Slot' : 'Candidate Returned Times'}
+                        workflowTitle={bookingStatus === BookingStatus.accepted ? 'Review current candidate times' : 'Confirm the latest proposal round'}
+                        workflowDescription={
+                            bookingStatus === BookingStatus.accepted
+                                ? 'Choose one of the candidate’s currently available slots or move to a fresh proposal round below.'
+                                : 'Accept one of the candidate’s returned slots to finalize the new meeting time.'
+                        }
+                        steps={[
+                            {
+                                label: 'Review options',
+                                description: 'Look through the candidate-visible times first.',
+                                status: 'current',
+                            },
+                            {
+                                label: 'Confirm or counter',
+                                description: 'Accept one slot or propose a fresh round below.',
+                                status: 'upcoming',
+                            },
+                        ]}
                         description={
                             bookingStatus === BookingStatus.accepted
                                 ? 'Choose one of the candidate’s currently available slots to reschedule immediately.'
@@ -118,19 +138,20 @@ export function ProfessionalRescheduleWorkspace({
                         confirmingLabel="Confirming..."
                         isConfirming={isConfirming}
                         onConfirm={handleConfirm}
+                        summaryFooter="If none of these slots work, use the proposal calendar below to send a different set of options."
                     />
                 </div>
             ) : null}
 
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 space-y-4">
-                <div className="flex items-center justify-between gap-3">
-                    <div>
-                        <h2 className="text-lg font-semibold text-gray-900">Propose Other Times</h2>
-                        <p className="text-sm text-gray-600">
+            <SurfaceCard className={styles.proposalCard}>
+                <div className={styles.proposalHeader}>
+                    <div className={styles.proposalCopy}>
+                        <h2 className={styles.proposalTitle}>Propose other times</h2>
+                        <p className={styles.proposalDescription}>
                             Highlight new professional-preferred slots outside the currently shown candidate times.
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className={styles.proposalActions}>
                         <Button
                             type="button"
                             onClick={() => void refreshGoogleBusy()}
@@ -153,7 +174,7 @@ export function ProfessionalRescheduleWorkspace({
                 </div>
 
                 {isWaitingOnCandidate ? (
-                    <p className="text-sm text-gray-600">
+                    <p className={styles.proposalHint}>
                         Waiting for the candidate to respond to your latest proposal round.
                     </p>
                 ) : null}
@@ -182,13 +203,9 @@ export function ProfessionalRescheduleWorkspace({
                             ]}
                         />
 
-                        {proposalError ? (
-                            <div className="text-red-600 text-sm p-2 bg-red-50 rounded">
-                                {proposalError}
-                            </div>
-                        ) : null}
+                        {proposalError ? <div className={styles.proposalError}>{proposalError}</div> : null}
 
-                        <div className="flex justify-end">
+                        <div className={styles.proposalFooter}>
                             <Button
                                 type="button"
                                 onClick={handleSubmitProposal}
@@ -199,7 +216,7 @@ export function ProfessionalRescheduleWorkspace({
                         </div>
                     </>
                 ) : null}
-            </div>
+            </SurfaceCard>
         </div>
     );
 }

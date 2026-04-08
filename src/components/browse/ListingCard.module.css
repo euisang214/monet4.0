@@ -1,13 +1,21 @@
 .card {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.15rem;
   height: 100%;
+  padding: 1.35rem;
+}
+
+.topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
 .header {
   display: grid;
-  gap: 0.4rem;
+  gap: 0.7rem;
 }
 
 .eyebrow {
@@ -18,17 +26,81 @@
   color: var(--text-subtle);
 }
 
-.bio {
-  min-height: 3.5rem;
-  color: var(--text-muted);
-  line-height: 1.6;
+.pricePill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  padding: 0.42rem 0.72rem;
+  border-radius: 999px;
+  background: rgba(24, 78, 119, 0.08);
+  color: var(--tone-9);
+  font-size: 0.76rem;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
-.industry {
-  margin-top: 0.2rem;
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.38rem 0.62rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.66);
+  border: 1px solid rgba(11, 29, 83, 0.08);
   color: var(--text-subtle);
-  font-size: 0.84rem;
-  font-weight: 600;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.title {
+  font-size: 1.14rem;
+  line-height: 1.12;
+  color: var(--text);
+}
+
+.bio {
+  min-height: 4.8rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.detailItem {
+  display: grid;
+  gap: 0.24rem;
+  padding-top: 0.72rem;
+  border-top: 1px solid rgba(11, 29, 83, 0.08);
+}
+
+.detailLabel {
+  color: var(--text-subtle);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.detailValue {
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .footer {
@@ -39,11 +111,16 @@
   margin-top: auto;
 }
 
-.price {
+.footerNote {
   margin-left: auto;
-  color: var(--text);
-  font-size: 1.4rem;
-  font-weight: 800;
-  line-height: 1;
-  white-space: nowrap;
+  color: var(--text-subtle);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+@media (max-width: 640px) {
+  .detailGrid {
+    grid-template-columns: 1fr;
+  }
 }

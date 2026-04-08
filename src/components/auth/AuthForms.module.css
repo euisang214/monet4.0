@@ -1,7 +1,7 @@
 .header {
   display: grid;
   gap: 0.45rem;
-  text-align: center;
+  text-align: left;
 }
 
 .eyebrow {
@@ -53,15 +53,15 @@
   position: relative;
   z-index: 1;
   padding: 0 0.75rem;
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.82);
   color: var(--text-subtle);
   font-size: 0.84rem;
 }
 
 .footer {
-  justify-items: center;
+  justify-items: start;
   gap: 0.3rem;
-  text-align: center;
+  text-align: left;
   font-size: 0.92rem;
   color: var(--text-muted);
 }

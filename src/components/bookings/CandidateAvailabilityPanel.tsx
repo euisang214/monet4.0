@@ -6,6 +6,8 @@ import type { SlotInterval } from '@/components/bookings/calendar/types';
 import { countHalfHourSlots } from '@/components/bookings/calendar/interval-utils';
 import { useCandidateGoogleBusy } from '@/components/bookings/hooks/useCandidateGoogleBusy';
 import { Button } from '@/components/ui/primitives/Button';
+import { cn } from '@/lib/ui/cn';
+import styles from './CandidateAvailabilityPanel.module.css';
 
 interface CandidateAvailabilityPanelProps {
     calendarTimezone?: string;
@@ -55,8 +57,22 @@ export function CandidateAvailabilityPanel({
     }, [initialSelectedSlots]);
 
     return (
-        <div className={className}>
-            <div className="mb-3 flex flex-wrap items-center gap-3">
+        <div className={cn(styles.panel, className)}>
+            <div className={styles.toolbar}>
+                <div className={styles.toolbarMeta}>
+                    <span className={styles.selectionPill}>
+                        {selectedCountLabel} <strong>{selectedSlotCount}</strong>
+                    </span>
+                    {lastBusyRefreshAt ? (
+                        <span className={styles.syncStatus}>
+                            Last synced {lastBusyRefreshAt.toLocaleTimeString()}
+                        </span>
+                    ) : (
+                        <span className={styles.syncStatus}>
+                            {isGoogleCalendarConnected ? 'Google Calendar ready to sync' : 'Google Calendar not connected'}
+                        </span>
+                    )}
+                </div>
                 <Button
                     type="button"
                     onClick={() => {
@@ -69,15 +85,10 @@ export function CandidateAvailabilityPanel({
                 >
                     {isLoadingBusy ? 'Refreshing calendar...' : 'Refresh Google Calendar'}
                 </Button>
-                {lastBusyRefreshAt && (
-                    <span className="text-xs text-gray-500">
-                        Last synced {lastBusyRefreshAt.toLocaleTimeString()}
-                    </span>
-                )}
             </div>
 
             {busyLoadError && (
-                <div className="mb-3 p-3 bg-yellow-50 text-yellow-700 rounded text-sm">
+                <div className={styles.warning}>
                     {busyLoadError}
                 </div>
             )}
@@ -92,10 +103,6 @@ export function CandidateAvailabilityPanel({
                 description={description}
                 showClearAll={showClearAll}
             />
-
-            <p className="text-sm text-gray-500 mt-4">
-                {selectedCountLabel}: <span className="font-medium">{selectedSlotCount}</span>
-            </p>
 
             {children}
         </div>

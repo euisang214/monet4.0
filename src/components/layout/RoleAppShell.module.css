@@ -1,7 +1,7 @@
 .shell {
   position: relative;
   min-height: calc(100dvh - 4.5rem);
-  padding: 1.2rem 0 2.5rem;
+  padding: 1rem 0 2.25rem;
   overflow-x: clip;
 }
 
@@ -12,12 +12,12 @@
 }
 
 .mobileNav {
-  margin-bottom: 1rem;
+  margin-bottom: 0.9rem;
 }
 
 .desktopLayout {
   display: grid;
-  gap: 1.5rem;
+  gap: 1.35rem;
 }
 
 .rail {
@@ -28,18 +28,18 @@
   position: sticky;
   top: 5.75rem;
   display: grid;
-  gap: 1rem;
-  border: 1px solid var(--border);
+  gap: 0.9rem;
+  border: 1px solid rgba(11, 29, 83, 0.08);
   border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.72);
-  box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(18px);
-  padding: 1rem;
+  background: rgba(255, 255, 255, 0.48);
+  box-shadow: var(--shadow-xs);
+  backdrop-filter: blur(10px);
+  padding: 0.9rem;
 }
 
 .railCardCompact {
-  gap: 0.6rem;
-  padding: 0.85rem;
+  gap: 0.55rem;
+  padding: 0.8rem;
 }
 
 .railTitle {
@@ -56,13 +56,20 @@
 
 .sectionNav {
   display: flex;
-  gap: 0.7rem;
+  gap: 0.6rem;
 }
 
 .sectionNavMobile {
   overflow-x: auto;
-  padding: 4px 0;
-  margin: -4px 0;
+  overflow-y: hidden;
+  gap: 0.25rem;
+  padding: 0.24rem;
+  margin: 0;
+  border: 1px solid rgba(11, 29, 83, 0.09);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.52);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.52);
+  scroll-snap-type: x proximity;
 }
 
 .sectionNavMobile::-webkit-scrollbar {
@@ -77,12 +84,12 @@
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
-  min-height: 2.85rem;
-  border: 1px solid var(--border);
+  min-height: 2.65rem;
+  border: 1px solid transparent;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.7);
+  background: transparent;
   color: var(--text-muted);
-  box-shadow: var(--shadow-xs);
+  box-shadow: none;
   font-size: 0.92rem;
   font-weight: 700;
   text-decoration: none;
@@ -91,24 +98,28 @@
 }
 
 .sectionNavMobile .sectionLink {
-  padding: 0.68rem 0.95rem;
+  flex: 0 0 auto;
+  min-height: 2.45rem;
+  padding: 0.52rem 0.68rem;
+  font-size: 0.8rem;
+  scroll-snap-align: start;
 }
 
 .sectionNavDesktop .sectionLink {
   justify-content: flex-start;
-  padding: 0.8rem 0.9rem;
+  padding: 0.74rem 0.82rem;
 }
 
 .sectionLink:hover {
-  transform: translateY(-1px);
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-sm);
+  background: rgba(11, 29, 83, 0.04);
+  border-color: rgba(11, 29, 83, 0.06);
 }
 
 .sectionLinkActive {
-  border-color: var(--tone-8);
-  background: var(--surface-accent);
-  color: #fff;
+  border-color: rgba(11, 29, 83, 0.08);
+  background: #ffffff;
+  box-shadow: 0 10px 20px rgba(11, 29, 83, 0.08);
+  color: var(--tone-9);
 }
 
 .sectionMeta {
@@ -122,11 +133,28 @@
   .frame {
     width: min(var(--page-shell-max-width), calc(100% - (var(--page-shell-gutter-compact) * 2)));
   }
+
+  .mobileNav {
+    margin-bottom: 0.8rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .sectionNavMobile {
+    justify-content: space-between;
+  }
+
+  .sectionNavMobile .sectionLink {
+    flex: 1 1 0;
+    min-width: 0;
+    justify-content: center;
+    padding-inline: 0.4rem;
+  }
 }
 
 @media (min-width: 960px) {
   .shell {
-    padding-top: 1.45rem;
+    padding-top: 1.25rem;
   }
 
   .mobileNav {
@@ -134,7 +162,7 @@
   }
 
   .desktopLayout {
-    grid-template-columns: 15.5rem minmax(0, 1fr);
+    grid-template-columns: 14.5rem minmax(0, 1fr);
     align-items: start;
   }
 

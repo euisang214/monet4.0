@@ -14,6 +14,7 @@ export { DataTable, type DataColumn, type DataTableProps } from "./composites/Da
 export { InlineNotice } from "./composites/InlineNotice/InlineNotice";
 export { LoadingCard } from "./composites/LoadingCard/LoadingCard";
 export { MetricCard } from "./composites/MetricCard/MetricCard";
+export { DashboardSummaryStrip, type DashboardSummaryItem } from "./composites/DashboardSummaryStrip/DashboardSummaryStrip";
 export { EmptyState } from "./composites/EmptyState";
 export { NotificationBanner } from "./composites/NotificationBanner";
 export { PageHeader } from "./composites/PageHeader/PageHeader";

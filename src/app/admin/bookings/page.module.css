@@ -1,0 +1,81 @@
+.page {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.search {
+  width: min(100%, 22rem);
+}
+
+.summaryStrip {
+  margin-top: -0.15rem;
+}
+
+.bookingCell {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 12rem;
+}
+
+.bookingId {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.bookingMeta {
+  font-size: 0.82rem;
+  color: var(--text-subtle);
+}
+
+.participants {
+  display: grid;
+  gap: 0.55rem;
+  min-width: 13rem;
+}
+
+.participant {
+  display: grid;
+  gap: 0.16rem;
+}
+
+.participantLabel {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.participantValue {
+  font-size: 0.92rem;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.paymentCell {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 11rem;
+}
+
+.paymentAmount {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.emptyPayment {
+  font-size: 0.9rem;
+  color: var(--text-subtle);
+}
+
+.statusCell {
+  display: inline-flex;
+  align-items: center;
+}
+
+.actionCell {
+  white-space: nowrap;
+}

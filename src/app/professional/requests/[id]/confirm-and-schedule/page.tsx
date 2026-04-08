@@ -86,14 +86,12 @@ export default async function ConfirmAndSchedulePage({ params }: PageProps) {
                 </p>
             </header>
 
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                <ConfirmBookingForm
-                    bookingId={id}
-                    slots={slots}
-                    calendarTimezone={booking.timezone}
-                    professionalTimezone={booking.professional.timezone}
-                />
-            </div>
+            <ConfirmBookingForm
+                bookingId={id}
+                slots={slots}
+                calendarTimezone={booking.timezone}
+                professionalTimezone={booking.professional.timezone}
+            />
         </main>
     );
 }

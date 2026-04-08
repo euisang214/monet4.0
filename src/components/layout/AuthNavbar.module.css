@@ -1,20 +1,20 @@
 .nav {
   position: sticky;
-  top: 0.85rem;
+  top: 0.7rem;
   z-index: 40;
-  margin: 0 auto 0.6rem;
+  margin: 0 auto 0.5rem;
   width: min(var(--page-shell-max-width), calc(100% - (var(--page-shell-gutter) * 2)));
 }
 
 .panel {
   display: grid;
-  gap: 0.8rem;
+  gap: 0.7rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.78);
-  box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(18px);
-  padding: 0.9rem 1rem;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: var(--shadow-xs);
+  backdrop-filter: blur(12px);
+  padding: 0.8rem 0.95rem;
 }
 
 .brandRow,
@@ -37,9 +37,9 @@
 .brand {
   display: inline-flex;
   align-items: center;
-  min-height: 2.75rem;
+  min-height: 2.55rem;
   gap: 0.7rem;
-  padding: 0.55rem 0.75rem;
+  padding: 0.48rem 0.65rem;
   border-radius: 14px;
   color: var(--text);
   font-size: 1rem;
@@ -49,7 +49,7 @@
 }
 
 .brand:hover {
-  background: rgba(159, 212, 248, 0.24);
+  background: rgba(11, 29, 83, 0.04);
 }
 
 .brandBadge {
@@ -57,7 +57,7 @@
   height: 24px;
   border-radius: 7px;
   background: linear-gradient(135deg, var(--primary), var(--primary-strong));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 8px 18px rgba(11, 29, 83, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 6px 14px rgba(11, 29, 83, 0.12);
 }
 
 .navScroller {
@@ -66,8 +66,12 @@
   gap: 0.6rem;
   min-width: 0;
   overflow-x: auto;
-  padding: 4px 0;
-  margin: -4px 0;
+  padding: 0.25rem;
+  margin: 0;
+  border: 1px solid rgba(11, 29, 83, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.4);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.46);
   scrollbar-width: none;
 }
 
@@ -83,7 +87,7 @@
   min-width: 0;
   flex: 1 1 auto;
   color: var(--text-subtle);
-  font-size: 0.88rem;
+  font-size: 0.84rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -97,8 +101,8 @@
   .panel {
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
-    gap: 1rem;
-    padding: 0.9rem 1rem;
+    gap: 0.9rem;
+    padding: 0.8rem 0.95rem;
   }
 
   .navScroller {
@@ -121,6 +125,6 @@
   }
 
   .panel {
-    padding: 0.8rem;
+    padding: 0.75rem;
   }
 }

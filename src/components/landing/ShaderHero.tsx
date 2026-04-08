@@ -137,47 +137,55 @@ export function ShaderHero({ audience, content, onAudienceChange }: ShaderHeroPr
             </div>
 
             <div className={styles.content}>
-                <div className={styles.audienceSwitcher}>
-                    <p className={styles.audienceLabel}>Are you a...</p>
-                    <div className={styles.audienceOptions} role="group" aria-label="Choose your audience">
-                        <button
-                            type="button"
-                            aria-pressed={audience === "candidate"}
-                            className={`${styles.audienceOption} ${audience === "candidate" ? styles.audienceOptionActive : ""}`}
-                            onClick={() => onAudienceChange("candidate")}
-                        >
-                            Candidate
-                        </button>
-                        <button
-                            type="button"
-                            aria-pressed={audience === "professional"}
-                            className={`${styles.audienceOption} ${audience === "professional" ? styles.audienceOptionActive : ""}`}
-                            onClick={() => onAudienceChange("professional")}
-                        >
-                            Professional
-                        </button>
-                    </div>
-                </div>
-
-                <div key={`hero-${audience}`} className={styles.roleContentSwap}>
-                    <h1 className={styles.heroTitle}>{content.hero.title}</h1>
-                    <p className={styles.heroSubtitle}>{content.hero.subtitle}</p>
-                    <div className={styles.heroButtons}>
-                        <Link
-                            href={content.hero.primaryCta.href}
-                            className={`${buttonVariants({ variant: "primary", size: "lg" })} ${styles.heroButton}`}
-                        >
-                            {content.hero.primaryCta.label}
-                        </Link>
+                <div className={styles.contentRail}>
+                    <div className={styles.audienceSwitcher}>
+                        <div className={styles.brandLockup}>
+                            <span className={styles.brandBadge}>Kafei</span>
+                            <p className={styles.audienceLabel}>Structured conversations for recruiting prep</p>
+                        </div>
+                        <div className={styles.audienceOptions} role="group" aria-label="Choose your audience">
+                            <button
+                                type="button"
+                                aria-pressed={audience === "candidate"}
+                                className={`${styles.audienceOption} ${audience === "candidate" ? styles.audienceOptionActive : ""}`}
+                                onClick={() => onAudienceChange("candidate")}
+                            >
+                                Candidate
+                            </button>
+                            <button
+                                type="button"
+                                aria-pressed={audience === "professional"}
+                                className={`${styles.audienceOption} ${audience === "professional" ? styles.audienceOptionActive : ""}`}
+                                onClick={() => onAudienceChange("professional")}
+                            >
+                                Professional
+                            </button>
+                        </div>
                     </div>
 
-                    <div className={styles.statStrip}>
-                        {content.stats.map((stat) => (
-                            <div key={`${stat.value}-${stat.label}`} className={styles.statCard}>
-                                <div className={styles.statValue}>{stat.value}</div>
-                                <div className={styles.statLabel}>{stat.label}</div>
-                            </div>
-                        ))}
+                    <div key={`hero-${audience}`} className={styles.roleContentSwap}>
+                        <h1 className={styles.heroTitle}>{content.hero.title}</h1>
+                        <p className={styles.heroSubtitle}>{content.hero.subtitle}</p>
+                        <div className={styles.heroButtons}>
+                            <Link
+                                href={content.hero.primaryCta.href}
+                                className={`${buttonVariants({ variant: "primary", size: "lg" })} ${styles.heroButton}`}
+                            >
+                                {content.hero.primaryCta.label}
+                            </Link>
+                            <Link href="/#about" className={styles.secondaryLink}>
+                                See how Kafei works
+                            </Link>
+                        </div>
+
+                        <div className={styles.statStrip}>
+                            {content.stats.map((stat) => (
+                                <div key={`${stat.value}-${stat.label}`} className={styles.statCard}>
+                                    <div className={styles.statValue}>{stat.value}</div>
+                                    <div className={styles.statLabel}>{stat.label}</div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>

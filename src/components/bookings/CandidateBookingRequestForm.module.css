@@ -1,0 +1,79 @@
+.surface {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.formCard {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.priceRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(11, 29, 83, 0.08);
+}
+
+.priceLabel {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.priceValue {
+  font-size: 1.5rem;
+  line-height: 1;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.error {
+  padding: 0.9rem 1rem;
+  border-radius: var(--radius-md);
+  background: #fdecec;
+  color: #9d3340;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.summaryList {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.summaryRow {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.summaryLabel {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.summaryValue {
+  font-size: 0.98rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.summaryNotes {
+  display: grid;
+  gap: 0.55rem;
+  padding-left: 1rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}

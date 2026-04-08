@@ -1,9 +1,145 @@
 .shell {
   min-height: 100dvh;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
-  padding: 3rem 1rem;
+  padding: clamp(1rem, 2vw, 1.5rem);
+  position: relative;
+  overflow: clip;
+  background:
+    radial-gradient(circle at top left, rgba(219, 244, 164, 0.32), transparent 22rem),
+    radial-gradient(circle at right center, rgba(114, 185, 187, 0.24), transparent 30rem),
+    linear-gradient(180deg, #f3fbf5 0%, #edf7ff 54%, #f8fbff 100%);
+}
+
+.shellBackdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.shellGlowPrimary,
+.shellGlowSecondary,
+.shellGrid {
+  position: absolute;
+}
+
+.shellGlowPrimary {
+  inset: auto auto 12% -6%;
+  width: 28rem;
+  height: 28rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(219, 244, 164, 0.4), rgba(219, 244, 164, 0));
+}
+
+.shellGlowSecondary {
+  inset: 8% -8% auto auto;
+  width: 32rem;
+  height: 32rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(114, 185, 187, 0.28), rgba(114, 185, 187, 0));
+}
+
+.shellGrid {
+  inset: 0;
+  opacity: 0.18;
+  background-image:
+    linear-gradient(rgba(15, 37, 76, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 37, 76, 0.06) 1px, transparent 1px);
+  background-size: 4.5rem 4.5rem;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.24), transparent 86%);
+}
+
+.shellFrame {
+  position: relative;
+  z-index: 1;
+  width: min(1160px, 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(320px, 460px);
+  gap: clamp(1.5rem, 4vw, 3rem);
+  align-items: stretch;
+}
+
+.shellStory {
+  display: grid;
+  align-content: space-between;
+  gap: 2rem;
+  padding: clamp(1rem, 2vw, 1.5rem) clamp(1rem, 2.4vw, 2rem);
+}
+
+.brandLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--tone-10);
+}
+
+.brandBadge {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+  box-shadow: 0 10px 22px rgba(24, 78, 119, 0.18);
+}
+
+.storyCopy {
+  display: grid;
+  gap: 0.85rem;
+  max-width: 34rem;
+}
+
+.storyEyebrow {
+  color: var(--tone-8);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.storyTitle {
+  font-size: clamp(2.4rem, 5vw, 4.3rem);
+  line-height: 0.96;
+  letter-spacing: -0.05em;
+  color: var(--tone-10);
+}
+
+.storyDescription {
+  color: rgba(6, 16, 45, 0.76);
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
+.storyPoints {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.storyPoint {
+  display: grid;
+  gap: 0.4rem;
+  padding: 1rem 0 0;
+  border-top: 1px solid rgba(15, 37, 76, 0.1);
+}
+
+.storyPointTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--tone-10);
+}
+
+.storyPointDescription {
+  color: rgba(6, 16, 45, 0.68);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.shellFormColumn {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .card {
@@ -13,10 +149,11 @@
   display: grid;
   gap: 1.5rem;
   padding: clamp(1.5rem, 3vw, 2.25rem);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: #ffffff;
-  box-shadow: var(--shadow-lg);
+  border: 1px solid rgba(15, 37, 76, 0.08);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 26px 54px rgba(24, 78, 119, 0.14);
+  backdrop-filter: blur(20px);
 }
 
 .field {
@@ -82,3 +219,36 @@
 .toneWarning {}
 
 .toneError {}
+
+@media (max-width: 960px) {
+  .shell {
+    padding: 1rem;
+  }
+
+  .shellFrame {
+    grid-template-columns: 1fr;
+  }
+
+  .shellStory {
+    gap: 1.4rem;
+    padding: 0.5rem 0.25rem;
+  }
+
+  .storyPoints {
+    grid-template-columns: 1fr;
+  }
+
+  .shellFormColumn {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .storyTitle {
+    font-size: clamp(2rem, 11vw, 3rem);
+  }
+
+  .card {
+    border-radius: 24px;
+  }
+}

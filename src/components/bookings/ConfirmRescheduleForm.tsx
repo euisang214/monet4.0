@@ -58,12 +58,27 @@ export function ConfirmRescheduleForm({
             professionalTimezone={professionalTimezone}
             heading="Select a New Time"
             description="Choose one of the candidate's submitted 30-minute slots."
+            workflowTitle="Finalize the reschedule"
+            workflowDescription="Pick one of the candidate’s returned times or reject the round if none of them work."
+            steps={[
+                {
+                    label: 'Review returned times',
+                    description: 'Evaluate the candidate’s latest proposal round.',
+                    status: 'current',
+                },
+                {
+                    label: 'Confirm or reject',
+                    description: 'Lock in a new time or reject this round.',
+                    status: 'upcoming',
+                },
+            ]}
             confirmLabel="Confirm New Time"
             confirmingLabel="Confirming..."
             isConfirming={isConfirming}
             onConfirm={handleConfirm}
             isDisabled={isRejecting}
             error={error}
+            summaryFooter="Rejecting keeps the booking in the reschedule workflow so a new round can be proposed."
             secondaryAction={{
                 label: 'Reject Reschedule',
                 loadingLabel: 'Rejecting...',

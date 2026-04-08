@@ -16,6 +16,7 @@ import {
     isProfessionalSeniority,
     type ProfessionalSeniorityValue,
 } from '@/lib/shared/professional-seniority';
+import styles from './page.module.css';
 
 export const revalidate = 60;
 
@@ -110,14 +111,16 @@ export default async function BrowsePage({
     const selectedSeniority: ProfessionalSeniorityValue | undefined = seniorityParam && isProfessionalSeniority(seniorityParam)
         ? seniorityParam
         : undefined;
-    const startedAt = performance.now();
     const { items: professionals, nextCursor } = await CandidateBrowse.searchProfessionals({
         cursor: resolvedSearchParams.cursor,
         industry: selectedIndustry,
         company: selectedCompany,
         seniority: selectedSeniority,
     });
-    const durationMs = Number((performance.now() - startedAt).toFixed(2));
+    const activeFilterCount = [selectedIndustry, selectedCompany, selectedSeniority].filter(Boolean).length;
+    const activeFilterLabel = activeFilterCount > 0
+        ? `${activeFilterCount} active filter${activeFilterCount === 1 ? '' : 's'}`
+        : 'Showing all professionals';
 
     console.info('[perf][candidate-browse] pageData', {
         hasCursor: Boolean(resolvedSearchParams.cursor),
@@ -125,19 +128,35 @@ export default async function BrowsePage({
         company: selectedCompany ?? null,
         seniority: selectedSeniority ?? null,
         rows: professionals.length,
-        durationMs,
     });
 
     return (
-        <main className="space-y-8">
-            <PageHeader
-                eyebrow="Browse professionals"
-                title="Find your next career mentor"
-                description="Connect with vetted experts and top professionals from leading companies."
-            />
+        <main className={styles.page}>
+            <section className={styles.hero}>
+                <PageHeader
+                    eyebrow="Browse professionals"
+                    title="Find the right professional for the conversation you need next"
+                    description="Use industry, company, and seniority to narrow the field, then compare profiles built for structured 30-minute sessions."
+                />
+
+                <div className={styles.heroNotes}>
+                    <div className={styles.heroNote}>
+                        <span className={styles.heroNoteLabel}>What you’re seeing</span>
+                        <span className={styles.heroNoteValue}>{professionals.length} professionals on this page</span>
+                    </div>
+                    <div className={styles.heroNote}>
+                        <span className={styles.heroNoteLabel}>Decision lens</span>
+                        <span className={styles.heroNoteValue}>Role, industry, seniority, and fit before you ever book</span>
+                    </div>
+                    <div className={styles.heroNote}>
+                        <span className={styles.heroNoteLabel}>Workflow</span>
+                        <span className={styles.heroNoteValue}>Request, confirm, and meet through one secure booking flow</span>
+                    </div>
+                </div>
+            </section>
 
             {professionals.length === 0 ? (
-                <div className="space-y-6">
+                <div className={styles.content}>
                     <Suspense
                         fallback={
                             <BrowseFiltersFallback
@@ -163,7 +182,7 @@ export default async function BrowsePage({
                     />
                 </div>
             ) : (
-                <div className="space-y-6">
+                <div className={styles.content}>
                     <Suspense
                         fallback={
                             <BrowseFiltersFallback
@@ -180,13 +199,18 @@ export default async function BrowsePage({
                         />
                     </Suspense>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div className={styles.resultsBar}>
+                        <p className={styles.resultsSummary}>Compare who feels most relevant before you commit time or money.</p>
+                        <span className={styles.resultsMeta}>{activeFilterLabel}</span>
+                    </div>
+
+                    <div className={styles.resultsGrid}>
                         {professionals.map((pro) => (
                             <ListingCard key={pro.userId} professional={pro} />
                         ))}
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className={styles.pagination}>
                         {resolvedSearchParams.cursor ? (
                             <Link
                                 href={browsePageUrl({

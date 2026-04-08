@@ -8,6 +8,8 @@ import { SlotPickerForm, type Slot } from '@/components/bookings/SlotPickerForm'
 import type { SlotInterval } from '@/components/bookings/calendar/types';
 import { useTrackedCandidateBookingActions } from '@/components/bookings/hooks/useTrackedCandidateBookingActions';
 import { Button } from '@/components/ui/primitives/Button';
+import { SurfaceCard } from '@/components/ui/composites/SurfaceCard/SurfaceCard';
+import styles from './ReschedulePageClient.module.css';
 
 interface ReschedulePageClientProps {
     bookingId: string;
@@ -51,9 +53,6 @@ export function ReschedulePageClient({
         bookingStatus === BookingStatus.reschedule_pending
         && awaitingParty === RescheduleAwaitingParty.CANDIDATE
         && proposalSource === RescheduleProposalSource.PROFESSIONAL;
-    const isAwaitingProfessional =
-        bookingStatus === BookingStatus.reschedule_pending
-        && awaitingParty === RescheduleAwaitingParty.PROFESSIONAL;
     const canSubmitAvailability = bookingStatus === BookingStatus.accepted || isAwaitingCandidate;
 
     const handleSlotSelectionChange = useCallback(
@@ -113,57 +112,81 @@ export function ReschedulePageClient({
     const proposalSlotOptions: Slot[] = proposalSlots;
 
     return (
-        <div className="container mx-auto py-8 max-w-3xl">
-            <h1 className="text-2xl font-bold mb-2">Reschedule Booking</h1>
-            <p className="text-sm text-gray-600 mb-6">
+        <div className={styles.page}>
+            <div className={styles.intro}>
+                <h1 className={styles.title}>Reschedule booking</h1>
+                <p className={styles.description}>
                 {bookingStatus === BookingStatus.accepted
                     ? 'Select new availability to begin a reschedule request.'
                     : isAwaitingCandidate
                         ? 'The professional proposed new times. Accept one below or send a replacement set of times.'
                         : 'Your reschedule request is still pending review.'}
-            </p>
+                </p>
+            </div>
 
             {previousScheduleSummary ? (
-                <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <div className={styles.notice}>
                     {previousScheduleSummary}. The original slot is no longer confirmed while this reschedule stays pending.
                 </div>
             ) : null}
 
             {isAwaitingCandidate && proposalSlotOptions.length > 0 ? (
-                <div className="bg-white p-6 rounded-lg shadow mb-6 border border-gray-200">
+                <div>
                     <SlotPickerForm
                         slots={proposalSlotOptions}
                         calendarTimezone={resolvedCalendarTimezone}
                         professionalTimezone={professionalTimezone}
                         heading="Professional Proposed Times"
+                        workflowTitle="Review the professional’s proposal"
+                        workflowDescription="Accept one of the suggested times below or continue down to propose a replacement set."
+                        steps={[
+                            {
+                                label: 'Review proposal',
+                                description: 'Look through the professional’s offered times.',
+                                status: 'current',
+                            },
+                            {
+                                label: 'Accept or replace',
+                                description: 'Choose one slot or send an alternate set of times.',
+                                status: 'upcoming',
+                            },
+                        ]}
                         description="Choose one of the proposed 30-minute slots to finalize the new meeting time."
                         confirmLabel="Accept Proposed Time"
                         confirmingLabel="Accepting..."
                         isConfirming={isAccepting}
                         onConfirm={handleAcceptProposal}
                         error={error}
+                        summaryFooter="If none of these work, use the alternate-times section below to send a replacement round."
                     />
                 </div>
             ) : null}
 
             {canSubmitAvailability ? (
-                <div className="bg-white p-6 rounded-lg shadow mb-6 border border-gray-200">
+                <SurfaceCard className={styles.requestCard}>
+                    <div className={styles.requestHeader}>
+                        <h2 className={styles.requestTitle}>
+                            {isAwaitingCandidate ? 'Suggest alternate or additional times' : 'Share new availability'}
+                        </h2>
+                        <p className={styles.requestDescription}>
+                            {isAwaitingCandidate
+                                ? 'Send a replacement set of times for the professional to review.'
+                                : 'Select the times that work for you so the professional can review and confirm one.'}
+                        </p>
+                    </div>
+
                     <CandidateAvailabilityPanel
                         calendarTimezone={resolvedCalendarTimezone}
                         isGoogleCalendarConnected={isGoogleCalendarConnected}
                         professionalTimezone={professionalTimezone}
                         initialSelectedSlots={initialAvailabilitySlots}
                         onSelectionChange={handleSlotSelectionChange}
-                        heading={isAwaitingCandidate ? 'Suggest Alternate or Additional Times' : undefined}
-                        description={isAwaitingCandidate
-                            ? 'Share a replacement set of times for the professional to review.'
-                            : undefined}
                     />
 
-                    <div className="mt-6">
-                        <label className="block text-sm font-medium mb-1">Reason (Optional)</label>
+                    <div className={styles.reasonSection}>
+                        <label className={styles.reasonLabel}>Reason (optional)</label>
                         <textarea
-                            className="w-full border rounded p-2 text-sm"
+                            className={styles.reasonInput}
                             rows={3}
                             value={reason}
                             onChange={(event) => setReason(event.target.value)}
@@ -171,13 +194,9 @@ export function ReschedulePageClient({
                         />
                     </div>
 
-                    {error && (
-                        <div className="mt-4 text-red-600 text-sm bg-red-50 p-2 rounded">
-                            {error}
-                        </div>
-                    )}
+                    {error ? <div className={styles.error}>{error}</div> : null}
 
-                    <div className="mt-6 flex gap-3">
+                    <div className={styles.actions}>
                         <Button
                             type="button"
                             onClick={() => router.back()}
@@ -190,7 +209,7 @@ export function ReschedulePageClient({
                             onClick={handleSubmit}
                             disabled={isSubmitting || availabilitySlots.length === 0}
                             variant="primary"
-                        >
+                            >
                             {isSubmitting
                                 ? 'Submitting...'
                                 : isAwaitingCandidate
@@ -198,11 +217,11 @@ export function ReschedulePageClient({
                                     : 'Submit Request'}
                         </Button>
                     </div>
-                </div>
+                </SurfaceCard>
             ) : (
-                <div className="bg-white p-6 rounded-lg shadow mb-6 border border-gray-200 text-sm text-gray-600">
+                <SurfaceCard className={styles.waitingCard}>
                     Waiting for the professional to review the most recent set of proposed times.
-                </div>
+                </SurfaceCard>
             )}
         </div>
     );

@@ -1,0 +1,97 @@
+.page {
+  display: grid;
+  gap: 2rem;
+}
+
+.hero {
+  display: grid;
+  gap: 1.35rem;
+}
+
+.heroNotes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.heroNote {
+  display: grid;
+  gap: 0.28rem;
+  padding-top: 0.95rem;
+  border-top: 1px solid rgba(11, 29, 83, 0.08);
+}
+
+.heroNoteLabel {
+  color: var(--text-subtle);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.heroNoteValue {
+  color: var(--text);
+  font-size: 0.98rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.content {
+  display: grid;
+  gap: 1.35rem;
+}
+
+.resultsBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+}
+
+.resultsSummary {
+  color: var(--text);
+  font-size: 0.96rem;
+  font-weight: 700;
+}
+
+.resultsMeta {
+  color: var(--text-subtle);
+  font-size: 0.86rem;
+}
+
+.resultsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+@media (min-width: 1200px) {
+  .resultsGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .heroNotes {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .resultsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .resultsBar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

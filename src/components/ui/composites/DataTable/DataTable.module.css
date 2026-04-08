@@ -9,7 +9,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface-raised);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-xs);
 }
 
 .table {
@@ -27,15 +27,16 @@
 .thead {
   position: sticky;
   top: 0;
-  background: rgba(236, 244, 247, 0.96);
+  background: var(--data-table-head-bg, rgba(236, 244, 247, 0.96));
+  backdrop-filter: blur(10px);
 }
 
 .headCell {
-  padding: 0.9rem 1.1rem;
+  padding: 0.82rem 1rem;
   border-bottom: 1px solid var(--border);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 800;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text-subtle);
   text-align: left;
@@ -51,11 +52,15 @@
 }
 
 .row:hover {
-  background: rgba(236, 244, 247, 0.7);
+  background: var(--data-table-row-hover, rgba(236, 244, 247, 0.7));
+}
+
+.row:focus-within {
+  background: var(--data-table-row-hover, rgba(236, 244, 247, 0.7));
 }
 
 .cell {
-  padding: 1rem 1.1rem;
+  padding: 0.9rem 1rem;
   border-bottom: 1px solid rgba(120, 151, 177, 0.14);
   font-size: 0.92rem;
   color: var(--text-muted);
@@ -84,6 +89,7 @@
 .mobileCard {
   display: grid;
   gap: 0.8rem;
+  box-shadow: var(--shadow-xs);
 }
 
 .mobileHeader {

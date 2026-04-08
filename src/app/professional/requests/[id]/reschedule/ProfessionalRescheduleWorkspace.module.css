@@ -1,0 +1,71 @@
+.workspace {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.notice {
+  padding: 0.95rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid #f3d99b;
+  background: #fff6dc;
+  color: #8a6110;
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.proposalCard {
+  display: grid;
+  gap: 1rem;
+}
+
+.proposalHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.9rem;
+}
+
+.proposalCopy {
+  display: grid;
+  gap: 0.35rem;
+  max-width: 40rem;
+}
+
+.proposalTitle {
+  font-size: 1.2rem;
+  line-height: 1.08;
+  color: var(--text);
+}
+
+.proposalDescription {
+  font-size: 0.94rem;
+  line-height: 1.58;
+  color: var(--text-muted);
+}
+
+.proposalActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.proposalHint {
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.proposalError {
+  padding: 0.9rem 1rem;
+  border-radius: var(--radius-md);
+  background: #fdecec;
+  color: #9d3340;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.proposalFooter {
+  display: flex;
+  justify-content: flex-end;
+}

@@ -10,6 +10,7 @@ import {
     formatRoleAtCompany,
 } from '@/lib/domain/users/identity-labels';
 import { formatProfessionalIndustry } from '@/lib/shared/professional-industries';
+import { formatProfessionalSeniority } from '@/lib/shared/professional-seniority';
 import { buttonVariants } from '@/components/ui/primitives/Button';
 import styles from './page.module.css';
 
@@ -89,46 +90,128 @@ export default async function ProfessionalProfilePage(props: {
     });
     const roleLabel = formatRoleAtCompany(profile.title, profile.employer, 'Professional');
     const industryLabel = formatProfessionalIndustry(profile.industry);
+    const seniorityLabel = formatProfessionalSeniority(profile.seniority);
     const experienceItems = [...(profile.experience || [])].sort(compareTimelineItems);
     const educationItems = [...(profile.education || [])].sort(compareTimelineItems);
     const activityItems = [...(profile.activities || [])].sort(compareTimelineItems);
     const hasBackgroundSections = experienceItems.length > 0 || educationItems.length > 0 || activityItems.length > 0;
     const formattedPrice = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((profile.priceCents || 0) / 100);
+    const profileTags = [
+        profile.verifiedAt ? 'Verified professional' : null,
+        industryLabel,
+        seniorityLabel,
+        profile.timezone || null,
+    ].filter(Boolean);
 
     return (
-        <main className="space-y-6">
+        <main className={styles.page}>
             <Link href={appRoutes.candidate.browse} className={buttonVariants({ variant: 'secondary', size: 'sm' })}>
                 &larr; Back to Browse
             </Link>
-            <PageHeader
-                eyebrow="Professional profile"
-                title={professionalHeader}
-                description={industryLabel ? `${roleLabel} - ${industryLabel}` : roleLabel}
-                meta={formattedPrice}
-            />
+
+            <section className={styles.heroSection}>
+                <div className={styles.heroCopy}>
+                    <PageHeader
+                        eyebrow="Professional profile"
+                        title={professionalHeader}
+                        description={industryLabel ? `${roleLabel} - ${industryLabel}` : roleLabel}
+                        meta={formattedPrice}
+                    />
+
+                    {profileTags.length > 0 ? (
+                        <div className={styles.tagRow}>
+                            {profileTags.map((tag) => (
+                                <span key={tag} className={styles.tag}>
+                                    {tag}
+                                </span>
+                            ))}
+                        </div>
+                    ) : null}
+
+                    <p className={styles.heroLead}>
+                        Review current role context, background, and session details before deciding whether this is the right conversation for your next step.
+                    </p>
+                </div>
+
+                <SurfaceCard tone="muted" className={styles.sidebarCard}>
+                    <div className={styles.sidebarStack}>
+                        <div className={styles.priceBlock}>
+                            <span className={styles.priceLabel}>Session price</span>
+                            <span className={styles.priceValue}>{formattedPrice}</span>
+                        </div>
+
+                        <p className={styles.sidebarDescription}>
+                            Book a structured 30-minute session with {roleLabel} and move from profile review to a concrete request.
+                        </p>
+
+                        <div className={styles.sidebarList}>
+                            <div className={styles.sidebarItem}>
+                                <span className={styles.sidebarItemLabel}>Session format</span>
+                                <span className={styles.sidebarItemValue}>30-minute guided conversation</span>
+                            </div>
+                            <div className={styles.sidebarItem}>
+                                <span className={styles.sidebarItemLabel}>Booking flow</span>
+                                <span className={styles.sidebarItemValue}>Request, confirm, and meet through Kafei</span>
+                            </div>
+                            <div className={styles.sidebarItem}>
+                                <span className={styles.sidebarItemLabel}>Timezone</span>
+                                <span className={styles.sidebarItemValue}>{profile.timezone || 'UTC'}</span>
+                            </div>
+                        </div>
+
+                        <Link
+                            href={appRoutes.candidate.professionalBook(params.id)}
+                            className={`${buttonVariants()} w-full justify-center`}
+                        >
+                            Book Now
+                        </Link>
+
+                        <p className={styles.sidebarFootnote}>Secure payment via Stripe. Final scheduling happens after your request is submitted.</p>
+                    </div>
+                </SurfaceCard>
+            </section>
 
             <div className={styles.profileLayout}>
-                <div className="space-y-6">
-                    <SurfaceCard tone="accent">
+                <div className={styles.mainColumn}>
+                    <SurfaceCard tone="accent" className={styles.sectionCard}>
                         <section>
-                            <h2 className="text-lg font-semibold text-gray-900 mb-3">About</h2>
-                            <p className={`whitespace-pre-line text-gray-700 ${styles.aboutCopy}`}>
+                            <div className={styles.sectionHeader}>
+                                <p className={styles.sectionEyebrow}>About</p>
+                                <h2 className={styles.sectionTitle}>What this professional brings to the conversation</h2>
+                            </div>
+                            <p className={`whitespace-pre-line ${styles.aboutCopy}`}>
                                 {profile.bio || 'No bio provided yet.'}
                             </p>
+
+                            {profile.interests?.length ? (
+                                <div className={styles.interestsBlock}>
+                                    <p className={styles.subtleLabel}>Topics and interests</p>
+                                    <div className={styles.tagRow}>
+                                        {profile.interests.map((interest) => (
+                                            <span key={interest} className={styles.tag}>
+                                                {interest}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : null}
                         </section>
                     </SurfaceCard>
 
                     {hasBackgroundSections ? (
-                        <SurfaceCard className="space-y-8">
+                        <SurfaceCard className={styles.sectionCard}>
                             {experienceItems.length > 0 ? (
-                                <section>
-                                    <h3 className="text-2xl font-bold text-gray-900 mb-4">Experience</h3>
-                                    <div className="space-y-6">
+                                <section className={styles.timelineSection}>
+                                    <div className={styles.sectionHeader}>
+                                        <p className={styles.sectionEyebrow}>Experience</p>
+                                        <h3 className={styles.sectionTitle}>Career path and recent roles</h3>
+                                    </div>
+                                    <div className={styles.timelineList}>
                                         {experienceItems.map((experience) => (
-                                            <article key={experience.id} className="border-l border-gray-900 p-2">
-                                                <h4 className="font-semibold text-gray-900">{experience.title}</h4>
-                                                <p className="text-gray-600 mt-1">{experience.company}</p>
-                                                <p className="italic text-gray-500 mt-1">
+                                            <article key={experience.id} className={styles.timelineItem}>
+                                                <h4 className={styles.timelineTitle}>{experience.title}</h4>
+                                                <p className={styles.timelineMeta}>{experience.company}</p>
+                                                <p className={styles.timelineDate}>
                                                     {formatDateRange(experience, monthYearFormatter)}
                                                 </p>
                                             </article>
@@ -138,18 +221,21 @@ export default async function ProfessionalProfilePage(props: {
                             ) : null}
 
                             {educationItems.length > 0 ? (
-                                <section>
-                                    <h3 className="text-2xl font-bold text-gray-900 mb-4">Education</h3>
-                                    <div className="space-y-6">
+                                <section className={styles.timelineSection}>
+                                    <div className={styles.sectionHeader}>
+                                        <p className={styles.sectionEyebrow}>Education</p>
+                                        <h3 className={styles.sectionTitle}>Academic background</h3>
+                                    </div>
+                                    <div className={styles.timelineList}>
                                         {educationItems.map((education) => {
                                             const educationTitle = [education.degree, education.fieldOfStudy]
                                                 .filter(Boolean)
                                                 .join(', ');
                                             return (
-                                                <article key={education.id} className="border-l border-gray-900 p-2">
-                                                    <h4 className="font-semibold text-gray-900">{educationTitle}</h4>
-                                                    <p className="text-gray-600 mt-1">{education.school}</p>
-                                                    <p className="italic text-gray-500 mt-1">
+                                                <article key={education.id} className={styles.timelineItem}>
+                                                    <h4 className={styles.timelineTitle}>{educationTitle}</h4>
+                                                    <p className={styles.timelineMeta}>{education.school}</p>
+                                                    <p className={styles.timelineDate}>
                                                         {formatDateRange(education, yearFormatter)}
                                                     </p>
                                                 </article>
@@ -160,14 +246,17 @@ export default async function ProfessionalProfilePage(props: {
                             ) : null}
 
                             {activityItems.length > 0 ? (
-                                <section>
-                                    <h3 className="text-2xl font-bold text-gray-900 mb-4">Activities</h3>
-                                    <div className="space-y-6">
+                                <section className={styles.timelineSection}>
+                                    <div className={styles.sectionHeader}>
+                                        <p className={styles.sectionEyebrow}>Activities</p>
+                                        <h3 className={styles.sectionTitle}>Additional involvement</h3>
+                                    </div>
+                                    <div className={styles.timelineList}>
                                         {activityItems.map((activity) => (
-                                            <article key={activity.id} className="border-l border-gray-900 p-2">
-                                                <h4 className="font-semibold text-gray-900">{activity.title}</h4>
-                                                <p className="text-gray-600 mt-1">{activity.company}</p>
-                                                <p className="italic text-gray-500 mt-1">
+                                            <article key={activity.id} className={styles.timelineItem}>
+                                                <h4 className={styles.timelineTitle}>{activity.title}</h4>
+                                                <p className={styles.timelineMeta}>{activity.company}</p>
+                                                <p className={styles.timelineDate}>
                                                     {formatDateRange(activity, monthYearFormatter)}
                                                 </p>
                                             </article>
@@ -178,33 +267,12 @@ export default async function ProfessionalProfilePage(props: {
                         </SurfaceCard>
                     ) : null}
 
-                    <SurfaceCard>
+                    <SurfaceCard className={styles.sectionCard}>
                         <Suspense fallback={<ProfessionalReviewsFallback />}>
                             <ProfessionalReviewsSection professionalId={params.id} />
                         </Suspense>
                     </SurfaceCard>
                 </div>
-
-                <SurfaceCard tone="muted" className={styles.sidebarCard}>
-                    <div className="space-y-4">
-                        <p className="text-xs uppercase tracking-wider text-blue-600">Next steps</p>
-                        <h3 className="text-lg font-semibold">Ready to book?</h3>
-                        <p className="text-gray-600 text-sm">
-                            Schedule a consultation with {roleLabel} to discuss your career goals.
-                        </p>
-
-                        <Link
-                            href={appRoutes.candidate.professionalBook(params.id)}
-                            className={`${buttonVariants()} w-full justify-center`}
-                        >
-                            Book Now
-                        </Link>
-
-                        <p className="text-xs text-center text-gray-500 italic">
-                            Secure payment via Stripe.
-                        </p>
-                    </div>
-                </SurfaceCard>
             </div>
         </main>
     );
@@ -215,7 +283,10 @@ async function ProfessionalReviewsSection({ professionalId }: { professionalId: 
 
     return (
         <section>
-            <h3 className="text-xl font-bold text-gray-900 mb-5">Reviews ({reviews.length})</h3>
+            <div className={styles.sectionHeader}>
+                <p className={styles.sectionEyebrow}>Reviews</p>
+                <h3 className={styles.sectionTitle}>Candidate feedback and completed-session ratings ({reviews.length})</h3>
+            </div>
             {reviews.length === 0 ? (
                 <EmptyState
                     badge="No reviews yet"
@@ -224,25 +295,25 @@ async function ProfessionalReviewsSection({ professionalId }: { professionalId: 
                     layout="inline"
                 />
             ) : (
-                <div className="space-y-6 mt-3">
+                <div className={styles.reviewList}>
                     {reviews.map((review) => (
-                        <SurfaceCard key={review.bookingId} as="article" tone="muted">
-                            <div className="flex items-start justify-between gap-4 mb-2">
+                        <SurfaceCard key={review.bookingId} as="article" tone="muted" className={styles.reviewCard}>
+                            <div className={styles.reviewHeader}>
                                 <div>
-                                    <p className="text-sm font-semibold text-gray-900">
+                                    <p className={styles.reviewAuthor}>
                                         {review.reviewerName || 'Anonymous Reviewer'}
                                     </p>
-                                    <p className="text-gray-500 text-sm">
+                                    <p className={styles.reviewDate}>
                                         {new Date(review.submittedAt).toLocaleDateString()}
                                     </p>
                                 </div>
-                                <div className="flex text-yellow-400">
+                                <div className={styles.reviewStars}>
                                     {[...Array(5)].map((_, i) => (
                                         <span key={i}>{i < review.rating ? '★' : '☆'}</span>
                                     ))}
                                 </div>
                             </div>
-                            <p className="text-gray-700">{review.text}</p>
+                            <p className={styles.reviewText}>{review.text}</p>
                         </SurfaceCard>
                     ))}
                 </div>
@@ -254,8 +325,11 @@ async function ProfessionalReviewsSection({ professionalId }: { professionalId: 
 function ProfessionalReviewsFallback() {
     return (
         <section>
-            <h3 className="text-xl font-bold text-gray-900 mb-5">Reviews</h3>
-            <p className="text-sm text-gray-500">Loading recent reviews...</p>
+            <div className={styles.sectionHeader}>
+                <p className={styles.sectionEyebrow}>Reviews</p>
+                <h3 className={styles.sectionTitle}>Candidate feedback and completed-session ratings</h3>
+            </div>
+            <p className={styles.reviewLoading}>Loading recent reviews...</p>
         </section>
     );
 }

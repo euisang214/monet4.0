@@ -39,10 +39,25 @@ export function ConfirmBookingForm({
             professionalTimezone={professionalTimezone}
             heading="Select a Time"
             description="Choose one of the candidate's submitted 30-minute slots."
+            workflowTitle="Confirm this request"
+            workflowDescription="Review the candidate’s submitted times, then lock in the slot you want to schedule."
+            steps={[
+                {
+                    label: 'Review candidate times',
+                    description: 'Compare the submitted 30-minute options.',
+                    status: 'current',
+                },
+                {
+                    label: 'Confirm and schedule',
+                    description: 'Finalize the selected slot and capture payment.',
+                    status: 'upcoming',
+                },
+            ]}
             confirmLabel="Confirm & Schedule"
             confirmingLabel="Confirming..."
             isConfirming={isPending}
             onConfirm={handleConfirm}
+            summaryFooter="Payment capture and scheduling continue automatically after you confirm the slot."
         />
     );
 }
