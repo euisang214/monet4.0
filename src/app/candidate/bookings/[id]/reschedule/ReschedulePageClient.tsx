@@ -12,6 +12,7 @@ interface ReschedulePageClientProps {
     calendarTimezone?: string;
     professionalTimezone?: string | null;
     isGoogleCalendarConnected: boolean;
+    initialAvailabilitySlots?: SlotInterval[];
 }
 
 export function ReschedulePageClient({
@@ -19,10 +20,11 @@ export function ReschedulePageClient({
     calendarTimezone,
     professionalTimezone,
     isGoogleCalendarConnected,
+    initialAvailabilitySlots = [],
 }: ReschedulePageClientProps) {
     const router = useRouter();
     const { submitRescheduleRequest } = useTrackedCandidateBookingActions();
-    const [availabilitySlots, setAvailabilitySlots] = useState<SlotInterval[]>([]);
+    const [availabilitySlots, setAvailabilitySlots] = useState<SlotInterval[]>(() => initialAvailabilitySlots);
     const [reason, setReason] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -76,6 +78,7 @@ export function ReschedulePageClient({
                     calendarTimezone={resolvedCalendarTimezone}
                     isGoogleCalendarConnected={isGoogleCalendarConnected}
                     professionalTimezone={professionalTimezone}
+                    initialSelectedSlots={initialAvailabilitySlots}
                     onSelectionChange={handleSlotSelectionChange}
                 />
 

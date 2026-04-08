@@ -58,9 +58,47 @@ describe("CandidateChatsPage timezone schedule labels", () => {
                     zoomJoinUrl: null,
                 },
                 {
+                    id: "booking-expired-la",
+                    status: BookingStatus.expired,
+                    startAt: new Date("2026-03-06T16:00:00Z"),
+                    expiresAt: new Date("2026-03-05T18:15:00Z"),
+                    timezone: "America/Los_Angeles",
+                    professional: {
+                        email: "pro-expired@example.com",
+                        firstName: "Jordan",
+                        lastName: "Poe",
+                        professionalProfile: {
+                            title: "Associate",
+                            employer: "Evercore",
+                        },
+                    },
+                    feedback: null,
+                    candidateZoomJoinUrl: null,
+                    zoomJoinUrl: null,
+                },
+                {
+                    id: "booking-declined-la",
+                    status: BookingStatus.declined,
+                    startAt: null,
+                    expiresAt: new Date("2026-03-07T17:45:00Z"),
+                    timezone: "America/Los_Angeles",
+                    professional: {
+                        email: "pro-declined@example.com",
+                        firstName: "Morgan",
+                        lastName: "Vale",
+                        professionalProfile: {
+                            title: "Manager",
+                            employer: "Bain",
+                        },
+                    },
+                    feedback: null,
+                    candidateZoomJoinUrl: null,
+                    zoomJoinUrl: null,
+                },
+                {
                     id: "booking-requested-la",
                     status: BookingStatus.requested,
-                    startAt: null,
+                    startAt: new Date("2026-03-04T16:00:00Z"),
                     expiresAt: new Date("2026-03-03T19:30:00Z"),
                     timezone: "America/Los_Angeles",
                     professional: {
@@ -91,5 +129,10 @@ describe("CandidateChatsPage timezone schedule labels", () => {
 
         expect(html).toContain("Mar 2, 2026 at 10:00 AM (America/New_York)");
         expect(html).toContain("Request window ends Mar 3, 2026 at 2:30 PM (America/New_York)");
+        expect(html).toContain("Request expired on Mar 5, 2026 at 1:15 PM (America/New_York)");
+        expect(html).toContain("Request declined before a time was confirmed (America/New_York)");
+        expect(html).not.toContain("Mar 4, 2026 at 11:00 AM (America/New_York)");
+        expect(html).not.toContain("Mar 6, 2026 at 11:00 AM (America/New_York)");
+        expect(html).not.toContain("Request window ends Mar 7, 2026 at 12:45 PM (America/New_York)");
     });
 });

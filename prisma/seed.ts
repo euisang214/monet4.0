@@ -129,13 +129,15 @@ const CANDIDATE_FIRST_NAMES = ['Alex', 'Taylor', 'Jordan', 'Casey', 'Riley', 'Mo
 const CANDIDATE_LAST_NAMES = ['Nguyen', 'Patel', 'Kim', 'Garcia', 'Johnson', 'Brown', 'Lee', 'Martinez', 'Davis', 'Clark']
 const PROFESSIONAL_FIRST_NAMES = ['Cameron', 'Blake', 'Skyler', 'Drew', 'Rowan', 'Kendall', 'Reese', 'Sage', 'Peyton', 'Emerson']
 const PROFESSIONAL_LAST_NAMES = ['Anderson', 'Bennett', 'Collins', 'Diaz', 'Edwards', 'Foster', 'Griffin', 'Hughes', 'Jenkins', 'Russell']
+const REQUESTED_BOOKINGS_PER_PROFESSIONAL = 5
+const ACCEPTED_BOOKINGS_PER_PROFESSIONAL = 2
+const PENDING_FEEDBACK_BOOKINGS_PER_PROFESSIONAL = 2
 const ALL_BOOKING_STATUSES: BookingStatus[] = [
     BookingStatus.draft,
     BookingStatus.requested,
     BookingStatus.declined,
     BookingStatus.expired,
     BookingStatus.accepted,
-    BookingStatus.accepted_pending_integrations,
     BookingStatus.reschedule_pending,
     BookingStatus.dispute_pending,
     BookingStatus.cancelled,
@@ -845,28 +847,6 @@ async function main() {
             return
         }
 
-        if (status === BookingStatus.accepted_pending_integrations) {
-            await prisma.booking.create({
-                data: {
-                    candidateId: candidate.id,
-                    professionalId: professional.id,
-                    status,
-                    priceCents,
-                    startAt,
-                    endAt,
-                    timezone: candidate.timezone,
-                    payment: {
-                        create: await buildPaymentCreateData({
-                            amountGross: priceCents,
-                            platformFee: Math.floor(priceCents * 0.15),
-                            status: PaymentStatus.held,
-                            }),
-                    },
-                },
-            })
-            return
-        }
-
         if (status === BookingStatus.reschedule_pending) {
             await prisma.booking.create({
                 data: {
@@ -1076,9 +1056,9 @@ async function main() {
         const priceCents = 10000 + (proIndex * 2500)
 
         // ============================================
-        // 2 Pending Requests (status: requested)
+        // 5 Pending Requests (status: requested)
         // ============================================
-        for (let i = 0; i < 2; i++) {
+        for (let i = 0; i < REQUESTED_BOOKINGS_PER_PROFESSIONAL; i++) {
             const candidate = getCandidateForBooking(i)
             const scheduledDate = new Date(baseDate)
             scheduledDate.setDate(scheduledDate.getDate() + 7 + i)
@@ -1093,8 +1073,6 @@ async function main() {
                     professionalId: professional.id,
                     status: BookingStatus.requested,
                     priceCents,
-                    startAt: scheduledDate,
-                    endAt: new Date(scheduledDate.getTime() + 60 * 60 * 1000),
                     expiresAt,
                     timezone: candidate.timezone,
                     payment: {
@@ -1114,8 +1092,8 @@ async function main() {
         // ============================================
         // 2 Accepted Bookings (status: accepted)
         // ============================================
-        for (let i = 0; i < 2; i++) {
-            const candidate = getCandidateForBooking(2 + i)
+        for (let i = 0; i < ACCEPTED_BOOKINGS_PER_PROFESSIONAL; i++) {
+            const candidate = getCandidateForBooking(REQUESTED_BOOKINGS_PER_PROFESSIONAL + i)
             const scheduledDate = new Date(baseDate)
             scheduledDate.setDate(scheduledDate.getDate() + 3 + i)
             scheduledDate.setHours(14 + i, 0, 0, 0)
@@ -1146,8 +1124,10 @@ async function main() {
         // ============================================
         // 2 Calls Pending Feedback (status: completed_pending_feedback)
         // ============================================
-        for (let i = 0; i < 2; i++) {
-            const candidate = getCandidateForBooking(4 + i)
+        for (let i = 0; i < PENDING_FEEDBACK_BOOKINGS_PER_PROFESSIONAL; i++) {
+            const candidate = getCandidateForBooking(
+                REQUESTED_BOOKINGS_PER_PROFESSIONAL + ACCEPTED_BOOKINGS_PER_PROFESSIONAL + i
+            )
             const pastDate = new Date(baseDate)
             pastDate.setDate(pastDate.getDate() - (2 + i))
             pastDate.setHours(11 + i, 0, 0, 0)
@@ -1178,7 +1158,13 @@ async function main() {
             bookingIndex++
         }
 
-        console.log(`📚 Created 6 bookings for ${professional.email}`)
+        console.log(
+            `📚 Created ${
+                REQUESTED_BOOKINGS_PER_PROFESSIONAL +
+                ACCEPTED_BOOKINGS_PER_PROFESSIONAL +
+                PENDING_FEEDBACK_BOOKINGS_PER_PROFESSIONAL
+            } bookings for ${professional.email}`
+        )
     }
 
     // ============================================
@@ -1659,9 +1645,11 @@ async function main() {
     console.log(`    - ${professionals.length} Professionals: ${seededProfessionalEmails} (password: pro123!)`)
     console.log('')
     console.log('  Per Professional (regular bookings):')
-    console.log('    - 2 pending requests (status: requested)')
-    console.log('    - 2 accepted bookings (status: accepted)')
-    console.log('    - 2 calls pending feedback (status: completed_pending_feedback)')
+    console.log(`    - ${REQUESTED_BOOKINGS_PER_PROFESSIONAL} pending requests (status: requested)`)
+    console.log(`    - ${ACCEPTED_BOOKINGS_PER_PROFESSIONAL} accepted bookings (status: accepted)`)
+    console.log(
+        `    - ${PENDING_FEEDBACK_BOOKINGS_PER_PROFESSIONAL} calls pending feedback (status: completed_pending_feedback)`
+    )
     console.log('')
     console.log('  Edge Cases (11 additional bookings):')
     console.log('    - 1 completed with feedback + payout (QC passed)')

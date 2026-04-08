@@ -74,6 +74,49 @@ function statusTone(status: BookingStatus) {
 }
 
 function scheduleLabel(booking: CandidateChatBooking, displayTimezone: string) {
+    if (booking.status === BookingStatus.requested || booking.status === BookingStatus.draft) {
+        if (booking.expiresAt) {
+            const expiry = formatInTimeZone(booking.expiresAt, displayTimezone, "MMM d, yyyy 'at' h:mm a");
+            return `Request window ends ${expiry} (${displayTimezone})`;
+        }
+
+        return `Availability submitted; awaiting professional selection (${displayTimezone})`;
+    }
+
+    if (booking.status === BookingStatus.expired) {
+        if (booking.expiresAt) {
+            const expiry = formatInTimeZone(booking.expiresAt, displayTimezone, "MMM d, yyyy 'at' h:mm a");
+            return `Request expired on ${expiry} (${displayTimezone})`;
+        }
+
+        return `Request expired before a time was confirmed (${displayTimezone})`;
+    }
+
+    if (booking.status === BookingStatus.declined) {
+        return `Request declined before a time was confirmed (${displayTimezone})`;
+    }
+
+    if (booking.status === BookingStatus.reschedule_pending) {
+        if (booking.startAt) {
+            const previousSchedule = formatInTimeZone(booking.startAt, displayTimezone, "MMM d, yyyy 'at' h:mm a");
+            return `Reschedule pending from ${previousSchedule} (${displayTimezone})`;
+        }
+
+        return `Awaiting new scheduling details (${displayTimezone})`;
+    }
+
+    if (booking.status === BookingStatus.dispute_pending && !booking.startAt) {
+        return `Dispute under review without a confirmed session time (${displayTimezone})`;
+    }
+
+    if (booking.status === BookingStatus.cancelled && !booking.startAt) {
+        return `Booking was cancelled before a time was confirmed (${displayTimezone})`;
+    }
+
+    if (booking.status === BookingStatus.refunded && !booking.startAt) {
+        return `Booking was refunded before a time was confirmed (${displayTimezone})`;
+    }
+
     if (booking.startAt) {
         const schedule = formatInTimeZone(booking.startAt, displayTimezone, "MMM d, yyyy 'at' h:mm a");
         return `${schedule} (${displayTimezone})`;

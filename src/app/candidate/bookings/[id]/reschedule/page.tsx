@@ -3,6 +3,7 @@ import { prisma } from '@/lib/core/db';
 import { Role } from '@prisma/client';
 import { notFound } from 'next/navigation';
 import { ReschedulePageClient } from './ReschedulePageClient';
+import { CandidateAvailability } from '@/lib/role/candidate/availability';
 import { normalizeTimezone } from '@/lib/utils/supported-timezones';
 
 interface PageProps {
@@ -13,24 +14,27 @@ export default async function ReschedulePage({ params }: PageProps) {
     const { id } = await params;
     const user = await requireRole(Role.CANDIDATE, `/candidate/bookings/${id}/reschedule`);
 
-    const booking = await prisma.booking.findUnique({
-        where: { id },
-        select: {
-            id: true,
-            candidateId: true,
-            professional: {
-                select: {
-                    timezone: true,
+    const [booking, availabilitySeed] = await Promise.all([
+        prisma.booking.findUnique({
+            where: { id },
+            select: {
+                id: true,
+                candidateId: true,
+                professional: {
+                    select: {
+                        timezone: true,
+                    },
+                },
+                candidate: {
+                    select: {
+                        googleCalendarConnected: true,
+                        timezone: true,
+                    },
                 },
             },
-            candidate: {
-                select: {
-                    googleCalendarConnected: true,
-                    timezone: true,
-                },
-            },
-        },
-    });
+        }),
+        CandidateAvailability.getSavedAvailabilitySeed(user.id),
+    ]);
 
     if (!booking || booking.candidateId !== user.id) {
         notFound();
@@ -39,9 +43,10 @@ export default async function ReschedulePage({ params }: PageProps) {
     return (
         <ReschedulePageClient
             bookingId={booking.id}
-            calendarTimezone={normalizeTimezone(booking.candidate.timezone)}
+            calendarTimezone={availabilitySeed.candidateTimezone || normalizeTimezone(booking.candidate.timezone)}
             professionalTimezone={booking.professional.timezone}
-            isGoogleCalendarConnected={booking.candidate.googleCalendarConnected}
+            isGoogleCalendarConnected={availabilitySeed.isGoogleCalendarConnected ?? booking.candidate.googleCalendarConnected}
+            initialAvailabilitySlots={availabilitySeed.initialAvailabilitySlots}
         />
     );
 }

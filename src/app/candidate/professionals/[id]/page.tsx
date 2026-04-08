@@ -112,11 +112,6 @@ export default async function ProfessionalProfilePage(props: {
                     <SurfaceCard tone="accent">
                         <section>
                             <h2 className="text-lg font-semibold text-gray-900 mb-3">About</h2>
-                            {industryLabel ? (
-                                <p className="mb-3 text-sm font-medium uppercase tracking-wide text-gray-500">
-                                    Industry: {industryLabel}
-                                </p>
-                            ) : null}
                             <p className={`whitespace-pre-line text-gray-700 ${styles.aboutCopy}`}>
                                 {profile.bio || 'No bio provided yet.'}
                             </p>
