@@ -1,6 +1,6 @@
 'use client';
 
-import { BookingStatus } from '@prisma/client';
+import { BookingStatus, RescheduleAwaitingParty } from '@prisma/client';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -13,6 +13,7 @@ interface CandidateHistoryActionsProps {
     bookingId: string;
     status: BookingStatus;
     joinUrl: string | null;
+    rescheduleAwaitingParty?: RescheduleAwaitingParty | null;
     hasFeedback?: boolean;
 }
 
@@ -20,13 +21,18 @@ export function CandidateHistoryActions({
     bookingId,
     status,
     joinUrl,
+    rescheduleAwaitingParty,
     hasFeedback = false,
 }: CandidateHistoryActionsProps) {
     const router = useRouter();
     const { cancelBooking } = useTrackedCandidateBookingActions();
     const [isCancelling, setIsCancelling] = useState(false);
 
-    const { showJoin, showReschedule, showCancel, showDispute, showReview } = getBookingActionVisibility(status, Boolean(joinUrl));
+    const { showJoin, showReschedule, showCancel, showDispute, showReview } = getBookingActionVisibility(
+        status,
+        Boolean(joinUrl),
+        rescheduleAwaitingParty
+    );
 
     const handleJoin = () => {
         if (!joinUrl) {

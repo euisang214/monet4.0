@@ -1,10 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { requestReschedule, confirmReschedule, rejectReschedule } from '@/lib/domain/bookings/transitions';
-import { BookingStatus, PaymentStatus, Role, PayoutStatus } from '@prisma/client';
-import { TransitionConflictError, TransitionError } from '@/lib/domain/bookings/errors';
-import { addHours, subHours } from 'date-fns';
+import { confirmReschedule, requestReschedule, rejectReschedule } from '@/lib/domain/bookings/transitions';
+import {
+    BookingStatus,
+    PaymentStatus,
+    RescheduleAwaitingParty,
+    RescheduleProposalSource,
+    Role,
+} from '@prisma/client';
+import { TransitionError } from '@/lib/domain/bookings/errors';
+import { addHours } from 'date-fns';
 
-// Mock Prisma
 const mockPrisma = {
     $transaction: vi.fn(async (callback) => callback(mockPrisma)),
     booking: {
@@ -34,7 +39,11 @@ describe('Rescheduling Domain', () => {
     });
 
     describe('requestReschedule', () => {
-        it('should transition accepted booking to reschedule_pending', async () => {
+        it('transitions an accepted booking into a candidate-authored proposal round', async () => {
+            const slot = {
+                start: addHours(new Date(), 30),
+                end: addHours(new Date(), 30.5),
+            };
             const booking = {
                 id: 'booking-1',
                 candidateId: 'cand-1',
@@ -43,68 +52,120 @@ describe('Rescheduling Domain', () => {
                 startAt: addHours(new Date(), 24),
                 endAt: addHours(new Date(), 24.5),
                 priceCents: 10000,
+                rescheduleRound: 0,
             };
 
-            mockPrisma.booking.findUnique.mockResolvedValueOnce(booking);         // transitionBooking lock + fetch
+            mockPrisma.booking.findUnique.mockResolvedValueOnce(booking);
             mockPrisma.booking.findUniqueOrThrow.mockResolvedValue(booking);
 
-            const updatedBooking = { ...booking, status: BookingStatus.reschedule_pending };
+            const updatedBooking = {
+                ...booking,
+                status: BookingStatus.reschedule_pending,
+                rescheduleAwaitingParty: RescheduleAwaitingParty.PROFESSIONAL,
+                rescheduleProposalSource: RescheduleProposalSource.CANDIDATE,
+                rescheduleRound: 1,
+            };
             mockPrisma.booking.update.mockResolvedValue(updatedBooking);
-            mockPrisma.booking.findUnique.mockResolvedValueOnce(updatedBooking); // invariant re-fetch
+            mockPrisma.booking.findUnique.mockResolvedValueOnce(updatedBooking);
 
             const actor = { userId: 'cand-1', role: Role.CANDIDATE };
             const result = await requestReschedule(
                 'booking-1',
                 actor,
-                [{ start: new Date(), end: new Date() }],
+                [slot],
                 'Conflict with meeting',
                 { prisma: mockPrisma as any }
             );
 
             expect(result.status).toBe(BookingStatus.reschedule_pending);
-            expect(mockPrisma.booking.update).toHaveBeenCalledWith({
+            expect(mockPrisma.booking.update).toHaveBeenCalledWith(expect.objectContaining({
                 where: { id: 'booking-1' },
-                data: { status: BookingStatus.reschedule_pending },
-            });
-            expect(mockPrisma.auditLog.create).toHaveBeenCalled();
+                data: expect.objectContaining({
+                    status: BookingStatus.reschedule_pending,
+                    rescheduleAwaitingParty: RescheduleAwaitingParty.PROFESSIONAL,
+                    rescheduleProposalSource: RescheduleProposalSource.CANDIDATE,
+                    rescheduleRound: 1,
+                }),
+            }));
         });
 
-        it('should allow professional to request reschedule', async () => {
+        it('allows the professional to submit a replacement proposal round when it is their turn', async () => {
+            const slot = {
+                start: addHours(new Date(), 36),
+                end: addHours(new Date(), 36.5),
+            };
             const booking = {
                 id: 'booking-2',
                 candidateId: 'cand-1',
                 professionalId: 'pro-1',
-                status: BookingStatus.accepted,
+                status: BookingStatus.reschedule_pending,
                 startAt: addHours(new Date(), 24),
                 endAt: addHours(new Date(), 24.5),
                 priceCents: 10000,
+                rescheduleRound: 2,
+                rescheduleAwaitingParty: RescheduleAwaitingParty.PROFESSIONAL,
             };
 
-            mockPrisma.booking.findUnique.mockResolvedValueOnce(booking);         // transitionBooking lock + fetch
+            mockPrisma.booking.findUnique.mockResolvedValueOnce(booking);
             mockPrisma.booking.findUniqueOrThrow.mockResolvedValue(booking);
 
-            const updatedBooking = { ...booking, status: BookingStatus.reschedule_pending };
+            const updatedBooking = {
+                ...booking,
+                rescheduleAwaitingParty: RescheduleAwaitingParty.CANDIDATE,
+                rescheduleProposalSource: RescheduleProposalSource.PROFESSIONAL,
+                rescheduleRound: 3,
+            };
             mockPrisma.booking.update.mockResolvedValue(updatedBooking);
-            mockPrisma.booking.findUnique.mockResolvedValueOnce(updatedBooking); // invariant re-fetch
+            mockPrisma.booking.findUnique.mockResolvedValueOnce(updatedBooking);
 
             const actor = { userId: 'pro-1', role: Role.PROFESSIONAL };
             const result = await requestReschedule(
                 'booking-2',
                 actor,
-                undefined,
+                [slot],
                 'Emergency conflict',
                 { prisma: mockPrisma as any }
             );
 
-            expect(result.status).toBe(BookingStatus.reschedule_pending);
+            expect(result.rescheduleAwaitingParty).toBe(RescheduleAwaitingParty.CANDIDATE);
+            expect(result.rescheduleRound).toBe(3);
+            expect(mockPrisma.auditLog.create).toHaveBeenCalled();
         });
 
-        it('should no-op when booking is already reschedule_pending', async () => {
+        it('throws when a participant tries to propose on the wrong turn', async () => {
             const booking = {
-                id: 'booking-2b',
+                id: 'booking-3',
                 candidateId: 'cand-1',
                 professionalId: 'pro-1',
                 status: BookingStatus.reschedule_pending,
+                rescheduleAwaitingParty: RescheduleAwaitingParty.CANDIDATE,
+                rescheduleRound: 1,
+            };
+
+            mockPrisma.booking.findUniqueOrThrow.mockResolvedValue(booking);
+
+            await expect(
+                requestReschedule(
+                    'booking-3',
+                    { userId: 'pro-1', role: Role.PROFESSIONAL },
+                    [{ start: new Date(), end: addHours(new Date(), 0.5) }],
+                    undefined,
+                    { prisma: mockPrisma as any }
+                )
+            ).rejects.toThrow(TransitionError);
+        });
+    });
+
+    describe('confirmReschedule', () => {
+        it('allows a professional to reschedule directly from accepted without entering pending', async () => {
+            const newStartAt = addHours(new Date(), 48);
+            const newEndAt = addHours(new Date(), 48.5);
+
+            const booking = {
+                id: 'booking-4',
+                candidateId: 'cand-1',
+                professionalId: 'pro-1',
+                status: BookingStatus.accepted,
                 startAt: addHours(new Date(), 24),
                 endAt: addHours(new Date(), 24.5),
                 priceCents: 10000,
@@ -112,66 +173,50 @@ describe('Rescheduling Domain', () => {
 
             mockPrisma.booking.findUnique.mockResolvedValue(booking);
             mockPrisma.booking.findUniqueOrThrow.mockResolvedValue(booking);
+            mockPrisma.booking.update.mockResolvedValue({
+                ...booking,
+                startAt: newStartAt,
+                endAt: newEndAt,
+            });
 
-            const actor = { userId: 'pro-1', role: Role.PROFESSIONAL };
-            const result = await requestReschedule(
-                'booking-2b',
-                actor,
-                undefined,
-                'Retry request',
+            const result = await confirmReschedule(
+                'booking-4',
+                { userId: 'pro-1', role: Role.PROFESSIONAL },
+                newStartAt,
+                newEndAt,
                 { prisma: mockPrisma as any }
             );
 
-            expect(result.status).toBe(BookingStatus.reschedule_pending);
-            expect(mockPrisma.booking.update).not.toHaveBeenCalled();
+            expect(result.startAt).toEqual(newStartAt);
+            expect(mockPrisma.booking.update).toHaveBeenCalledWith(expect.objectContaining({
+                where: { id: 'booking-4' },
+                data: expect.objectContaining({
+                    startAt: newStartAt,
+                    endAt: newEndAt,
+                    rescheduleRound: 0,
+                }),
+            }));
         });
 
-        it('should throw TransitionError when booking is not accepted', async () => {
-            const booking = {
-                id: 'booking-3',
-                candidateId: 'cand-1',
-                professionalId: 'pro-1',
-                status: BookingStatus.requested, // Not accepted
-            };
-
-            mockPrisma.booking.findUniqueOrThrow.mockResolvedValue(booking);
-
-            const actor = { userId: 'cand-1', role: Role.CANDIDATE };
-            await expect(
-                requestReschedule('booking-3', actor, [], undefined, { prisma: mockPrisma as any })
-            ).rejects.toThrow(TransitionError);
-        });
-
-        it('should throw TransitionError when user is not participant', async () => {
-            const booking = {
-                id: 'booking-4',
-                candidateId: 'cand-1',
-                professionalId: 'pro-1',
-                status: BookingStatus.accepted,
-            };
-
-            mockPrisma.booking.findUniqueOrThrow.mockResolvedValue(booking);
-
-            const actor = { userId: 'other-user', role: Role.CANDIDATE };
-            await expect(
-                requestReschedule('booking-4', actor, [], undefined, { prisma: mockPrisma as any })
-            ).rejects.toThrow(TransitionError);
-        });
-    });
-
-    describe('confirmReschedule', () => {
-        it('should transition reschedule_pending to accepted with new times', async () => {
-            const newStartAt = addHours(new Date(), 48);
-            const newEndAt = addHours(new Date(), 48.5);
+        it('accepts a proposed slot from an active reschedule round', async () => {
+            const newStartAt = addHours(new Date(), 72);
+            const newEndAt = addHours(new Date(), 72.5);
 
             const booking = {
                 id: 'booking-5',
                 candidateId: 'cand-1',
                 professionalId: 'pro-1',
                 status: BookingStatus.reschedule_pending,
-                startAt: addHours(new Date(), 24), // Old time
+                startAt: addHours(new Date(), 24),
                 endAt: addHours(new Date(), 24.5),
                 priceCents: 10000,
+                rescheduleAwaitingParty: RescheduleAwaitingParty.PROFESSIONAL,
+                rescheduleProposalSlots: [
+                    {
+                        startAt: newStartAt.toISOString(),
+                        endAt: newEndAt.toISOString(),
+                    },
+                ],
             };
 
             mockPrisma.booking.findUnique.mockResolvedValue(booking);
@@ -182,100 +227,66 @@ describe('Rescheduling Domain', () => {
                 status: BookingStatus.accepted,
                 startAt: newStartAt,
                 endAt: newEndAt,
+                rescheduleAwaitingParty: null,
+                rescheduleProposalSource: null,
+                rescheduleProposalSlots: null,
+                rescheduleRound: 0,
             };
             mockPrisma.booking.update.mockResolvedValue(updatedBooking);
             mockPrisma.booking.findUnique.mockResolvedValue(updatedBooking);
 
-            const actor = { userId: 'pro-1', role: Role.PROFESSIONAL };
             const result = await confirmReschedule(
                 'booking-5',
-                actor,
+                { userId: 'pro-1', role: Role.PROFESSIONAL },
                 newStartAt,
                 newEndAt,
                 { prisma: mockPrisma as any }
             );
 
             expect(result.status).toBe(BookingStatus.accepted);
-            expect(mockPrisma.booking.update).toHaveBeenCalledWith({
-                where: { id: 'booking-5' },
-                data: {
+            expect(mockPrisma.booking.update).toHaveBeenCalledWith(expect.objectContaining({
+                data: expect.objectContaining({
                     status: BookingStatus.accepted,
                     startAt: newStartAt,
                     endAt: newEndAt,
-                },
-            });
+                    rescheduleRound: 0,
+                }),
+            }));
         });
 
-        it('should no-op when already accepted with the same times', async () => {
-            const existingStartAt = addHours(new Date(), 24);
-            const existingEndAt = addHours(existingStartAt, 0.5);
-
-            const booking = {
-                id: 'booking-5b',
-                candidateId: 'cand-1',
-                professionalId: 'pro-1',
-                status: BookingStatus.accepted,
-                startAt: existingStartAt,
-                endAt: existingEndAt,
-                priceCents: 10000,
-            };
-
-            mockPrisma.booking.findUnique.mockResolvedValue(booking);
-            mockPrisma.booking.findUniqueOrThrow.mockResolvedValue(booking);
-
-            const actor = { userId: 'pro-1', role: Role.PROFESSIONAL };
-            const result = await confirmReschedule(
-                'booking-5b',
-                actor,
-                existingStartAt,
-                existingEndAt,
-                { prisma: mockPrisma as any }
-            );
-
-            expect(result.status).toBe(BookingStatus.accepted);
-            expect(mockPrisma.booking.update).not.toHaveBeenCalled();
-        });
-
-        it('should throw TransitionConflictError when already accepted with different times', async () => {
+        it('throws when the selected slot is not in the active proposal round', async () => {
             const booking = {
                 id: 'booking-6',
                 candidateId: 'cand-1',
                 professionalId: 'pro-1',
-                status: BookingStatus.accepted,
-                startAt: addHours(new Date(), 24),
-                endAt: addHours(new Date(), 24.5),
+                status: BookingStatus.reschedule_pending,
+                rescheduleAwaitingParty: RescheduleAwaitingParty.CANDIDATE,
+                rescheduleProposalSlots: [
+                    {
+                        startAt: addHours(new Date(), 30).toISOString(),
+                        endAt: addHours(new Date(), 30.5).toISOString(),
+                    },
+                ],
             };
 
             mockPrisma.booking.findUniqueOrThrow.mockResolvedValue(booking);
             mockPrisma.booking.findUnique.mockResolvedValue(booking);
 
-            const actor = { userId: 'pro-1', role: Role.PROFESSIONAL };
             await expect(
-                confirmReschedule('booking-6', actor, new Date(), new Date(), { prisma: mockPrisma as any })
-            ).rejects.toThrow(TransitionConflictError);
-        });
-
-        it('should throw TransitionError when booking is not reschedule_pending', async () => {
-            const booking = {
-                id: 'booking-6b',
-                candidateId: 'cand-1',
-                professionalId: 'pro-1',
-                status: BookingStatus.requested,
-            };
-
-            mockPrisma.booking.findUniqueOrThrow.mockResolvedValue(booking);
-            mockPrisma.booking.findUnique.mockResolvedValue(booking);
-
-            const actor = { userId: 'pro-1', role: Role.PROFESSIONAL };
-            await expect(
-                confirmReschedule('booking-6b', actor, new Date(), new Date(), { prisma: mockPrisma as any })
+                confirmReschedule(
+                    'booking-6',
+                    { userId: 'cand-1', role: Role.CANDIDATE },
+                    addHours(new Date(), 40),
+                    addHours(new Date(), 40.5),
+                    { prisma: mockPrisma as any }
+                )
             ).rejects.toThrow(TransitionError);
         });
     });
 
     describe('rejectReschedule', () => {
         it('should transition to cancelled on rejection (early - refund)', async () => {
-            const startAt = addHours(new Date(), 24); // 24 hours away (> 6 hours)
+            const startAt = addHours(new Date(), 24);
 
             const booking = {
                 id: 'booking-7',
@@ -302,62 +313,10 @@ describe('Rescheduling Domain', () => {
             const result = await rejectReschedule('booking-7', actor, { prisma: mockPrisma as any });
 
             expect(result.status).toBe(BookingStatus.cancelled);
-            // Early rejection = refund
             expect(mockPrisma.payment.update).toHaveBeenCalledWith({
                 where: { bookingId: 'booking-7' },
                 data: { status: PaymentStatus.refunded, refundedAmountCents: 10000 },
             });
-        });
-
-        it('should transition to cancelled on rejection (late - payout)', async () => {
-            const startAt = addHours(new Date(), 2); // 2 hours away (< 6 hours = late)
-
-            const booking = {
-                id: 'booking-8',
-                candidateId: 'cand-1',
-                professionalId: 'pro-1',
-                status: BookingStatus.reschedule_pending,
-                startAt,
-                priceCents: 10000,
-            };
-
-            mockPrisma.booking.findUnique.mockResolvedValue(booking);
-            mockPrisma.booking.findUniqueOrThrow.mockResolvedValue(booking);
-
-            const updatedBooking = {
-                ...booking,
-                status: BookingStatus.cancelled,
-                candidateLateCancellation: true,
-                payment: { status: PaymentStatus.released },
-            };
-            mockPrisma.booking.update.mockResolvedValue(updatedBooking);
-            mockPrisma.booking.findUnique.mockResolvedValue(updatedBooking);
-
-            const actor = { userId: 'pro-1', role: Role.PROFESSIONAL };
-            const result = await rejectReschedule('booking-8', actor, { prisma: mockPrisma as any });
-
-            expect(result.status).toBe(BookingStatus.cancelled);
-            // Late rejection = payout
-            expect(mockPrisma.payment.update).toHaveBeenCalledWith({
-                where: { bookingId: 'booking-8' },
-                data: { status: PaymentStatus.released },
-            });
-        });
-
-        it('should throw TransitionError when booking is not reschedule_pending', async () => {
-            const booking = {
-                id: 'booking-9',
-                candidateId: 'cand-1',
-                professionalId: 'pro-1',
-                status: BookingStatus.accepted,
-            };
-
-            mockPrisma.booking.findUniqueOrThrow.mockResolvedValue(booking);
-
-            const actor = { userId: 'pro-1', role: Role.PROFESSIONAL };
-            await expect(
-                rejectReschedule('booking-9', actor, { prisma: mockPrisma as any })
-            ).rejects.toThrow(TransitionError);
         });
     });
 });

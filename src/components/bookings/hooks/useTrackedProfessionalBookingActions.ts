@@ -5,13 +5,14 @@ import {
     cancelProfessionalUpcomingBooking,
     confirmProfessionalBooking,
     rejectProfessionalRequest,
-    requestProfessionalReschedule,
     submitProfessionalFeedback,
 } from '@/components/bookings/services/professionalBookingApi';
 import {
     confirmProfessionalReschedule,
     rejectProfessionalReschedule,
+    submitProfessionalRescheduleProposal,
 } from '@/components/bookings/services/professionalRescheduleApi';
+import type { SlotInterval } from '@/components/bookings/calendar/types';
 import type { ActionToastOverride } from '@/components/ui/actions/executeTrackedAction';
 import { executeTrackedAction } from '@/components/ui/actions/executeTrackedAction';
 import { buildErrorToastCopy } from '@/components/ui/hooks/requestToastController';
@@ -43,6 +44,12 @@ interface SubmitFeedbackArgs extends BookingActionArgs {
 
 interface ConfirmRescheduleArgs extends BookingActionArgs {
     startAt: string;
+    toast?: ActionToastOverride<void>;
+}
+
+interface SubmitRescheduleProposalArgs extends BookingActionArgs {
+    slots: SlotInterval[];
+    reason?: string;
     toast?: ActionToastOverride<void>;
 }
 
@@ -103,28 +110,9 @@ export function useTrackedProfessionalBookingActions() {
             postSuccess: { kind: 'refresh' },
         });
 
-    const requestReschedule = async ({ bookingId, toast }: SimpleActionArgs) =>
-        executeTrackedAction(runtime, {
-            action: async () => {
-                await requestProfessionalReschedule({ bookingId });
-            },
-            copy: {
-                pending: {
-                    title: 'Requesting reschedule',
-                    message: 'Opening the reschedule workflow for this booking.',
-                },
-                success: {
-                    title: 'Reschedule requested',
-                    message: 'You can now confirm a new time.',
-                },
-                error: (error) => buildErrorToastCopy(error, 'Reschedule request failed'),
-            },
-            toast,
-            postSuccess: {
-                kind: 'push',
-                href: appRoutes.professional.requestReschedule(bookingId),
-            },
-        });
+    const requestReschedule = async ({ bookingId }: SimpleActionArgs) => {
+        router.push(appRoutes.professional.requestReschedule(bookingId));
+    };
 
     const confirmReschedule = async ({ bookingId, startAt, toast }: ConfirmRescheduleArgs) =>
         executeTrackedAction(runtime, {
@@ -141,6 +129,29 @@ export function useTrackedProfessionalBookingActions() {
                     message: 'The updated time has been scheduled.',
                 },
                 error: (error) => buildErrorToastCopy(error, 'Reschedule confirmation failed'),
+            },
+            toast,
+            postSuccess: {
+                kind: 'push',
+                href: appRoutes.professional.dashboard,
+            },
+        });
+
+    const submitRescheduleProposal = async ({ bookingId, slots, reason, toast }: SubmitRescheduleProposalArgs) =>
+        executeTrackedAction(runtime, {
+            action: async () => {
+                await submitProfessionalRescheduleProposal(bookingId, slots, reason);
+            },
+            copy: {
+                pending: {
+                    title: 'Sending proposed times',
+                    message: 'Sharing your proposed times with the candidate.',
+                },
+                success: {
+                    title: 'Proposal sent',
+                    message: 'The candidate can now accept or counter your proposed times.',
+                },
+                error: (error) => buildErrorToastCopy(error, 'Proposal submission failed'),
             },
             toast,
             postSuccess: {
@@ -239,6 +250,7 @@ export function useTrackedProfessionalBookingActions() {
         cancelUpcomingBooking,
         requestReschedule,
         confirmReschedule,
+        submitRescheduleProposal,
         rejectReschedule,
         rejectRequest,
         submitFeedback,

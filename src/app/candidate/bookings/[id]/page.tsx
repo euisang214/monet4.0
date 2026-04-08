@@ -133,7 +133,21 @@ export default async function BookingDetailsPage(props: {
                 <div className="p-6 border-b border-gray-100">
                     <h2 className="text-xl font-semibold text-gray-900 mb-4">Schedule</h2>
                     <div className="text-gray-700">
-                        {booking.startAt ? (
+                        {booking.status === BookingStatus.reschedule_pending && booking.startAt ? (
+                            <div>
+                                <p className="font-medium text-amber-800">Previously scheduled</p>
+                                <p>{formatDisplayDate(new Date(booking.startAt), candidateTimezone)}</p>
+                                <p>
+                                    {formatDisplayTime(new Date(booking.startAt), candidateTimezone)} -{" "}
+                                    {formatDisplayTime(new Date(booking.endAt!), candidateTimezone)}
+                                </p>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    {booking.rescheduleAwaitingParty === 'CANDIDATE'
+                                        ? 'The professional proposed a new time. The original slot is no longer confirmed.'
+                                        : 'You proposed new times. The original slot is no longer confirmed.'}
+                                </p>
+                            </div>
+                        ) : booking.startAt ? (
                             <div>
                                 <p className="font-medium">{formatDisplayDate(new Date(booking.startAt), candidateTimezone)}</p>
                                 <p>

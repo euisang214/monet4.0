@@ -54,6 +54,16 @@ enum BookingStatus {
   refunded
 }
 
+enum RescheduleAwaitingParty {
+  CANDIDATE
+  PROFESSIONAL
+}
+
+enum RescheduleProposalSource {
+  CANDIDATE
+  PROFESSIONAL
+}
+
 enum PaymentStatus {
   authorized
   cancelled
@@ -155,6 +165,11 @@ model Booking {
   candidateCalendarInviteCancelledAt DateTime?
   professionalCalendarInviteCancelledAt DateTime?
   timezone         String        @default("UTC")
+  rescheduleAwaitingParty RescheduleAwaitingParty?
+  rescheduleProposalSource RescheduleProposalSource?
+  rescheduleProposalSlots Json?
+  rescheduleProposalNote String?
+  rescheduleRound  Int           @default(0)
   
   // Join tracking
   candidateJoinedAt    DateTime?

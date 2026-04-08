@@ -5,9 +5,10 @@ import { notFound, redirect } from "next/navigation";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/core/db";
 import { ProfessionalRescheduleService } from "@/lib/role/professional/reschedule";
-import { ConfirmRescheduleForm } from "@/components/bookings/ConfirmRescheduleForm";
 import { appRoutes } from "@/lib/shared/routes";
 import { formatCandidateForProfessionalView } from "@/lib/domain/users/identity-labels";
+import { parseProposalSlots, proposalSlotsToIntervals } from "@/lib/domain/bookings/reschedule-proposals";
+import { ProfessionalRescheduleWorkspace } from "./ProfessionalRescheduleWorkspace";
 
 interface PageProps {
     params: Promise<{ id: string }>;
@@ -53,14 +54,14 @@ export default async function ProfessionalReschedulePage({ params }: PageProps) 
                 },
             },
             professional: {
-                select: { timezone: true },
+                select: { timezone: true, googleCalendarConnected: true },
             },
         },
     });
 
     if (!booking) notFound();
     if (booking.professionalId !== user.id) redirect(appRoutes.professional.requests);
-    if (booking.status !== "reschedule_pending") {
+    if (booking.status !== "reschedule_pending" && booking.status !== "accepted") {
         redirect(appRoutes.professional.requests);
     }
 
@@ -72,6 +73,7 @@ export default async function ProfessionalReschedulePage({ params }: PageProps) 
     });
 
     const slots = await ProfessionalRescheduleService.getRescheduleAvailability(id, user.id);
+    const proposalSlots = proposalSlotsToIntervals(parseProposalSlots(booking.rescheduleProposalSlots));
 
     return (
         <main className="container py-8">
@@ -83,18 +85,29 @@ export default async function ProfessionalReschedulePage({ params }: PageProps) 
                 <p className="text-xs uppercase tracking-wider text-blue-600 mb-2">Reschedule Request</p>
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">Select a new call time</h1>
                 <p className="text-gray-600">
-                    Candidate {candidateLabel} requested a reschedule. Pick a new slot from their submitted availability.
+                    {booking.status === "accepted"
+                        ? `Choose one of ${candidateLabel}'s currently available times or propose another set of slots.`
+                        : booking.rescheduleAwaitingParty === "PROFESSIONAL"
+                            ? `${candidateLabel} sent back a new set of times. Confirm one or reply with a replacement proposal round.`
+                            : `Waiting for ${candidateLabel} to respond to the latest proposal round.`}
                 </p>
             </header>
 
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                <ConfirmRescheduleForm
-                    bookingId={id}
-                    slots={slots}
-                    calendarTimezone={booking.timezone}
-                    professionalTimezone={booking.professional.timezone}
-                />
-            </div>
+            <ProfessionalRescheduleWorkspace
+                bookingId={id}
+                bookingStatus={booking.status}
+                candidateAvailabilitySlots={slots.map((slot) => ({
+                    start: slot.start.toISOString(),
+                    end: slot.end.toISOString(),
+                }))}
+                proposalSlots={proposalSlots}
+                calendarTimezone={booking.timezone}
+                professionalTimezone={booking.professional.timezone}
+                isGoogleCalendarConnected={booking.professional.googleCalendarConnected}
+                awaitingParty={booking.rescheduleAwaitingParty}
+                previousStartAt={booking.startAt?.toISOString() ?? null}
+                previousEndAt={booking.endAt?.toISOString() ?? null}
+            />
         </main>
     );
 }

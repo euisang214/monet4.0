@@ -180,6 +180,22 @@
   cursor: not-allowed;
 }
 
+.calendar-slot-state-professional-reference-available {
+  background-color: #f6fbff;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px #7ab2de;
+}
+
+.calendar-slot-state-professional-proposal-selected {
+  background-color: #f4a261;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px #dc8c4d;
+}
+
+.calendar-slot-state-professional-proposal-selected:hover {
+  background-color: #eb9856;
+}
+
 .calendar-slot-state-professional-selected {
   background-color: #57a8e6;
   color: #103f64;

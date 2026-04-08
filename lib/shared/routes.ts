@@ -62,9 +62,11 @@ export const appRoutes = {
             professionalReviews: (professionalId: string) => `/api/candidate/professionals/${professionalId}/reviews`,
             professionalBookings: (professionalId: string) => `/api/candidate/professionals/${professionalId}/bookings`,
             bookingRescheduleRequest: (bookingId: string) => `/api/candidate/bookings/${bookingId}/reschedule/request`,
+            bookingRescheduleAccept: (bookingId: string) => `/api/candidate/bookings/${bookingId}/reschedule/accept`,
             bookingDispute: (bookingId: string) => `/api/candidate/bookings/${bookingId}/dispute`,
         },
         professional: {
+            busy: "/api/professional/busy",
             requestConfirmAndSchedule: (bookingId: string) => `/api/professional/requests/${bookingId}/confirm-and-schedule`,
             requestDecline: (bookingId: string) => `/api/professional/requests/${bookingId}/decline`,
             requestResume: (bookingId: string) => `/api/professional/requests/${bookingId}/resume`,

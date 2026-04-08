@@ -4,6 +4,7 @@ import { Role } from '@prisma/client';
 import { notFound } from 'next/navigation';
 import { ReschedulePageClient } from './ReschedulePageClient';
 import { CandidateAvailability } from '@/lib/role/candidate/availability';
+import { parseProposalSlots, proposalSlotsToIntervals } from '@/lib/domain/bookings/reschedule-proposals';
 import { normalizeTimezone } from '@/lib/utils/supported-timezones';
 
 interface PageProps {
@@ -20,6 +21,12 @@ export default async function ReschedulePage({ params }: PageProps) {
             select: {
                 id: true,
                 candidateId: true,
+                status: true,
+                startAt: true,
+                endAt: true,
+                rescheduleAwaitingParty: true,
+                rescheduleProposalSource: true,
+                rescheduleProposalSlots: true,
                 professional: {
                     select: {
                         timezone: true,
@@ -43,10 +50,16 @@ export default async function ReschedulePage({ params }: PageProps) {
     return (
         <ReschedulePageClient
             bookingId={booking.id}
+            bookingStatus={booking.status}
             calendarTimezone={availabilitySeed.candidateTimezone || normalizeTimezone(booking.candidate.timezone)}
             professionalTimezone={booking.professional.timezone}
             isGoogleCalendarConnected={availabilitySeed.isGoogleCalendarConnected ?? booking.candidate.googleCalendarConnected}
             initialAvailabilitySlots={availabilitySeed.initialAvailabilitySlots}
+            awaitingParty={booking.rescheduleAwaitingParty}
+            proposalSource={booking.rescheduleProposalSource}
+            proposalSlots={proposalSlotsToIntervals(parseProposalSlots(booking.rescheduleProposalSlots))}
+            previousStartAt={booking.startAt?.toISOString() ?? null}
+            previousEndAt={booking.endAt?.toISOString() ?? null}
         />
     );
 }

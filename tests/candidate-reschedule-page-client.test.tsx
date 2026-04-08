@@ -40,6 +40,7 @@ describe('ReschedulePageClient', () => {
         renderToStaticMarkup(
             <ReschedulePageClient
                 bookingId="booking-1"
+                bookingStatus="accepted"
                 calendarTimezone="America/Chicago"
                 professionalTimezone="America/New_York"
                 isGoogleCalendarConnected

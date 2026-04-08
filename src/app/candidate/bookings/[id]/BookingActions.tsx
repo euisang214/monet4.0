@@ -55,7 +55,7 @@ export function BookingActions({ booking }: BookingActionsProps) {
 
     // Use centralized visibility logic
     const { showJoin, showReschedule, showCancel, showDispute, showReview } =
-        getBookingActionVisibility(booking.status, !!joinUrl);
+        getBookingActionVisibility(booking.status, !!joinUrl, booking.rescheduleAwaitingParty);
 
     return (
         <div className="flex flex-col gap-4 mt-6">

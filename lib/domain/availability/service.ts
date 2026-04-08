@@ -6,9 +6,9 @@ import { Availability } from '@prisma/client';
 
 export const AvailabilityService = {
     /**
-     * Gets merged busy times for a candidate from Google Calendar and manual busy blocks.
+     * Gets merged busy times for a user from Google Calendar and manual busy blocks.
      */
-    async getCandidateBusyTimes(userId: string, start: Date, end: Date) {
+    async getUserBusyTimes(userId: string, start: Date, end: Date) {
         const googleBusy = await getGoogleBusyTimes(userId, start, end);
 
         const dbBusy = await prisma.availability.findMany({
@@ -22,6 +22,10 @@ export const AvailabilityService = {
         });
 
         return [...googleBusy, ...dbBusy];
+    },
+
+    async getCandidateBusyTimes(userId: string, start: Date, end: Date) {
+        return this.getUserBusyTimes(userId, start, end);
     },
 
     /**

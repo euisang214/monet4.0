@@ -94,6 +94,10 @@ describe('Reschedule Flow E2E', () => {
         const professionalRequestResult = await ProfessionalRescheduleService.requestReschedule(
             bookingId,
             professionalId,
+            [{
+                start: addDays(new Date(), 4),
+                end: addMinutes(addDays(new Date(), 4), 30),
+            }],
             'Running conflict'
         );
         expect(professionalRequestResult.status).toBe(BookingStatus.reschedule_pending);
@@ -101,6 +105,10 @@ describe('Reschedule Flow E2E', () => {
         const duplicateProfessionalRequest = await ProfessionalRescheduleService.requestReschedule(
             bookingId,
             professionalId,
+            [{
+                start: addDays(new Date(), 5),
+                end: addMinutes(addDays(new Date(), 5), 30),
+            }],
             'Retry click'
         );
         expect(duplicateProfessionalRequest.status).toBe(BookingStatus.reschedule_pending);

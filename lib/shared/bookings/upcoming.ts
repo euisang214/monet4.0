@@ -143,6 +143,7 @@ export async function getPendingRequests(
         select: {
             id: true,
             status: true,
+            rescheduleAwaitingParty: true,
             priceCents: true,
             expiresAt: true,
             candidate: {

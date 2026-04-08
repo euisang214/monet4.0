@@ -1,6 +1,12 @@
-import { AttendanceOutcome, BookingStatus, PaymentStatus, Role } from '@prisma/client';
+import {
+    AttendanceOutcome,
+    BookingStatus,
+    PaymentStatus,
+    Prisma,
+    Role,
+} from '@prisma/client';
 import { createAuditLog } from '@/lib/shared/audit';
-import { TransitionConflictError, TransitionError } from '../errors';
+import { TransitionError } from '../errors';
 import {
     defaultPrisma,
     enqueueCalendarInviteCancelJobs,
@@ -10,6 +16,14 @@ import {
     type Dependencies,
 } from './shared';
 import { isLateCancellation } from '@/lib/domain/bookings/utils';
+import {
+    matchesProposalSlot,
+    oppositeAwaitingParty,
+    parseProposalSlots,
+    roleToAwaitingParty,
+    roleToProposalSource,
+    serializeProposalSlots,
+} from '@/lib/domain/bookings/reschedule-proposals';
 
 export async function acceptBooking(
     bookingId: string,
@@ -170,14 +184,47 @@ export async function completeIntegrations(
 export async function requestReschedule(
     bookingId: string,
     actor: { userId: string; role: Role },
-    slots?: { start: Date; end: Date }[],
+    slots: { start: Date; end: Date }[],
     reason?: string,
     deps: Dependencies = { prisma: defaultPrisma }
 ) {
-    return transitionBooking(
+    return submitRescheduleProposal(
+        bookingId,
+        actor,
+        slots,
+        reason,
+        deps
+    );
+}
+
+export async function submitRescheduleProposal(
+    bookingId: string,
+    actor: { userId: string; role: Role },
+    slots: { start: Date; end: Date }[],
+    reason?: string,
+    deps: Dependencies = { prisma: defaultPrisma }
+) {
+    if (slots.length === 0) {
+        throw new TransitionError('At least one proposed slot is required');
+    }
+
+    let shouldCancelInvites = false;
+    const actorParty = roleToAwaitingParty(actor.role);
+    const nextAwaitingParty = oppositeAwaitingParty(actorParty);
+    const proposalSource = roleToProposalSource(actor.role);
+
+    const result = await transitionBooking(
         bookingId,
         BookingStatus.reschedule_pending,
-        { actor, reason, metadata: { slots } },
+        {
+            actor,
+            reason,
+            metadata: {
+                slots: serializeProposalSlots(slots),
+                rescheduleAwaitingParty: nextAwaitingParty,
+                rescheduleProposalSource: proposalSource,
+            },
+        },
         deps,
         async (tx) => {
             const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
@@ -187,19 +234,68 @@ export async function requestReschedule(
             }
 
             if (booking.status === BookingStatus.reschedule_pending) {
-                return booking;
-            }
-
-            if (booking.status !== BookingStatus.accepted) {
+                if (booking.rescheduleAwaitingParty !== actorParty) {
+                    throw new TransitionError('It is not your turn to propose new times');
+                }
+            } else if (booking.status !== BookingStatus.accepted) {
                 throw new TransitionError(`Cannot request reschedule from ${booking.status}`);
             }
 
-            return tx.booking.update({
+            const nextRound = booking.status === BookingStatus.reschedule_pending
+                ? booking.rescheduleRound + 1
+                : 1;
+
+            const updatedBooking = await tx.booking.update({
                 where: { id: bookingId },
-                data: { status: BookingStatus.reschedule_pending },
+                data: {
+                    status: BookingStatus.reschedule_pending,
+                    rescheduleAwaitingParty: nextAwaitingParty,
+                    rescheduleProposalSource: proposalSource,
+                    rescheduleProposalSlots: serializeProposalSlots(slots),
+                    rescheduleProposalNote: reason ?? null,
+                    rescheduleRound: nextRound,
+                    ...(booking.status === BookingStatus.accepted
+                        ? {
+                            zoomJoinUrl: null,
+                            candidateZoomJoinUrl: null,
+                            professionalZoomJoinUrl: null,
+                            candidateZoomRegistrantId: null,
+                            professionalZoomRegistrantId: null,
+                        }
+                        : {}),
+                },
             });
+
+            if (booking.status === BookingStatus.accepted) {
+                shouldCancelInvites = true;
+            } else {
+                await createAuditLog(
+                    tx,
+                    'Booking',
+                    bookingId,
+                    'booking_reschedule_round_submitted',
+                    actor.userId,
+                    {
+                        previousStatus: booking.status,
+                        newStatus: BookingStatus.reschedule_pending,
+                        proposedBy: actor.role,
+                        awaitingParty: nextAwaitingParty,
+                        round: nextRound,
+                        reason,
+                        slots: serializeProposalSlots(slots),
+                    }
+                );
+            }
+
+            return updatedBooking;
         }
     );
+
+    if (shouldCancelInvites) {
+        await enqueueCalendarInviteCancelJobs(bookingId);
+    }
+
+    return result;
 }
 
 export async function confirmReschedule(
@@ -209,33 +305,94 @@ export async function confirmReschedule(
     newEndAt: Date,
     deps: Dependencies = { prisma: defaultPrisma }
 ) {
-    return transitionBooking(bookingId, BookingStatus.accepted, { actor }, deps, async (tx) => {
-        const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
-
-        if (booking.candidateId !== actor.userId && booking.professionalId !== actor.userId) {
-            throw new TransitionError('Not authorized');
-        }
-
-        if (booking.status === BookingStatus.accepted) {
-            if (sameInstant(booking.startAt, newStartAt) && sameInstant(booking.endAt, newEndAt)) {
-                return booking;
-            }
-            throw new TransitionConflictError('Booking is already accepted with a different schedule');
-        }
-
-        if (booking.status !== BookingStatus.reschedule_pending) {
-            throw new TransitionError(`Cannot confirm reschedule from ${booking.status}`);
-        }
-
-        return tx.booking.update({
-            where: { id: bookingId },
-            data: {
-                status: BookingStatus.accepted,
-                startAt: newStartAt,
-                endAt: newEndAt,
+    return transitionBooking(
+        bookingId,
+        BookingStatus.accepted,
+        {
+            actor,
+            metadata: {
+                newStartAt: newStartAt.toISOString(),
+                newEndAt: newEndAt.toISOString(),
             },
-        });
-    });
+        },
+        deps,
+        async (tx) => {
+            const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
+
+            if (booking.candidateId !== actor.userId && booking.professionalId !== actor.userId) {
+                throw new TransitionError('Not authorized');
+            }
+
+            if (booking.status === BookingStatus.accepted) {
+                if (actor.role !== Role.PROFESSIONAL || booking.professionalId !== actor.userId) {
+                    throw new TransitionError('Only the professional can directly reschedule an accepted booking');
+                }
+
+                if (sameInstant(booking.startAt, newStartAt) && sameInstant(booking.endAt, newEndAt)) {
+                    return booking;
+                }
+
+                const updatedBooking = await tx.booking.update({
+                    where: { id: bookingId },
+                    data: {
+                        startAt: newStartAt,
+                        endAt: newEndAt,
+                        rescheduleAwaitingParty: null,
+                        rescheduleProposalSource: null,
+                        rescheduleProposalSlots: Prisma.JsonNull,
+                        rescheduleProposalNote: null,
+                        rescheduleRound: 0,
+                    },
+                });
+
+                await createAuditLog(
+                    tx,
+                    'Booking',
+                    bookingId,
+                    'booking_reschedule_direct_confirmed',
+                    actor.userId,
+                    {
+                        previousStatus: booking.status,
+                        newStatus: BookingStatus.accepted,
+                        previousStartAt: booking.startAt?.toISOString() ?? null,
+                        previousEndAt: booking.endAt?.toISOString() ?? null,
+                        newStartAt: newStartAt.toISOString(),
+                        newEndAt: newEndAt.toISOString(),
+                    }
+                );
+
+                return updatedBooking;
+            }
+
+            if (booking.status !== BookingStatus.reschedule_pending) {
+                throw new TransitionError(`Cannot confirm reschedule from ${booking.status}`);
+            }
+
+            const actorParty = roleToAwaitingParty(actor.role);
+            if (booking.rescheduleAwaitingParty && booking.rescheduleAwaitingParty !== actorParty) {
+                throw new TransitionError('It is not your turn to confirm a proposed time');
+            }
+
+            const proposalSlots = parseProposalSlots(booking.rescheduleProposalSlots);
+            if (!matchesProposalSlot(proposalSlots, newStartAt, newEndAt)) {
+                throw new TransitionError('Selected slot is not part of the active proposal round');
+            }
+
+            return tx.booking.update({
+                where: { id: bookingId },
+                data: {
+                    status: BookingStatus.accepted,
+                    startAt: newStartAt,
+                    endAt: newEndAt,
+                    rescheduleAwaitingParty: null,
+                    rescheduleProposalSource: null,
+                    rescheduleProposalSlots: Prisma.JsonNull,
+                    rescheduleProposalNote: null,
+                    rescheduleRound: 0,
+                },
+            });
+        }
+    );
 }
 
 export async function rejectReschedule(

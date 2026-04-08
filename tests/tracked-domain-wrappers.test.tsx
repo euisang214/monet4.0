@@ -16,10 +16,10 @@ const submitCandidateDisputeMock = vi.hoisted(() => vi.fn());
 
 const confirmProfessionalBookingMock = vi.hoisted(() => vi.fn());
 const cancelProfessionalUpcomingBookingMock = vi.hoisted(() => vi.fn());
-const requestProfessionalRescheduleMock = vi.hoisted(() => vi.fn());
 const rejectProfessionalRequestMock = vi.hoisted(() => vi.fn());
 const submitProfessionalFeedbackMock = vi.hoisted(() => vi.fn());
 const confirmProfessionalRescheduleMock = vi.hoisted(() => vi.fn());
+const submitProfessionalRescheduleProposalMock = vi.hoisted(() => vi.fn());
 const rejectProfessionalRescheduleMock = vi.hoisted(() => vi.fn());
 
 const requestVerificationCodeMock = vi.hoisted(() => vi.fn());
@@ -61,13 +61,13 @@ vi.mock('@/components/bookings/services/candidateBookingApi', () => ({
 vi.mock('@/components/bookings/services/professionalBookingApi', () => ({
     confirmProfessionalBooking: confirmProfessionalBookingMock,
     cancelProfessionalUpcomingBooking: cancelProfessionalUpcomingBookingMock,
-    requestProfessionalReschedule: requestProfessionalRescheduleMock,
     rejectProfessionalRequest: rejectProfessionalRequestMock,
     submitProfessionalFeedback: submitProfessionalFeedbackMock,
 }));
 
 vi.mock('@/components/bookings/services/professionalRescheduleApi', () => ({
     confirmProfessionalReschedule: confirmProfessionalRescheduleMock,
+    submitProfessionalRescheduleProposal: submitProfessionalRescheduleProposalMock,
     rejectProfessionalReschedule: rejectProfessionalRescheduleMock,
 }));
 
@@ -196,6 +196,23 @@ describe('tracked domain wrappers', () => {
                 }),
             }),
         );
+    });
+
+    it('professional reschedule navigation pushes directly without a mutation', async () => {
+        const capture = createCapture<ReturnType<typeof useTrackedProfessionalBookingActions>>();
+
+        function Harness({ onReady }: { onReady: (actions: ReturnType<typeof useTrackedProfessionalBookingActions>) => void }) {
+            onReady(useTrackedProfessionalBookingActions());
+            return null;
+        }
+
+        renderToStaticMarkup(<Harness onReady={capture.set} />);
+        const actions = capture.get();
+
+        await actions.requestReschedule({ bookingId: 'booking-4' });
+
+        expect(routerPushMock).toHaveBeenCalledWith('/professional/requests/booking-4/reschedule');
+        expect(executeTrackedActionMock).not.toHaveBeenCalled();
     });
 
     it('verification wrappers preserve onboarding and settings copy differences', async () => {

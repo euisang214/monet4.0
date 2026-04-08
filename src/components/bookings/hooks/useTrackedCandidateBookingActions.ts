@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import type { DisputeReason } from '@prisma/client';
 import type { SlotInterval } from '@/components/bookings/calendar/types';
 import {
+    acceptCandidateRescheduleProposal,
     cancelCandidateBooking,
     createCandidateBookingRequest,
     submitCandidateDispute,
@@ -41,6 +42,13 @@ interface SubmitCandidateReviewArgs {
     rating: number;
     text: string;
     timezone: string;
+    toast?: ActionToastOverride<void>;
+}
+
+interface AcceptCandidateRescheduleProposalArgs {
+    bookingId: string;
+    startAt: string;
+    endAt: string;
     toast?: ActionToastOverride<void>;
 }
 
@@ -133,6 +141,34 @@ export function useTrackedCandidateBookingActions() {
             },
         });
 
+    const acceptRescheduleProposal = async ({
+        bookingId,
+        startAt,
+        endAt,
+        toast,
+    }: AcceptCandidateRescheduleProposalArgs) =>
+        executeTrackedAction(runtime, {
+            action: async () => {
+                await acceptCandidateRescheduleProposal({ bookingId, startAt, endAt });
+            },
+            copy: {
+                pending: {
+                    title: 'Accepting proposed time',
+                    message: 'Finalizing the updated session time.',
+                },
+                success: {
+                    title: 'Reschedule accepted',
+                    message: 'Your booking has been updated to the new time.',
+                },
+                error: (error) => buildErrorToastCopy(error, 'Reschedule acceptance failed'),
+            },
+            toast,
+            postSuccess: {
+                kind: 'push',
+                href: appRoutes.candidate.bookingDetails(bookingId),
+            },
+        });
+
     const submitReview = async ({
         bookingId,
         rating,
@@ -194,6 +230,7 @@ export function useTrackedCandidateBookingActions() {
         createBookingRequest,
         cancelBooking,
         submitRescheduleRequest,
+        acceptRescheduleProposal,
         submitReview,
         submitDispute,
     };

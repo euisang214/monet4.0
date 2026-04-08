@@ -99,6 +99,12 @@ function scheduleLabel(booking: CandidateChatBooking, displayTimezone: string) {
     if (booking.status === BookingStatus.reschedule_pending) {
         if (booking.startAt) {
             const previousSchedule = formatInTimeZone(booking.startAt, displayTimezone, "MMM d, yyyy 'at' h:mm a");
+            if (booking.rescheduleAwaitingParty === 'CANDIDATE') {
+                return `Professional proposed new times. Previously scheduled for ${previousSchedule} (${displayTimezone})`;
+            }
+            if (booking.rescheduleAwaitingParty === 'PROFESSIONAL') {
+                return `Waiting for the professional to review new times. Previously scheduled for ${previousSchedule} (${displayTimezone})`;
+            }
             return `Reschedule pending from ${previousSchedule} (${displayTimezone})`;
         }
 
@@ -263,6 +269,7 @@ export default async function CandidateChatsPage({
                                                 bookingId={booking.id}
                                                 status={booking.status}
                                                 joinUrl={booking.candidateZoomJoinUrl || booking.zoomJoinUrl}
+                                                rescheduleAwaitingParty={booking.rescheduleAwaitingParty}
                                                 hasFeedback={Boolean(booking.feedback)}
                                             />
                                         </div>

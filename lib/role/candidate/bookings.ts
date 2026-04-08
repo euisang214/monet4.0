@@ -1,4 +1,10 @@
-import { createBookingRequest, requestReschedule as transitionReschedule, initiateDispute as transitionDispute, cancelBooking as transitionCancel } from '@/lib/domain/bookings/transitions';
+import {
+    cancelBooking as transitionCancel,
+    confirmReschedule,
+    createBookingRequest,
+    initiateDispute as transitionDispute,
+    requestReschedule as transitionReschedule,
+} from '@/lib/domain/bookings/transitions';
 import { CreateBookingRequestInput } from '@/lib/types/booking-schemas';
 import { Role } from '@prisma/client';
 import { ReviewsService } from '@/lib/domain/reviews/service';
@@ -41,6 +47,15 @@ export const CandidateBookings = {
         }
 
         return transitionReschedule(bookingId, { userId: candidateId, role: Role.CANDIDATE }, slots, reason);
+    },
+
+    acceptRescheduleProposal: async (
+        candidateId: string,
+        bookingId: string,
+        startAt: Date,
+        endAt: Date
+    ) => {
+        return confirmReschedule(bookingId, { userId: candidateId, role: Role.CANDIDATE }, startAt, endAt);
     },
 
     initiateDispute: async (candidateId: string, bookingId: string, reason: string, description: string) => {

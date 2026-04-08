@@ -7,7 +7,9 @@ import {
     QCStatus,
     DisputeStatus,
     DisputeReason,
-    AttendanceOutcome
+    AttendanceOutcome,
+    RescheduleAwaitingParty,
+    RescheduleProposalSource,
 } from '@prisma/client'
 import { loadEnvConfig } from '@next/env'
 import bcrypt from 'bcryptjs'
@@ -161,6 +163,11 @@ const STATUS_DAY_OFFSETS: Record<BookingStatus, number> = {
     [BookingStatus.refunded]: -9,
 }
 
+type SeedRescheduleProposalSlot = {
+    startAt: string
+    endAt: string
+}
+
 const escapeIdentifier = (value: string) => value.replace(/"/g, '""')
 
 async function getPublicTableNames() {
@@ -216,6 +223,42 @@ function getMockName(
     const firstName = PROFESSIONAL_FIRST_NAMES[(index - 1) % PROFESSIONAL_FIRST_NAMES.length]
     const lastName = PROFESSIONAL_LAST_NAMES[((index - 1) * 3) % PROFESSIONAL_LAST_NAMES.length]
     return { firstName, lastName }
+}
+
+function buildProposalSlots(anchorStart: Date, offsetsInMinutes: number[]): SeedRescheduleProposalSlot[] {
+    return offsetsInMinutes.map((offset) => {
+        const start = new Date(anchorStart.getTime() + offset * 60 * 1000)
+        const end = new Date(start.getTime() + 60 * 60 * 1000)
+
+        return {
+            startAt: start.toISOString(),
+            endAt: end.toISOString(),
+        }
+    })
+}
+
+function buildPendingRescheduleState(
+    originalStartAt: Date,
+    awaitingParty: RescheduleAwaitingParty,
+    round: number = awaitingParty === RescheduleAwaitingParty.CANDIDATE ? 1 : 2
+) {
+    if (awaitingParty === RescheduleAwaitingParty.CANDIDATE) {
+        return {
+            rescheduleAwaitingParty: RescheduleAwaitingParty.CANDIDATE,
+            rescheduleProposalSource: RescheduleProposalSource.PROFESSIONAL,
+            rescheduleProposalSlots: buildProposalSlots(originalStartAt, [22 * 60, 25 * 60 + 30, 47 * 60]),
+            rescheduleProposalNote: 'Professional proposed alternate times and is awaiting candidate selection.',
+            rescheduleRound: round,
+        }
+    }
+
+    return {
+        rescheduleAwaitingParty: RescheduleAwaitingParty.PROFESSIONAL,
+        rescheduleProposalSource: RescheduleProposalSource.CANDIDATE,
+        rescheduleProposalSlots: buildProposalSlots(originalStartAt, [26 * 60, 50 * 60, 74 * 60 + 30]),
+        rescheduleProposalNote: 'Candidate shared alternate times and is awaiting professional confirmation.',
+        rescheduleRound: round,
+    }
 }
 
 function assertResumeUploadEnv() {
@@ -848,6 +891,13 @@ async function main() {
         }
 
         if (status === BookingStatus.reschedule_pending) {
+            const pendingState = buildPendingRescheduleState(
+                startAt,
+                pairIndex % 2 === 0
+                    ? RescheduleAwaitingParty.CANDIDATE
+                    : RescheduleAwaitingParty.PROFESSIONAL
+            )
+
             await prisma.booking.create({
                 data: {
                     candidateId: candidate.id,
@@ -859,6 +909,7 @@ async function main() {
                     timezone: candidate.timezone,
                     zoomMeetingId: `zoom_matrix_reschedule_${pairIndex}_${statusIndex}`,
                     zoomJoinUrl: `https://zoom.us/j/matrixreschedule${pairIndex}${statusIndex}`,
+                    ...pendingState,
                     payment: {
                         create: await buildPaymentCreateData({
                             amountGross: priceCents,
@@ -1513,6 +1564,11 @@ async function main() {
             timezone: 'America/New_York',
             zoomMeetingId: `zoom_reschedule_1`,
             zoomJoinUrl: `https://zoom.us/j/reschedule1`,
+            ...buildPendingRescheduleState(
+                new Date(baseDate.getTime() + 1 * 24 * 60 * 60 * 1000),
+                RescheduleAwaitingParty.PROFESSIONAL,
+                1
+            ),
             payment: {
                 create: await buildPaymentCreateData({
                     amountGross: 22500,
@@ -1537,6 +1593,11 @@ async function main() {
             timezone: candidateAt(0).timezone,
             zoomMeetingId: `zoom_reschedule_2`,
             zoomJoinUrl: `https://zoom.us/j/reschedule2`,
+            ...buildPendingRescheduleState(
+                new Date(baseDate.getTime() + 2 * 24 * 60 * 60 * 1000),
+                RescheduleAwaitingParty.CANDIDATE,
+                1
+            ),
             payment: {
                 create: await buildPaymentCreateData({
                     amountGross: 15000,
@@ -1548,6 +1609,35 @@ async function main() {
     })
     await createCandidateRequestAvailability(candidateAt(0), new Date(baseDate.getTime() + 3 * 24 * 60 * 60 * 1000), false)
     console.log(`✅ Created professional-requested reschedule pending booking`)
+
+    // 12. Reschedule pending booking (candidate counterproposal awaiting professional)
+    const candidateCounterRescheduleBooking = await prisma.booking.create({
+        data: {
+            candidateId: candidateAt(1).id,
+            professionalId: professionalAt(0).id,
+            status: BookingStatus.reschedule_pending,
+            priceCents: 18000,
+            startAt: new Date(baseDate.getTime() + 4 * 24 * 60 * 60 * 1000),
+            endAt: new Date(baseDate.getTime() + 4 * 24 * 60 * 60 * 1000 + 60 * 60 * 1000),
+            timezone: candidateAt(1).timezone,
+            zoomMeetingId: `zoom_reschedule_3`,
+            zoomJoinUrl: `https://zoom.us/j/reschedule3`,
+            ...buildPendingRescheduleState(
+                new Date(baseDate.getTime() + 4 * 24 * 60 * 60 * 1000),
+                RescheduleAwaitingParty.PROFESSIONAL,
+                2
+            ),
+            payment: {
+                create: await buildPaymentCreateData({
+                    amountGross: 18000,
+                    platformFee: 2700,
+                    status: PaymentStatus.held,
+                    }),
+            },
+        },
+    })
+    await createCandidateRequestAvailability(candidateAt(1), new Date(baseDate.getTime() + 5 * 24 * 60 * 60 * 1000), true)
+    console.log(`✅ Created candidate-counterproposal reschedule pending booking`)
 
     console.log('')
     console.log('Creating exhaustive booking status matrix for all candidate/professional pairs...')
@@ -1624,6 +1714,20 @@ async function main() {
                     reason: 'Professional requested a new slot due to travel overlap.',
                 }),
             },
+            {
+                actorUserId: candidateAt(1).id,
+                entity: 'Booking',
+                entityId: candidateCounterRescheduleBooking.id,
+                action: 'booking_reschedule_requested',
+                metadata: JSON.stringify({
+                    previousStatus: 'reschedule_pending',
+                    newStatus: 'reschedule_pending',
+                    requestedByRole: 'CANDIDATE',
+                    reason: 'Candidate countered the professional proposal with alternate times.',
+                    awaitingParty: 'PROFESSIONAL',
+                    round: 2,
+                }),
+            },
         ],
     })
     console.log(`✅ Created audit log entries`)
@@ -1651,7 +1755,7 @@ async function main() {
         `    - ${PENDING_FEEDBACK_BOOKINGS_PER_PROFESSIONAL} calls pending feedback (status: completed_pending_feedback)`
     )
     console.log('')
-    console.log('  Edge Cases (11 additional bookings):')
+    console.log('  Edge Cases (12 additional bookings):')
     console.log('    - 1 completed with feedback + payout (QC passed)')
     console.log('    - 1 declined by professional')
     console.log('    - 1 expired (no response)')
@@ -1663,15 +1767,16 @@ async function main() {
     console.log('    - 1 resolved dispute with refund')
     console.log('    - 1 candidate-requested reschedule pending')
     console.log('    - 1 professional-requested reschedule pending')
+    console.log('    - 1 candidate counterproposal awaiting professional')
     console.log('')
     console.log('  Exhaustive Status Matrix:')
     console.log(`    - ${candidates.length * professionals.length} candidate/professional pairs`)
     console.log(`    - ${ALL_BOOKING_STATUSES.length} statuses per pair`)
     console.log(`    - ${statusMatrixBookingCount} additional bookings`)
     console.log('')
-    console.log(`  Total bookings created: ${bookingIndex + 11 + statusMatrixBookingCount}`)
+    console.log(`  Total bookings created: ${bookingIndex + 12 + statusMatrixBookingCount}`)
     console.log('  Availability slots: 14 days for each candidate + request/reschedule candidate slots')
-    console.log('  Audit log entries: 6')
+    console.log('  Audit log entries: 7')
     console.log('')
     console.log('  Stripe PaymentIntent lifecycle:')
     console.log(`    - PaymentIntents created: ${stripeCounters.paymentIntentsCreated}`)

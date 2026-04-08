@@ -4,7 +4,11 @@ import { ProfessionalRescheduleService } from '@/lib/role/professional/reschedul
 import { Role } from '@prisma/client';
 
 const requestSchema = z.object({
-    reason: z.string().optional()
+    slots: z.array(z.object({
+        start: z.coerce.date(),
+        end: z.coerce.date(),
+    })).min(1),
+    reason: z.string().optional(),
 });
 
 export const POST = withRoleBodyContext(
@@ -17,6 +21,7 @@ export const POST = withRoleBodyContext(
             const booking = await ProfessionalRescheduleService.requestReschedule(
                 id,
                 user.id,
+                body.slots,
                 body.reason
             );
 

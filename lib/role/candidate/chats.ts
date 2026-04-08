@@ -65,6 +65,8 @@ const professionalListIdentitySelect = {
 const candidateChatPageSelect = {
     id: true,
     status: true,
+    rescheduleAwaitingParty: true,
+    rescheduleProposalSource: true,
     priceCents: true,
     startAt: true,
     endAt: true,

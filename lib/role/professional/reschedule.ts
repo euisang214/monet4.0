@@ -12,16 +12,18 @@ import { TransitionConflictError } from '@/lib/domain/bookings/errors';
 
 export const ProfessionalRescheduleService = {
     /**
-     * Request a reschedule (initiation).
+     * Submit a professional proposal round.
      */
-    async requestReschedule(bookingId: string, professionalId: string, reason?: string) {
+    async requestReschedule(
+        bookingId: string,
+        professionalId: string,
+        slots: { start: Date; end: Date }[],
+        reason?: string
+    ) {
         return requestReschedule(
             bookingId,
             { userId: professionalId, role: Role.PROFESSIONAL },
-            undefined, // no slots proposed by professional in this flow (as per CLAUDE.md flow it seems mostly candidate proposes or pro requests general)
-            // Wait, CLAUDE.md #1653: Body: { reason?: string }. No slots mentioned for Professional-initiated.
-            // But it says "Triggers resync of candidate availability."
-            // So we just transition state.
+            slots,
             reason
         );
     },
@@ -53,11 +55,19 @@ export const ProfessionalRescheduleService = {
         // Early idempotency check at the service layer to avoid unnecessary
         // DB transactions and queue jobs. The domain layer (confirmReschedule)
         // performs the same check inside the transaction for safety.
+        if (booking.status === BookingStatus.accepted && sameRequestedWindow) {
+            return booking;
+        }
+
         if (booking.status === BookingStatus.accepted) {
-            if (sameRequestedWindow) {
-                return booking;
+            const availableSlots = await ProfessionalRequestService.getBookingCandidateAvailability(bookingId, professionalId);
+            const isAllowedSlot = availableSlots.some((slot) =>
+                slot.start.getTime() === startAt.getTime() && slot.end.getTime() === endAt.getTime()
+            );
+
+            if (!isAllowedSlot) {
+                throw new TransitionConflictError('Selected time is no longer in the candidate’s current availability');
             }
-            throw new TransitionConflictError('Booking was already confirmed with a different time');
         }
 
         const oldZoomMeetingId = booking.zoomMeetingId;

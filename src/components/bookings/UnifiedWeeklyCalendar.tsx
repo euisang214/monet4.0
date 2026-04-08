@@ -16,6 +16,7 @@ import {
 } from '@/components/bookings/calendar/slot-styles';
 import {
     useUnifiedWeeklyCalendarState,
+    expandIntervalsToSlotKeys,
     type UnifiedMultiToggleState,
     type UnifiedSingleSelectState,
 } from '@/components/bookings/hooks/useUnifiedWeeklyCalendarState';
@@ -67,6 +68,10 @@ type MultiToggleProps = {
     counterpartTimezone?: string | null;
     googleBusyIntervals: SlotInterval[];
     initialSelectedSlots?: SlotInterval[];
+    referenceIntervals?: SlotInterval[];
+    referenceClassName?: string;
+    selectedClassName?: string;
+    selectedBusyOverrideClassName?: string;
     onSelectionChange: (payload: { slots: SlotInterval[]; selectedCount: number }) => void;
     header: { title: string; description: string };
     showClearAll?: boolean;
@@ -208,6 +213,10 @@ export function UnifiedWeeklyCalendar(props: UnifiedWeeklyCalendarProps) {
 
     const legends = props.legends || DEFAULT_MULTI_LEGENDS;
     const multiState = state as UnifiedMultiToggleState;
+    const referenceSlotKeys = React.useMemo(
+        () => new Set(expandIntervalsToSlotKeys(props.referenceIntervals || [])),
+        [props.referenceIntervals]
+    );
 
     return (
         <section className="space-y-4">
@@ -254,22 +263,31 @@ export function UnifiedWeeklyCalendar(props: UnifiedWeeklyCalendarProps) {
                 showProfessionalTimezoneAxis={showCounterpartTimezoneAxis}
                 renderCell={({ slotStart }) => {
                     const cell = multiState.getCellMeta(slotStart);
+                    const isReferenceSlot = referenceSlotKeys.has(cell.key);
+                    const isSelectedSlot = cell.state === 'available' || cell.state === 'google-busy-overridden';
+                    const cellClass = isReferenceSlot && !isSelectedSlot
+                        ? (props.referenceClassName || 'calendar-slot-state-candidate-available')
+                        : isSelectedSlot
+                            ? (cell.state === 'google-busy-overridden'
+                                ? (props.selectedBusyOverrideClassName || props.selectedClassName || candidateSlotStateClasses[cell.state])
+                                : (props.selectedClassName || candidateSlotStateClasses[cell.state]))
+                            : candidateSlotStateClasses[cell.state];
 
                     return (
                         <td className="calendar-slot-grid-cell">
                             <button
                                 type="button"
                                 onPointerDown={(event) => {
-                                    if (!cell.canInteract) return;
+                                    if (!cell.canInteract || isReferenceSlot) return;
                                     event.preventDefault();
                                     multiState.handleSlotPointerDown(slotStart);
                                 }}
                                 onPointerEnter={() => {
-                                    if (!cell.canInteract) return;
+                                    if (!cell.canInteract || isReferenceSlot) return;
                                     multiState.handleSlotPointerEnter(slotStart);
                                 }}
-                                className={`${baseSlotCellClasses} ${candidateSlotStateClasses[cell.state]} ${cell.canInteract ? 'cursor-pointer' : ''}`}
-                                disabled={!cell.canInteract}
+                                className={`${baseSlotCellClasses} ${cellClass} ${cell.canInteract && !isReferenceSlot ? 'cursor-pointer' : ''}`}
+                                disabled={!cell.canInteract || isReferenceSlot}
                                 title={format(slotStart, 'PPpp')}
                             />
                         </td>

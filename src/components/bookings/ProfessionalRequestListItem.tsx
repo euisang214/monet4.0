@@ -8,6 +8,7 @@ interface ProfessionalRequestListItemProps {
     booking: {
         id: string;
         status: BookingStatus;
+        rescheduleAwaitingParty?: "CANDIDATE" | "PROFESSIONAL" | null;
         priceCents: number | null;
         expiresAt: Date | null;
         candidateLabel?: string;
@@ -42,7 +43,11 @@ export function ProfessionalRequestListItem({ booking }: ProfessionalRequestList
     const href = isReschedule
         ? appRoutes.professional.requestReschedule(booking.id)
         : appRoutes.professional.requestConfirmAndSchedule(booking.id);
-    const buttonText = isReschedule ? "Review reschedule" : "Review & schedule";
+    const buttonText = isReschedule
+        ? booking.rescheduleAwaitingParty === "CANDIDATE"
+            ? "View proposal round"
+            : "Review reschedule"
+        : "Review & schedule";
     const candidateLabel =
         booking.candidateLabel
         || formatCandidateForProfessionalView({
@@ -62,7 +67,11 @@ export function ProfessionalRequestListItem({ booking }: ProfessionalRequestList
                 <div className="text-right">
                     <StatusBadge label={badgeText} variant={isReschedule ? "info" : "warning"} />
                     {isReschedule ? (
-                        <p className="text-xs text-gray-500 mt-1">Awaiting time selection</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                            {booking.rescheduleAwaitingParty === "CANDIDATE"
+                                ? "Awaiting candidate response"
+                                : "Awaiting your response"}
+                        </p>
                     ) : (
                         <p className="text-xs text-gray-500 mt-1">
                             Expires: {booking.expiresAt?.toLocaleDateString()}

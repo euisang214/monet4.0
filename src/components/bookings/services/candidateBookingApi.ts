@@ -32,6 +32,12 @@ interface RescheduleRequestArgs {
     timezone: string;
 }
 
+interface AcceptRescheduleArgs {
+    bookingId: string;
+    startAt: string;
+    endAt: string;
+}
+
 interface CancelBookingArgs {
     bookingId: string;
 }
@@ -116,6 +122,25 @@ export async function submitCandidateRescheduleRequest({
 
     const payload = (await response.json()) as ApiErrorResponse;
     throw new Error(payload?.error || 'Failed to submit reschedule request.');
+}
+
+export async function acceptCandidateRescheduleProposal({
+    bookingId,
+    startAt,
+    endAt,
+}: AcceptRescheduleArgs) {
+    const response = await fetch(appRoutes.api.candidate.bookingRescheduleAccept(bookingId), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ startAt, endAt }),
+    });
+
+    if (response.ok) {
+        return;
+    }
+
+    const payload = (await response.json().catch(() => null)) as ApiErrorResponse | null;
+    throw new Error(payload?.error || 'Failed to accept reschedule proposal.');
 }
 
 export async function cancelCandidateBooking({ bookingId }: CancelBookingArgs) {
